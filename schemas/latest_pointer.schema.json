@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/latest_pointer.schema.json",
+  "title": "Iteration 16 latest public snapshot pointer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "snapshot_path",
+    "data_commit",
+    "public_commit",
+    "target_end_date",
+    "target_window_complete"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "snapshot_path": {"type": "string", "pattern": "^snapshots/[^/]+$"},
+    "data_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "public_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "target_end_date": {"const": "2026-07-24"},
+    "target_window_complete": {"type": "boolean"}
+  }
+}
