@@ -4,6 +4,8 @@ run-name: Iteration 16 publication #${{ github.run_number }}
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "45 23 * * 1-5"
 
 permissions:
   contents: write
