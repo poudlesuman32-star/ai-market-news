@@ -14,6 +14,7 @@ class DirectScriptEntrypointTests(unittest.TestCase):
             "scripts/build_market_manifest.py",
             "scripts/validate_market_artifact.py",
             "scripts/build_latest_pointer.py",
+            "scripts/verify_publication_transaction.py",
         )
         for script in scripts:
             with self.subTest(script=script):
