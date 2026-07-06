@@ -50,7 +50,7 @@ jobs:
           python scripts/collect_market_window.py \
             --output "$SNAPSHOT_PATH/market_prices.csv" \
             --receipt-output "$SNAPSHOT_PATH/collection_receipt.json" \
-            | tee "$SNAPSHOT_PATH/collector_output.json"
+            | tee collector_output.json
 
       - name: Validate CSV contract
         run: |
