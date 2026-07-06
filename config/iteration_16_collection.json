@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "iteration-16-market-source-v1",
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "collection_start_date": "2026-05-29",
+  "contract_start_on_or_before": "2026-05-30",
+  "target_end_date": "2026-07-24",
+  "calendar": "XNYS",
+  "timezone": "America/New_York",
+  "regular_session_only": true,
+  "corporate_action_adjusted": true,
+  "synthetic_prices_allowed": false,
+  "source_data_modified": false,
+  "incomplete_window_allowed_before_target_end": true,
+  "required_csv_fields": [
+    "canonical_ticker",
+    "session_date",
+    "adjusted_open",
+    "adjusted_high",
+    "adjusted_low",
+    "adjusted_close",
+    "volume",
+    "source_symbol",
+    "delisting_return",
+    "corporate_action_note"
+  ],
+  "sort_order": [
+    "canonical_ticker",
+    "session_date"
+  ]
+}
