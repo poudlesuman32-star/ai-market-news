@@ -1,0 +1,163 @@
+name: Collect Iteration 16 Market Preview
+
+run-name: Iteration 16 manual preview #${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iteration-16-manual-preview
+  cancel-in-progress: false
+
+jobs:
+  collect-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      SNAPSHOT_PATH: snapshots/manual-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Record start time
+        run: echo "START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Compile Python modules
+        run: |
+          python -m compileall -q scripts tests
+
+      - name: Run unit tests
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: Collect live preview data
+        run: |
+          mkdir -p "$SNAPSHOT_PATH"
+          python scripts/collect_market_window.py \
+            --output "$SNAPSHOT_PATH/market_prices.csv" \
+            --receipt-output "$SNAPSHOT_PATH/collection_receipt.json" \
+            | tee collector_output.json
+
+      - name: Validate CSV contract
+        run: |
+          TODAY_NY="$(TZ=America/New_York date +%F)"
+          python scripts/validate_market_contract.py \
+            --csv "$SNAPSHOT_PATH/market_prices.csv" \
+            --today "$TODAY_NY"
+
+      - name: Create local preview data commit
+        run: |
+          git config user.name "github-actions-preview"
+          git config user.email "github-actions-preview@users.noreply.github.com"
+          git checkout --detach
+          git add "$SNAPSHOT_PATH/market_prices.csv" "$SNAPSHOT_PATH/collection_receipt.json"
+          git commit -m "preview: Iteration 16 data commit"
+          DATA_COMMIT="$(git rev-parse HEAD)"
+          echo "DATA_COMMIT=$DATA_COMMIT" >> "$GITHUB_ENV"
+
+      - name: Build manifest
+        run: |
+          TODAY_NY="$(TZ=America/New_York date +%F)"
+          python scripts/build_market_manifest.py \
+            --data-file "$SNAPSHOT_PATH/market_prices.csv" \
+            --data-file-path "$SNAPSHOT_PATH/market_prices.csv" \
+            --provider-name "Yahoo Finance chart API" \
+            --source-repository "$GITHUB_REPOSITORY" \
+            --source-commit-sha "$DATA_COMMIT" \
+            --output "$SNAPSHOT_PATH/market_artifact_manifest.json" \
+            --notes "Manual GitHub Actions preview; not published to the data branch." \
+            --today "$TODAY_NY"
+
+      - name: Validate manifest contract
+        run: |
+          TODAY_NY="$(TZ=America/New_York date +%F)"
+          python scripts/validate_market_contract.py \
+            --manifest "$SNAPSHOT_PATH/market_artifact_manifest.json" \
+            --market-root . \
+            --today "$TODAY_NY"
+
+      - name: Create local preview manifest commit
+        run: |
+          git add "$SNAPSHOT_PATH/market_artifact_manifest.json"
+          git commit -m "preview: Iteration 16 manifest commit"
+          PUBLIC_COMMIT="$(git rev-parse HEAD)"
+          echo "PUBLIC_COMMIT=$PUBLIC_COMMIT" >> "$GITHUB_ENV"
+
+      - name: Validate immutable preview artifact
+        run: |
+          TODAY_NY="$(TZ=America/New_York date +%F)"
+          python scripts/validate_market_artifact.py \
+            --repository-root . \
+            --snapshot-path "$SNAPSHOT_PATH" \
+            --data-commit "$DATA_COMMIT" \
+            --public-commit "$PUBLIC_COMMIT" \
+            --today "$TODAY_NY"
+
+      - name: Build run report
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import os
+          import time
+          from pathlib import Path
+
+          snapshot = Path(os.environ["SNAPSHOT_PATH"])
+          receipt = json.loads((snapshot / "collection_receipt.json").read_text(encoding="utf-8"))
+          with (snapshot / "market_prices.csv").open(newline="", encoding="utf-8") as handle:
+              rows = list(csv.DictReader(handle))
+          keys = [(row["canonical_ticker"], row["session_date"]) for row in rows]
+          duplicate_count = len(keys) - len(set(keys))
+          report = {
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "source_commit": os.environ["GITHUB_SHA"],
+              "data_commit": os.environ["DATA_COMMIT"],
+              "public_commit": os.environ["PUBLIC_COMMIT"],
+              "runtime_seconds": int(time.time()) - int(os.environ["START_EPOCH"]),
+              "api_request_count": receipt["request_count"],
+              "row_count": receipt["row_count"],
+              "symbol_count": receipt["symbol_count"],
+              "actual_start_date": receipt["actual_start_date"],
+              "actual_end_date": receipt["actual_end_date"],
+              "actual_end_date_all_symbols": receipt["actual_end_date_all_symbols"],
+              "duplicate_count": duplicate_count,
+              "target_window_complete": receipt["target_window_complete"],
+              "validation_result": "passed",
+              "published_to_repository": False,
+          }
+          (snapshot / "run_report.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          summary = [
+              "## Iteration 16 manual preview",
+              "",
+              "| Metric | Value |",
+              "|---|---:|",
+          ]
+          summary.extend(f"| {key} | {value} |" for key, value in report.items())
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text("\n".join(summary) + "\n", encoding="utf-8")
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - name: Upload validated preview artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: iteration-16-market-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.SNAPSHOT_PATH }}
+          if-no-files-found: error
+          retention-days: 3
