@@ -1,0 +1,2 @@
+canonical_ticker,session_date,adjusted_open,adjusted_high,adjusted_low,adjusted_close,volume,source_symbol,delisting_return,corporate_action_note
+WDC,2026-05-29,55,57,54,56,7000000,WDC,,invalid fixture
