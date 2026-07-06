@@ -15,9 +15,11 @@ class PublishingWorkflowSafetyTests(unittest.TestCase):
         cls.workflow_lower = cls.workflow.lower()
         cls.publisher_lower = cls.publisher.lower()
 
-    def test_manual_trigger_only(self):
+    def test_controlled_manual_and_weekday_schedule_triggers(self):
         self.assertIn("workflow_dispatch:", self.workflow)
-        self.assertNotIn("schedule:", self.workflow_lower)
+        self.assertIn("schedule:", self.workflow)
+        self.assertIn('cron: "45 23 * * 1-5"', self.workflow)
+        self.assertEqual(self.workflow_lower.count("cron:"), 1)
         self.assertNotIn("pull_request:", self.workflow_lower)
         self.assertNotIn("\n  push:", self.workflow_lower)
 
@@ -27,6 +29,10 @@ class PublishingWorkflowSafetyTests(unittest.TestCase):
         self.assertIn("DATA_BRANCH: iteration-16-market-data", self.workflow)
         self.assertNotIn("secrets.", self.combined.lower())
         self.assertNotIn("contents: read", self.workflow)
+
+    def test_concurrency_serializes_scheduled_and_manual_publications(self):
+        self.assertIn("group: iteration-16-market-publication", self.workflow)
+        self.assertIn("cancel-in-progress: false", self.workflow)
 
     def test_unique_same_day_snapshot_ids(self):
         self.assertIn("%Y-%m-%dT%H%M%SZ", self.publisher)
