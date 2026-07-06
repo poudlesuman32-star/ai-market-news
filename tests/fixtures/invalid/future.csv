@@ -1,0 +1,2 @@
+canonical_ticker,session_date,adjusted_open,adjusted_high,adjusted_low,adjusted_close,volume,source_symbol,delisting_return,corporate_action_note
+VRT,2026-07-06,130,134,128,133,9000000,VRT,,invalid fixture

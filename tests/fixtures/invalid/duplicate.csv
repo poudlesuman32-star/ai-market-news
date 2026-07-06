@@ -1,0 +1,3 @@
+canonical_ticker,session_date,adjusted_open,adjusted_high,adjusted_low,adjusted_close,volume,source_symbol,delisting_return,corporate_action_note
+BE,2026-05-29,20,21,19,20.5,1000000,BE,,invalid fixture
+BE,2026-05-29,20,21,19,20.5,1000000,BE,,invalid fixture

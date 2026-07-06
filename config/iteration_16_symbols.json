@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "iteration-16-market-source-v1",
+  "benchmark_ticker": "SPY",
+  "canonical_tickers": [
+    "BE",
+    "CAR",
+    "GEV",
+    "INTC",
+    "MU",
+    "NVDA",
+    "PLTR",
+    "POWL",
+    "SNDK",
+    "VRT"
+  ],
+  "required_symbols": [
+    "BE",
+    "CAR",
+    "GEV",
+    "INTC",
+    "MU",
+    "NVDA",
+    "PLTR",
+    "POWL",
+    "SNDK",
+    "SPY",
+    "VRT"
+  ],
+  "forbidden_substitutions": [
+    {
+      "canonical_ticker": "SNDK",
+      "forbidden_source_symbol": "WDC"
+    }
+  ],
+  "cross_ticker_substitution_allowed": false
+}

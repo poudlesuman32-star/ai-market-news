@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/market_price.schema.json",
+  "title": "Iteration 16 adjusted market-price row",
+  "description": "A normalized CSV row represented as JSON for schema validation. Cross-field equality and OHLC invariants are enforced by the public validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "canonical_ticker",
+    "session_date",
+    "adjusted_open",
+    "adjusted_high",
+    "adjusted_low",
+    "adjusted_close",
+    "volume",
+    "source_symbol",
+    "delisting_return",
+    "corporate_action_note"
+  ],
+  "properties": {
+    "canonical_ticker": {
+      "type": "string",
+      "enum": ["BE", "CAR", "GEV", "INTC", "MU", "NVDA", "PLTR", "POWL", "SNDK", "SPY", "VRT"]
+    },
+    "session_date": {"type": "string", "format": "date"},
+    "adjusted_open": {"type": "number", "exclusiveMinimum": 0},
+    "adjusted_high": {"type": "number", "exclusiveMinimum": 0},
+    "adjusted_low": {"type": "number", "exclusiveMinimum": 0},
+    "adjusted_close": {"type": "number", "exclusiveMinimum": 0},
+    "volume": {"type": ["integer", "null"], "minimum": 0},
+    "source_symbol": {
+      "type": "string",
+      "enum": ["BE", "CAR", "GEV", "INTC", "MU", "NVDA", "PLTR", "POWL", "SNDK", "SPY", "VRT"]
+    },
+    "delisting_return": {"type": "null"},
+    "corporate_action_note": {"type": ["string", "null"], "maxLength": 1000}
+  }
+}

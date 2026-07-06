@@ -1,0 +1,12 @@
+canonical_ticker,session_date,adjusted_open,adjusted_high,adjusted_low,adjusted_close,volume,source_symbol,delisting_return,corporate_action_note
+BE,2026-05-29,20,21,19,20.5,1000000,BE,,provider_adjustment_factor=1;method=test_fixture
+CAR,2026-05-29,160,165,158,162,500000,CAR,,provider_adjustment_factor=1;method=test_fixture
+GEV,2026-05-29,500,510,495,505,2000000,GEV,,provider_adjustment_factor=1;method=test_fixture
+INTC,2026-05-29,25,26,24.5,25.5,30000000,INTC,,provider_adjustment_factor=1;method=test_fixture
+MU,2026-05-29,150,154,148,152,15000000,MU,,provider_adjustment_factor=1;method=test_fixture
+NVDA,2026-05-29,175,179,173,178,120000000,NVDA,,provider_adjustment_factor=1;method=test_fixture
+PLTR,2026-05-29,140,145,138,143,60000000,PLTR,,provider_adjustment_factor=1;method=test_fixture
+POWL,2026-05-29,220,226,217,224,800000,POWL,,provider_adjustment_factor=1;method=test_fixture
+SNDK,2026-05-29,55,57,54,56,7000000,SNDK,,provider_adjustment_factor=1;method=test_fixture
+SPY,2026-05-29,610,614,607,612,70000000,SPY,,provider_adjustment_factor=1;method=test_fixture
+VRT,2026-05-29,130,134,128,133,9000000,VRT,,provider_adjustment_factor=1;method=test_fixture
