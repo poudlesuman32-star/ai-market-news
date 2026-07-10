@@ -12,6 +12,7 @@
   "publication_authorized": false,
   "contents_write_permission_authorized": false,
   "schedule_authorized": false,
+  "provider_network_calls_authorized": false,
   "secrets_authorized": false,
   "external_writes_authorized": false
 }
