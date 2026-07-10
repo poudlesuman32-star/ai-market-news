@@ -1,18 +1,74 @@
 {
-  "schema_version": "1.1.0",
-  "stage": "PPI-R5",
-  "phase": "manual_preview",
-  "required_successful_runs": 5,
-  "successful_runs_recorded": 0,
-  "successful_runs": [],
-  "gate_satisfied": false,
-  "review_approved": false,
-  "approved_by": null,
   "approved_at_utc": null,
-  "publication_authorized": false,
+  "approved_by": null,
   "contents_write_permission_authorized": false,
-  "schedule_authorized": false,
+  "external_writes_authorized": false,
+  "gate_satisfied": true,
+  "phase": "manual_preview",
   "provider_network_calls_authorized": false,
+  "publication_authorized": false,
+  "required_successful_runs": 5,
+  "review_approved": false,
+  "schedule_authorized": false,
+  "schema_version": "1.1.0",
   "secrets_authorized": false,
-  "external_writes_authorized": false
+  "stage": "PPI-R5",
+  "successful_runs": [
+    {
+      "accepted_event_count": 4,
+      "artifact_bundle_sha256": "ace8561abd44a96d4ccc877294b962d30b828b9d866173c0c4ff8094358c8e55",
+      "collection_mode": "fixture",
+      "recorded_at_utc": "2026-07-10T23:50:37Z",
+      "run_id": "preview-29130711515-1",
+      "source_commit": "6583ab18075f628c0741e13be5cf26afdfb326fc",
+      "ticker_count": 3,
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "29130711515"
+    },
+    {
+      "accepted_event_count": 4,
+      "artifact_bundle_sha256": "23adadde707ad043d21c6f178ca7532145c0859e3aa5e89a6f6d0b370c31c9f6",
+      "collection_mode": "fixture",
+      "recorded_at_utc": "2026-07-10T23:50:37Z",
+      "run_id": "preview-29130737304-1",
+      "source_commit": "6583ab18075f628c0741e13be5cf26afdfb326fc",
+      "ticker_count": 3,
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "29130737304"
+    },
+    {
+      "accepted_event_count": 4,
+      "artifact_bundle_sha256": "301e41093d4d741a6d2e1924913d743afa3f4b90ea3c15afabead39cf16b61d7",
+      "collection_mode": "fixture",
+      "recorded_at_utc": "2026-07-10T23:50:37Z",
+      "run_id": "preview-29130753965-1",
+      "source_commit": "6583ab18075f628c0741e13be5cf26afdfb326fc",
+      "ticker_count": 3,
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "29130753965"
+    },
+    {
+      "accepted_event_count": 4,
+      "artifact_bundle_sha256": "6842dc6caef942998137f8ee2c9405aa9ad3c843688acd027408fb45d844d5d3",
+      "collection_mode": "fixture",
+      "recorded_at_utc": "2026-07-10T23:50:37Z",
+      "run_id": "preview-29130771467-1",
+      "source_commit": "6583ab18075f628c0741e13be5cf26afdfb326fc",
+      "ticker_count": 3,
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "29130771467"
+    },
+    {
+      "accepted_event_count": 4,
+      "artifact_bundle_sha256": "2ae55c7c7680b6887e1b70c75169e37b5a07335040e9c38ef24d0e73be8dd261",
+      "collection_mode": "fixture",
+      "recorded_at_utc": "2026-07-10T23:50:37Z",
+      "run_id": "preview-29130788662-1",
+      "source_commit": "6583ab18075f628c0741e13be5cf26afdfb326fc",
+      "ticker_count": 3,
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "29130788662"
+    }
+  ],
+  "successful_runs_recorded": 5
 }
