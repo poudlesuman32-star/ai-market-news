@@ -1,16 +1,30 @@
-# PPI public news collectors
+# PPI public news pipeline
 
-This namespace contains the public-only news collection foundation for PPI.
+This namespace contains the public-only news collection and deterministic transformation foundation for PPI.
 
-## Implemented in this gate
+## Implemented
 
 - Fixture-driven SEC filing collector
 - Fixture-driven official company-release collector
-- Deterministic SHA-256 record, event, duplicate-group, and source identifiers
+- Canonical URL normalization with tracking-parameter removal
+- Deterministic cross-provider duplicate grouping
+- Stable SHA-256 record, event, duplicate-group, and source identifiers
+- Deterministic catalyst tagging
+- Deterministic AI-infrastructure-layer tagging
 - Hardened closed public news-record schema
-- Duplicate provider-identity rejection
-- HTTPS, ticker, timestamp, and text validation
+- Duplicate provider-identity and duplicate record-ID rejection
+- HTTPS, ticker, timestamp, text, synthetic-content, and modified-content validation
+- Byte-identical output when source-file order changes
 - Read-only pull-request and manual CI
+
+## Deduplication hierarchy
+
+1. SEC accession number
+2. Matching provider article identity
+3. Canonical URL
+4. Source hash
+5. Normalized headline within the controlled timestamp window
+6. Deterministic cross-provider event group
 
 ## Intentionally disabled
 
@@ -29,4 +43,4 @@ This namespace contains the public-only news collection foundation for PPI.
 - Candidate promotion
 - Trading
 
-The next gate may add reviewed live adapters and provider-failure handling. Commercial providers remain blocked until endpoint access and redistribution terms are confirmed.
+The next gate should add reviewed live primary-source adapters and a manual preview workflow. Commercial providers remain blocked until endpoint access and redistribution terms are confirmed.
