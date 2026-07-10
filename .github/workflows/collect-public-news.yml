@@ -27,6 +27,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Initialize run metrics
+        run: echo "START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Compile preview modules
         run: |
           python -m py_compile \
@@ -38,26 +41,38 @@ jobs:
             news/src/ai_market_news/tag_catalysts.py \
             news/src/ai_market_news/tag_infrastructure_layers.py \
             news/src/ai_market_news/transform_news.py \
-            news/src/ai_market_news/build_preview_artifacts.py
+            news/src/ai_market_news/build_preview_artifacts.py \
+            news/src/ai_market_news/preview_gate.py \
+            news/src/ai_market_news/build_news_manifest.py \
+            news/src/ai_market_news/build_news_latest_pointer.py \
+            news/src/ai_market_news/verify_news_publication_transaction.py
 
       - name: Run public news tests
         env:
           PYTHONPATH: news/src
         run: python -m unittest discover -s news/tests -p "test_*.py" -v
 
+      - name: Validate current preview gate
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.preview_gate validate \
+            --gate news/config/public_news_preview_gate.json
+
       - name: Collect fixture primary sources
         env:
           PYTHONPATH: news/src
         run: |
           mkdir -p preview/input preview/artifacts
+          COLLECTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           python -m ai_market_news.collect_sec \
             --input news/tests/fixtures/sec_filings.json \
             --output preview/input/sec.jsonl \
-            --collected-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --collected-at "$COLLECTED_AT"
           python -m ai_market_news.collect_company_releases \
             --input news/tests/fixtures/company_releases.json \
             --output preview/input/company.jsonl \
-            --collected-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --collected-at "$COLLECTED_AT"
 
       - name: Normalize, deduplicate, and tag
         env:
@@ -72,6 +87,10 @@ jobs:
         env:
           PYTHONPATH: news/src
         run: |
+          RAW_COUNT=$(($(wc -l < preview/input/sec.jsonl) + $(wc -l < preview/input/company.jsonl)))
+          NORMALIZED_COUNT=$(wc -l < preview/artifacts/news.jsonl)
+          DUPLICATE_COUNT=$((RAW_COUNT - NORMALIZED_COUNT))
+          RUNTIME_SECONDS=$(($(date +%s) - START_EPOCH))
           python -m ai_market_news.build_preview_artifacts \
             --news preview/artifacts/news.jsonl \
             --receipt-output preview/artifacts/collection_receipt.json \
@@ -79,11 +98,30 @@ jobs:
             --report-output preview/artifacts/run_report.json \
             --source-commit "${GITHUB_SHA}" \
             --run-id "preview-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --collection-mode fixture \
+            --workflow-event "${GITHUB_EVENT_NAME}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" \
+            --workflow-run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --runtime-seconds "$RUNTIME_SECONDS" \
+            --raw-event-count "$RAW_COUNT" \
+            --normalized-event-count "$NORMALIZED_COUNT" \
+            --duplicate-count "$DUPLICATE_COUNT" \
+            --provider-failures-json '[]'
           test -s preview/artifacts/news.jsonl
           test -s preview/artifacts/collection_receipt.json
           test -s preview/artifacts/news_manifest.preview.json
           test -s preview/artifacts/run_report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("preview/artifacts/run_report.json").read_text(encoding="utf-8"))
+          assert report["workflow_event"] == "workflow_dispatch"
+          assert report["this_run_qualifies"] is True
+          assert report["published_to_repository"] is False
+          assert report["provider_failures"] == []
+          PY
 
       - name: Upload preview artifacts
         uses: actions/upload-artifact@v4

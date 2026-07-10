@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "news/**"
+      - "scripts/publish_public_news_snapshot.sh"
       - ".github/workflows/public-news-collectors.yml"
       - ".github/workflows/collect-public-news.yml"
   workflow_dispatch:
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate fixture pipeline and manual preview gate
+    name: Validate fixture pipeline and R5 operational gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,12 +44,29 @@ jobs:
             news/src/ai_market_news/tag_catalysts.py \
             news/src/ai_market_news/tag_infrastructure_layers.py \
             news/src/ai_market_news/transform_news.py \
-            news/src/ai_market_news/build_preview_artifacts.py
+            news/src/ai_market_news/build_preview_artifacts.py \
+            news/src/ai_market_news/preview_gate.py \
+            news/src/ai_market_news/build_news_manifest.py \
+            news/src/ai_market_news/build_news_latest_pointer.py \
+            news/src/ai_market_news/verify_news_publication_transaction.py
+          bash -n scripts/publish_public_news_snapshot.sh
 
       - name: Run public news tests
         env:
           PYTHONPATH: news/src
         run: python -m unittest discover -s news/tests -p "test_*.py" -v
+
+      - name: Validate current preview gate
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.preview_gate validate \
+            --gate news/config/public_news_preview_gate.json
+          if python -m ai_market_news.preview_gate require-publication \
+            --gate news/config/public_news_preview_gate.json; then
+            echo "Unreviewed branch unexpectedly authorized publication." >&2
+            exit 1
+          fi
 
       - name: Run deterministic fixture preview
         env:
@@ -80,7 +98,16 @@ jobs:
             --report-output public-news-preview/run_report.json \
             --source-commit 0000000000000000000000000000000000000000 \
             --run-id ci-preview \
-            --generated-at 2026-07-10T18:00:00Z
+            --generated-at 2026-07-10T18:00:00Z \
+            --collection-mode fixture \
+            --workflow-event workflow_dispatch \
+            --workflow-run-id 1 \
+            --workflow-run-attempt 1 \
+            --runtime-seconds 1 \
+            --raw-event-count 4 \
+            --normalized-event-count 4 \
+            --duplicate-count 0 \
+            --provider-failures-json '[]'
           python - <<'PY'
           import json
           from pathlib import Path
@@ -91,6 +118,8 @@ jobs:
           assert all(row["synthetic_content_used"] is False for row in rows)
           assert all(row["source_content_modified"] is False for row in rows)
           assert report["publication_enabled"] is False
+          assert report["published_to_repository"] is False
+          assert report["this_run_qualifies"] is True
           assert report["required_successful_preview_runs"] == 5
           PY
 
@@ -99,12 +128,14 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          text = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
-          forbidden = (
-              "secrets" + ".",
-              "sche" + "dule:",
-              "contents:" + " write",
-          )
-          for value in forbidden:
-              assert value not in text, f"forbidden workflow capability: {value}"
+          validation = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
+          preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
+          publisher = Path("scripts/publish_public_news_snapshot.sh").read_text(encoding="utf-8")
+          for text in (validation, preview):
+              for value in ("secrets" + ".", "sche" + "dule:", "contents:" + " write"):
+                  assert value not in text, f"forbidden workflow capability: {value}"
+          assert "public-news-data" not in preview
+          assert "require-publication" in publisher
+          assert publisher.count('git -C "$PUBLISH_ROOT" push') == 1
+          assert "iteration-16-market-data" not in publisher
           PY

@@ -63,21 +63,56 @@ def build_preview_artifacts(
     run_id: str,
     generated_at_utc: str,
     collection_mode: str,
+    workflow_event: str = "workflow_dispatch",
+    workflow_run_id: str = "1",
+    workflow_run_attempt: str = "1",
+    runtime_seconds: int = 0,
+    sec_request_count: int = 0,
+    company_request_count: int = 0,
+    polygon_request_count: int = 0,
+    finnhub_request_count: int = 0,
+    raw_event_count: int | None = None,
+    normalized_event_count: int | None = None,
+    duplicate_count: int = 0,
+    rejected_event_count: int = 0,
+    provider_failures: list[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     require(source_repository == "poudlesuman32-star/ai-market-news", "unexpected source repository")
     require(COMMIT_RE.fullmatch(source_commit) is not None, "source_commit must be a 40-character SHA")
     require(bool(run_id.strip()), "run_id is required")
-    require(collection_mode == "fixture", "only fixture preview collection is authorized in this gate")
+    require(collection_mode in {"fixture", "live_primary_sources"}, "unsupported preview collection mode")
+    require(workflow_event == "workflow_dispatch", "only workflow_dispatch preview runs are supported")
+    require(str(workflow_run_id).isdigit() and int(workflow_run_id) > 0, "workflow_run_id must be a positive integer")
+    require(str(workflow_run_attempt).isdigit() and int(workflow_run_attempt) > 0, "workflow_run_attempt must be a positive integer")
+    for name, value in (
+        ("runtime_seconds", runtime_seconds),
+        ("sec_request_count", sec_request_count),
+        ("company_request_count", company_request_count),
+        ("polygon_request_count", polygon_request_count),
+        ("finnhub_request_count", finnhub_request_count),
+        ("duplicate_count", duplicate_count),
+        ("rejected_event_count", rejected_event_count),
+    ):
+        require(int(value) >= 0, f"{name} cannot be negative")
 
+    failures = sorted(set(provider_failures or []))
     records = load_news(news_path)
     providers = sorted({str(record["provider"]) for record in records})
+    provider_counts = {
+        provider: sum(1 for record in records if str(record["provider"]) == provider)
+        for provider in providers
+    }
     tickers = sorted({str(record["ticker"]) for record in records})
     event_ids = {str(record["event_id"]) for record in records}
     published = sorted(str(record["published_at_utc"]) for record in records)
     dataset_hash = sha256_file(news_path)
+    raw_count = len(records) if raw_event_count is None else int(raw_event_count)
+    normalized_count = len(records) if normalized_event_count is None else int(normalized_event_count)
+    require(raw_count >= len(records), "raw_event_count cannot be less than accepted records")
+    require(normalized_count >= len(records), "normalized_event_count cannot be less than accepted records")
 
     receipt = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "run_id": run_id,
         "collection_mode": collection_mode,
         "source_repository": source_repository,
@@ -87,16 +122,24 @@ def build_preview_artifacts(
         "record_count": len(records),
         "event_count": len(event_ids),
         "provider_count": len(providers),
+        "provider_counts": provider_counts,
         "providers": providers,
         "tickers": tickers,
         "input_file": "news.jsonl",
         "dataset_sha256": dataset_hash,
+        "request_counts": {
+            "sec": int(sec_request_count),
+            "official_company_sources": int(company_request_count),
+            "polygon": int(polygon_request_count),
+            "finnhub": int(finnhub_request_count),
+        },
+        "provider_failures": failures,
         "synthetic_content_used": False,
         "source_content_modified": False,
         "private_content_excluded": True,
     }
     manifest = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "publication_status": "preview_only",
         "snapshot_path": f"snapshots/{run_id}",
         "source_repository": source_repository,
@@ -109,26 +152,47 @@ def build_preview_artifacts(
         "event_count": len(event_ids),
         "ticker_count": len(tickers),
         "provider_count": len(providers),
+        "provider_counts": provider_counts,
         "earliest_publication_utc": published[0] if published else None,
         "latest_publication_utc": published[-1] if published else None,
         "synthetic_content_used": False,
         "source_content_modified": False,
         "private_content_excluded": True,
     }
+    qualifies = bool(records) and not failures and rejected_event_count == 0
     report = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "stage": "PPI-R5",
         "phase": "manual_preview",
         "run_id": run_id,
+        "workflow_run_id": str(workflow_run_id),
+        "workflow_run_attempt": str(workflow_run_attempt),
+        "workflow_event": workflow_event,
+        "source_commit": source_commit,
+        "collection_mode": collection_mode,
         "success": True,
-        "this_run_qualifies": True,
+        "this_run_qualifies": qualifies,
+        "runtime_seconds": int(runtime_seconds),
+        "sec_request_count": int(sec_request_count),
+        "company_request_count": int(company_request_count),
+        "polygon_request_count": int(polygon_request_count),
+        "finnhub_request_count": int(finnhub_request_count),
+        "raw_event_count": raw_count,
+        "normalized_event_count": normalized_count,
+        "duplicate_count": int(duplicate_count),
+        "accepted_event_count": len(records),
+        "rejected_event_count": int(rejected_event_count),
+        "ticker_count": len(tickers),
+        "provider_failures": failures,
+        "validation_result": "passed",
         "required_successful_preview_runs": 5,
         "publication_enabled": False,
         "contents_write_permission_authorized": False,
         "schedule_enabled": False,
-        "provider_network_calls_enabled": False,
+        "provider_network_calls_enabled": collection_mode == "live_primary_sources",
         "secrets_required": False,
         "external_writes_enabled": False,
+        "published_to_repository": False,
         "artifact_retention_days": 3,
         "required_artifacts": [
             "news.jsonl",
@@ -150,8 +214,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--generated-at", required=True)
-    parser.add_argument("--collection-mode", default="fixture")
+    parser.add_argument("--collection-mode", choices=["fixture", "live_primary_sources"], default="fixture")
+    parser.add_argument("--workflow-event", default="workflow_dispatch")
+    parser.add_argument("--workflow-run-id", required=True)
+    parser.add_argument("--workflow-run-attempt", required=True)
+    parser.add_argument("--runtime-seconds", type=int, default=0)
+    parser.add_argument("--sec-request-count", type=int, default=0)
+    parser.add_argument("--company-request-count", type=int, default=0)
+    parser.add_argument("--polygon-request-count", type=int, default=0)
+    parser.add_argument("--finnhub-request-count", type=int, default=0)
+    parser.add_argument("--raw-event-count", type=int)
+    parser.add_argument("--normalized-event-count", type=int)
+    parser.add_argument("--duplicate-count", type=int, default=0)
+    parser.add_argument("--rejected-event-count", type=int, default=0)
+    parser.add_argument("--provider-failures-json", default="[]")
     args = parser.parse_args(argv)
+
+    try:
+        failures = json.loads(args.provider_failures_json)
+    except json.JSONDecodeError as exc:
+        raise CollectorError(f"invalid provider failures JSON: {exc}") from exc
+    require(isinstance(failures, list) and all(isinstance(item, str) for item in failures), "provider failures must be a JSON string list")
 
     receipt, manifest, report = build_preview_artifacts(
         news_path=args.news,
@@ -160,6 +243,19 @@ def main(argv: list[str] | None = None) -> int:
         run_id=args.run_id,
         generated_at_utc=args.generated_at,
         collection_mode=args.collection_mode,
+        workflow_event=args.workflow_event,
+        workflow_run_id=args.workflow_run_id,
+        workflow_run_attempt=args.workflow_run_attempt,
+        runtime_seconds=args.runtime_seconds,
+        sec_request_count=args.sec_request_count,
+        company_request_count=args.company_request_count,
+        polygon_request_count=args.polygon_request_count,
+        finnhub_request_count=args.finnhub_request_count,
+        raw_event_count=args.raw_event_count,
+        normalized_event_count=args.normalized_event_count,
+        duplicate_count=args.duplicate_count,
+        rejected_event_count=args.rejected_event_count,
+        provider_failures=failures,
     )
     write_json(args.receipt_output, receipt)
     write_json(args.manifest_output, manifest)
