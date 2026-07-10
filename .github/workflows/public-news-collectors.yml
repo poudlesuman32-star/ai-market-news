@@ -61,6 +61,15 @@ jobs:
 
       - name: Confirm safety boundary
         run: |
-          ! grep -R "secrets\." .github/workflows/public-news-collectors.yml
-          ! grep -R "schedule:" .github/workflows/public-news-collectors.yml
-          ! grep -R "contents: write" .github/workflows/public-news-collectors.yml
+          python - <<'PY'
+          from pathlib import Path
+
+          text = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
+          forbidden = (
+              "secrets" + ".",
+              "sche" + "dule:",
+              "contents:" + " write",
+          )
+          for value in forbidden:
+              assert value not in text, f"forbidden workflow capability: {value}"
+          PY
