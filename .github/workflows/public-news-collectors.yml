@@ -1,4 +1,4 @@
-name: PPI public news collectors
+name: PPI public news pipeline
 
 on:
   pull_request:
@@ -12,12 +12,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ppi-public-news-collectors-${{ github.ref }}
+  group: ppi-public-news-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate:
-    name: Validate fixture-driven public news collectors
+    name: Validate fixture-driven collection and transformation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,19 +31,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile collector modules
+      - name: Compile public news modules
         run: |
           python -m py_compile \
             news/src/ai_market_news/collector_common.py \
             news/src/ai_market_news/collect_sec.py \
-            news/src/ai_market_news/collect_company_releases.py
+            news/src/ai_market_news/collect_company_releases.py \
+            news/src/ai_market_news/normalize_news.py \
+            news/src/ai_market_news/deduplicate_news.py \
+            news/src/ai_market_news/tag_catalysts.py \
+            news/src/ai_market_news/tag_infrastructure_layers.py \
+            news/src/ai_market_news/transform_news.py
 
-      - name: Run collector tests
+      - name: Run public news tests
         env:
           PYTHONPATH: news/src
         run: python -m unittest discover -s news/tests -p "test_*.py" -v
 
-      - name: Run controlled fixture collection
+      - name: Run deterministic fixture pipeline
         env:
           PYTHONPATH: news/src
         run: |
@@ -56,8 +61,25 @@ jobs:
             --input news/tests/fixtures/company_releases.json \
             --output public-news-preview/company.jsonl \
             --collected-at 2026-07-10T18:00:00Z
-          test "$(wc -l < public-news-preview/sec.jsonl)" -eq 2
-          test "$(wc -l < public-news-preview/company.jsonl)" -eq 2
+          python -m ai_market_news.transform_news \
+            --input public-news-preview/sec.jsonl \
+            --input public-news-preview/company.jsonl \
+            --output public-news-preview/news.jsonl
+          python -m ai_market_news.transform_news \
+            --input public-news-preview/company.jsonl \
+            --input public-news-preview/sec.jsonl \
+            --output public-news-preview/news-reversed.jsonl
+          test "$(wc -l < public-news-preview/news.jsonl)" -eq 4
+          cmp public-news-preview/news.jsonl public-news-preview/news-reversed.jsonl
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = [json.loads(line) for line in Path("public-news-preview/news.jsonl").read_text(encoding="utf-8").splitlines()]
+          assert all(row["validation"] == "transformed_valid" for row in rows)
+          assert all(row["synthetic_content_used"] is False for row in rows)
+          assert all(row["source_content_modified"] is False for row in rows)
+          PY
 
       - name: Confirm safety boundary
         run: |
