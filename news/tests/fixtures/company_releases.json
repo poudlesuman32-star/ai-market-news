@@ -1,0 +1,22 @@
+{
+  "releases": [
+    {
+      "release_id": "nvda-ir-20260709-capacity-update",
+      "ticker": "NVDA",
+      "published_at_utc": "2026-07-09T14:00:00Z",
+      "source_url": "https://investor.nvidia.com/news-and-events/news/press-release-details/2026/capacity-update/default.aspx",
+      "source_name": "NVIDIA Investor Relations",
+      "headline": "NVIDIA announces a new capacity expansion update",
+      "summary": "NVIDIA published an official company release describing planned capacity expansion."
+    },
+    {
+      "release_id": "mu-ir-20260709-pricing-update",
+      "ticker": "MU",
+      "published_at_utc": "2026-07-09T15:15:00Z",
+      "source_url": "https://investors.micron.com/news-releases/news-release-details/2026/pricing-update/default.aspx",
+      "source_name": "Micron Investor Relations",
+      "headline": "Micron publishes a pricing and demand update",
+      "summary": "Micron published an official release covering pricing and demand conditions."
+    }
+  ]
+}

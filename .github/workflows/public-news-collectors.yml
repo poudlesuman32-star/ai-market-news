@@ -1,0 +1,75 @@
+name: PPI public news collectors
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "news/**"
+      - ".github/workflows/public-news-collectors.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-public-news-collectors-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate fixture-driven public news collectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile collector modules
+        run: |
+          python -m py_compile \
+            news/src/ai_market_news/collector_common.py \
+            news/src/ai_market_news/collect_sec.py \
+            news/src/ai_market_news/collect_company_releases.py
+
+      - name: Run collector tests
+        env:
+          PYTHONPATH: news/src
+        run: python -m unittest discover -s news/tests -p "test_*.py" -v
+
+      - name: Run controlled fixture collection
+        env:
+          PYTHONPATH: news/src
+        run: |
+          mkdir -p public-news-preview
+          python -m ai_market_news.collect_sec \
+            --input news/tests/fixtures/sec_filings.json \
+            --output public-news-preview/sec.jsonl \
+            --collected-at 2026-07-10T18:00:00Z
+          python -m ai_market_news.collect_company_releases \
+            --input news/tests/fixtures/company_releases.json \
+            --output public-news-preview/company.jsonl \
+            --collected-at 2026-07-10T18:00:00Z
+          test "$(wc -l < public-news-preview/sec.jsonl)" -eq 2
+          test "$(wc -l < public-news-preview/company.jsonl)" -eq 2
+
+      - name: Confirm safety boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          text = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
+          forbidden = (
+              "secrets" + ".",
+              "sche" + "dule:",
+              "contents:" + " write",
+          )
+          for value in forbidden:
+              assert value not in text, f"forbidden workflow capability: {value}"
+          PY
