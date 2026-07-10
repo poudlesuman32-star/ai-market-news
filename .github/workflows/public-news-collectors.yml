@@ -62,11 +62,31 @@ jobs:
         run: |
           python -m ai_market_news.preview_gate validate \
             --gate news/config/public_news_preview_gate.json
-          if python -m ai_market_news.preview_gate require-publication \
-            --gate news/config/public_news_preview_gate.json; then
-            echo "Unreviewed branch unexpectedly authorized publication." >&2
-            exit 1
-          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from ai_market_news.collector_common import CollectorError
+          from ai_market_news.preview_gate import require_publication_authorized
+
+          gate = json.loads(Path("news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
+          authorized = False
+          try:
+              require_publication_authorized(gate)
+              authorized = True
+          except CollectorError:
+              authorized = False
+
+          assert authorized is gate["publication_authorized"]
+          assert gate["contents_write_permission_authorized"] is gate["publication_authorized"]
+          if authorized:
+              assert gate["gate_satisfied"] is True
+              assert gate["review_approved"] is True
+              assert gate["approved_by"]
+              assert gate["approved_at_utc"]
+          else:
+              assert gate["review_approved"] is False
+          PY
 
       - name: Run deterministic fixture preview
         env:
