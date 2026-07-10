@@ -94,15 +94,15 @@ def git(root: Path, *args: str) -> str:
 
 
 class PublicNewsOperationalGateTests(unittest.TestCase):
-    def test_current_gate_is_valid_satisfied_and_still_blocks_publication(self) -> None:
+    def test_current_gate_is_valid_satisfied_and_authorizes_publication(self) -> None:
         gate = current_gate()
         validate_gate(gate)
         self.assertEqual(gate["successful_runs_recorded"], 5)
         self.assertTrue(gate["gate_satisfied"])
-        self.assertFalse(gate["review_approved"])
-        self.assertFalse(gate["publication_authorized"])
-        with self.assertRaisesRegex(CollectorError, "publication is not authorized"):
-            require_publication_authorized(gate)
+        self.assertTrue(gate["review_approved"])
+        self.assertTrue(gate["publication_authorized"])
+        self.assertTrue(gate["contents_write_permission_authorized"])
+        require_publication_authorized(gate)
 
     def test_five_unique_runs_require_separate_review_approval(self) -> None:
         gate = empty_gate()
