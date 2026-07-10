@@ -74,14 +74,29 @@ class PublicNewsPreviewTests(unittest.TestCase):
                     collection_mode="fixture",
                 )
 
-    def test_preview_gate_requires_five_recorded_successes(self) -> None:
+    def test_preview_gate_has_five_unique_recorded_successes_but_is_not_approved(self) -> None:
         gate = json.loads((ROOT / "news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
         self.assertEqual(gate["required_successful_runs"], 5)
-        self.assertEqual(gate["successful_runs_recorded"], 0)
-        self.assertFalse(gate["gate_satisfied"])
+        self.assertEqual(gate["successful_runs_recorded"], 5)
+        self.assertEqual(len(gate["successful_runs"]), 5)
+        self.assertTrue(gate["gate_satisfied"])
+        self.assertFalse(gate["review_approved"])
+        self.assertIsNone(gate["approved_by"])
+        self.assertIsNone(gate["approved_at_utc"])
         self.assertFalse(gate["publication_authorized"])
         self.assertFalse(gate["contents_write_permission_authorized"])
         self.assertFalse(gate["schedule_authorized"])
+        run_keys = {
+            (run["workflow_run_id"], run["workflow_run_attempt"])
+            for run in gate["successful_runs"]
+        }
+        artifact_hashes = {
+            run["artifact_bundle_sha256"]
+            for run in gate["successful_runs"]
+        }
+        self.assertEqual(len(run_keys), 5)
+        self.assertEqual(len(artifact_hashes), 5)
+        self.assertTrue(all(run["accepted_event_count"] > 0 for run in gate["successful_runs"]))
 
     def test_manual_preview_workflow_is_read_only(self) -> None:
         workflow = (ROOT / ".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
