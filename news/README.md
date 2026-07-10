@@ -1,6 +1,6 @@
 # PPI public news pipeline
 
-This namespace contains the public-only news collection and deterministic transformation foundation for PPI.
+This namespace contains the public-only news collection, deterministic transformation, and manual preview foundation for PPI.
 
 ## Implemented
 
@@ -15,7 +15,21 @@ This namespace contains the public-only news collection and deterministic transf
 - Duplicate provider-identity and duplicate record-ID rejection
 - HTTPS, ticker, timestamp, text, synthetic-content, and modified-content validation
 - Byte-identical output when source-file order changes
-- Read-only pull-request and manual CI
+- Manual `workflow_dispatch` preview workflow
+- Read-only repository permission for preview
+- Three-day preview-artifact retention
+- Preview receipt, manifest, run report, and transformed `news.jsonl`
+
+## Manual preview gate
+
+- Required successful runs: 5
+- Successful runs currently recorded: 0
+- Publication authorized: no
+- Repository write permission authorized: no
+- Schedule authorized: no
+- Provider network calls authorized: no
+
+The preview workflow must complete five reviewed successful runs before immutable publication can be proposed.
 
 ## Deduplication hierarchy
 
@@ -43,4 +57,4 @@ This namespace contains the public-only news collection and deterministic transf
 - Candidate promotion
 - Trading
 
-The next gate should add reviewed live primary-source adapters and a manual preview workflow. Commercial providers remain blocked until endpoint access and redistribution terms are confirmed.
+Commercial providers remain blocked until endpoint access and redistribution terms are confirmed.

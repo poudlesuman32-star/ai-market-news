@@ -6,6 +6,7 @@ on:
     paths:
       - "news/**"
       - ".github/workflows/public-news-collectors.yml"
+      - ".github/workflows/collect-public-news.yml"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate fixture-driven collection and transformation
+    name: Validate fixture pipeline and manual preview gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -41,14 +42,15 @@ jobs:
             news/src/ai_market_news/deduplicate_news.py \
             news/src/ai_market_news/tag_catalysts.py \
             news/src/ai_market_news/tag_infrastructure_layers.py \
-            news/src/ai_market_news/transform_news.py
+            news/src/ai_market_news/transform_news.py \
+            news/src/ai_market_news/build_preview_artifacts.py
 
       - name: Run public news tests
         env:
           PYTHONPATH: news/src
         run: python -m unittest discover -s news/tests -p "test_*.py" -v
 
-      - name: Run deterministic fixture pipeline
+      - name: Run deterministic fixture preview
         env:
           PYTHONPATH: news/src
         run: |
@@ -71,17 +73,28 @@ jobs:
             --output public-news-preview/news-reversed.jsonl
           test "$(wc -l < public-news-preview/news.jsonl)" -eq 4
           cmp public-news-preview/news.jsonl public-news-preview/news-reversed.jsonl
+          python -m ai_market_news.build_preview_artifacts \
+            --news public-news-preview/news.jsonl \
+            --receipt-output public-news-preview/collection_receipt.json \
+            --manifest-output public-news-preview/news_manifest.preview.json \
+            --report-output public-news-preview/run_report.json \
+            --source-commit 0000000000000000000000000000000000000000 \
+            --run-id ci-preview \
+            --generated-at 2026-07-10T18:00:00Z
           python - <<'PY'
           import json
           from pathlib import Path
 
           rows = [json.loads(line) for line in Path("public-news-preview/news.jsonl").read_text(encoding="utf-8").splitlines()]
+          report = json.loads(Path("public-news-preview/run_report.json").read_text(encoding="utf-8"))
           assert all(row["validation"] == "transformed_valid" for row in rows)
           assert all(row["synthetic_content_used"] is False for row in rows)
           assert all(row["source_content_modified"] is False for row in rows)
+          assert report["publication_enabled"] is False
+          assert report["required_successful_preview_runs"] == 5
           PY
 
-      - name: Confirm safety boundary
+      - name: Confirm validation workflow safety boundary
         run: |
           python - <<'PY'
           from pathlib import Path

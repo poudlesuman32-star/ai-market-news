@@ -1,0 +1,94 @@
+name: PPI public news manual preview
+run-name: Public news preview #${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-public-news-manual-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Build public news preview artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile preview modules
+        run: |
+          python -m py_compile \
+            news/src/ai_market_news/collector_common.py \
+            news/src/ai_market_news/collect_sec.py \
+            news/src/ai_market_news/collect_company_releases.py \
+            news/src/ai_market_news/normalize_news.py \
+            news/src/ai_market_news/deduplicate_news.py \
+            news/src/ai_market_news/tag_catalysts.py \
+            news/src/ai_market_news/tag_infrastructure_layers.py \
+            news/src/ai_market_news/transform_news.py \
+            news/src/ai_market_news/build_preview_artifacts.py
+
+      - name: Run public news tests
+        env:
+          PYTHONPATH: news/src
+        run: python -m unittest discover -s news/tests -p "test_*.py" -v
+
+      - name: Collect fixture primary sources
+        env:
+          PYTHONPATH: news/src
+        run: |
+          mkdir -p preview/input preview/artifacts
+          python -m ai_market_news.collect_sec \
+            --input news/tests/fixtures/sec_filings.json \
+            --output preview/input/sec.jsonl \
+            --collected-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python -m ai_market_news.collect_company_releases \
+            --input news/tests/fixtures/company_releases.json \
+            --output preview/input/company.jsonl \
+            --collected-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Normalize, deduplicate, and tag
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.transform_news \
+            --input preview/input/sec.jsonl \
+            --input preview/input/company.jsonl \
+            --output preview/artifacts/news.jsonl
+
+      - name: Build preview evidence
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.build_preview_artifacts \
+            --news preview/artifacts/news.jsonl \
+            --receipt-output preview/artifacts/collection_receipt.json \
+            --manifest-output preview/artifacts/news_manifest.preview.json \
+            --report-output preview/artifacts/run_report.json \
+            --source-commit "${GITHUB_SHA}" \
+            --run-id "preview-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          test -s preview/artifacts/news.jsonl
+          test -s preview/artifacts/collection_receipt.json
+          test -s preview/artifacts/news_manifest.preview.json
+          test -s preview/artifacts/run_report.json
+
+      - name: Upload preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-public-news-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: preview/artifacts/
+          retention-days: 3
+          if-no-files-found: error
