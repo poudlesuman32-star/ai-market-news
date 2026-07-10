@@ -1,14 +1,17 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "stage": "PPI-R5",
   "phase": "manual_preview",
   "required_successful_runs": 5,
   "successful_runs_recorded": 0,
+  "successful_runs": [],
   "gate_satisfied": false,
+  "review_approved": false,
+  "approved_by": null,
+  "approved_at_utc": null,
   "publication_authorized": false,
   "contents_write_permission_authorized": false,
   "schedule_authorized": false,
-  "provider_network_calls_authorized": false,
   "secrets_authorized": false,
   "external_writes_authorized": false
 }
