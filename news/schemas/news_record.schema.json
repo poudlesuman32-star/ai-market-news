@@ -44,7 +44,7 @@
     "ai_infrastructure_layers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "primary_source": {"type": "boolean"},
     "duplicate_group_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "validation": {"const": "collected_untransformed"},
+    "validation": {"enum": ["collected_untransformed", "transformed_valid"]},
     "provider": {"type": "string", "minLength": 1, "maxLength": 80},
     "provider_article_id": {"type": "string", "minLength": 1, "maxLength": 200},
     "source_ticker": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]{0,14}$"},
