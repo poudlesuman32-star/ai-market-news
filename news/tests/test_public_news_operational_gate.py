@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import subprocess
@@ -25,6 +24,7 @@ from ai_market_news.preview_gate import (
 from ai_market_news.transform_news import transform_records
 from ai_market_news.verify_news_publication_transaction import verify_transaction
 
+
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 COLLECTED_AT = "2026-07-10T18:00:00Z"
@@ -41,8 +41,29 @@ def transformed_records() -> list[dict]:
     return transform_records([normalize_record(record) for record in sec + company])
 
 
-def initial_gate() -> dict:
+def current_gate() -> dict:
     return json.loads((ROOT / "news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
+
+
+def empty_gate() -> dict:
+    return {
+        "schema_version": "1.1.0",
+        "stage": "PPI-R5",
+        "phase": "manual_preview",
+        "required_successful_runs": 5,
+        "successful_runs_recorded": 0,
+        "successful_runs": [],
+        "gate_satisfied": False,
+        "review_approved": False,
+        "approved_by": None,
+        "approved_at_utc": None,
+        "publication_authorized": False,
+        "contents_write_permission_authorized": False,
+        "schedule_authorized": False,
+        "provider_network_calls_authorized": False,
+        "secrets_authorized": False,
+        "external_writes_authorized": False,
+    }
 
 
 def write_preview_bundle(root: Path, *, run_number: int) -> dict:
@@ -73,16 +94,18 @@ def git(root: Path, *args: str) -> str:
 
 
 class PublicNewsOperationalGateTests(unittest.TestCase):
-    def test_current_gate_is_valid_and_blocks_publication(self) -> None:
-        gate = initial_gate()
+    def test_current_gate_is_valid_satisfied_and_still_blocks_publication(self) -> None:
+        gate = current_gate()
         validate_gate(gate)
-        self.assertFalse(gate["gate_satisfied"])
+        self.assertEqual(gate["successful_runs_recorded"], 5)
+        self.assertTrue(gate["gate_satisfied"])
         self.assertFalse(gate["review_approved"])
+        self.assertFalse(gate["publication_authorized"])
         with self.assertRaisesRegex(CollectorError, "publication is not authorized"):
             require_publication_authorized(gate)
 
     def test_five_unique_runs_require_separate_review_approval(self) -> None:
-        gate = initial_gate()
+        gate = empty_gate()
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for run_number in range(1, 6):
@@ -108,7 +131,7 @@ class PublicNewsOperationalGateTests(unittest.TestCase):
         require_publication_authorized(approved)
 
     def test_duplicate_run_or_artifact_bundle_cannot_count_twice(self) -> None:
-        gate = initial_gate()
+        gate = empty_gate()
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             report = write_preview_bundle(root, run_number=1)
@@ -130,8 +153,7 @@ class PublicNewsOperationalGateTests(unittest.TestCase):
     def test_manifest_and_pointer_bind_exact_commits(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            report = write_preview_bundle(root, run_number=1)
-            del report
+            write_preview_bundle(root, run_number=1)
             data_commit = "b" * 40
             manifest = build_news_manifest(
                 news_path=root / "news.jsonl",
