@@ -78,6 +78,7 @@ def collect_sec_live(
     fetcher: Callable[..., tuple[dict[str, Any], int]] = fetch_json,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     require(bool(user_agent.strip()), "SEC live collection requires a declared user agent")
+    require("@" in user_agent, "SEC user agent must include a contact email")
     require(1 <= lookback_days <= 30, "lookback_days must be between 1 and 30")
     forms, companies = validate_config(config)
     collected_at = parse_utc(collected_at_utc)
@@ -100,7 +101,9 @@ def collect_sec_live(
                 rate_limiter=limiter,
             )
             request_count += attempts
-            recent = payload.get("filings", {}).get("recent")
+            filings = payload.get("filings")
+            require(isinstance(filings, dict), "SEC submissions response is missing filings")
+            recent = filings.get("recent")
             require(isinstance(recent, dict), "SEC submissions response is missing filings.recent")
             accessions = recent.get("accessionNumber")
             require(isinstance(accessions, list), "SEC submissions response is missing accession numbers")
