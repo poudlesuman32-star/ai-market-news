@@ -74,18 +74,20 @@ class PublicNewsPreviewTests(unittest.TestCase):
                     collection_mode="fixture",
                 )
 
-    def test_preview_gate_has_five_unique_recorded_successes_but_is_not_approved(self) -> None:
+    def test_preview_gate_has_five_unique_runs_and_separate_approval(self) -> None:
         gate = json.loads((ROOT / "news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
         self.assertEqual(gate["required_successful_runs"], 5)
         self.assertEqual(gate["successful_runs_recorded"], 5)
         self.assertEqual(len(gate["successful_runs"]), 5)
         self.assertTrue(gate["gate_satisfied"])
-        self.assertFalse(gate["review_approved"])
-        self.assertIsNone(gate["approved_by"])
-        self.assertIsNone(gate["approved_at_utc"])
-        self.assertFalse(gate["publication_authorized"])
-        self.assertFalse(gate["contents_write_permission_authorized"])
+        self.assertTrue(gate["review_approved"])
+        self.assertEqual(gate["approved_by"], "poudlesuman32-star")
+        self.assertIsNotNone(gate["approved_at_utc"])
+        self.assertTrue(gate["publication_authorized"])
+        self.assertTrue(gate["contents_write_permission_authorized"])
         self.assertFalse(gate["schedule_authorized"])
+        self.assertFalse(gate["secrets_authorized"])
+        self.assertFalse(gate["external_writes_authorized"])
         run_keys = {
             (run["workflow_run_id"], run["workflow_run_attempt"])
             for run in gate["successful_runs"]
