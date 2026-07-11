@@ -34,11 +34,14 @@ Configured SEC companies:
 - MU — CIK `0000723125`
 - NVDA — CIK `0001045810`
 
-Configured official feeds:
+Active official feeds:
 
 - Apple Newsroom
-- Micron Investor Relations
 - NVIDIA Newsroom
+
+Explicitly disabled official feeds:
+
+- Micron Investor Relations — the configured endpoint exhausted all bounded read-timeout retries during reviewed live run `29138091476`. MU remains covered by the allowlisted SEC submissions collector. Re-enabling the feed requires a separate reviewed endpoint-health run with zero failures.
 
 Runtime controls:
 
@@ -49,6 +52,7 @@ Runtime controls:
 - no official article-page download;
 - source-provided feed summaries only;
 - provider failures remain explicit and make a live preview non-qualifying;
+- disabled sources remain explicit and must retain an active reviewed coverage path;
 - no repository write, schedule, private-repository access, scoring, promotion, or trading.
 
 A live preview must produce at least one accepted event and zero provider failures before it qualifies for review. It does not publish automatically.

@@ -10,20 +10,21 @@
       ]
     },
     {
-      "ticker": "MU",
-      "source_name": "Micron Investor Relations",
-      "feed_url": "https://investors.micron.com/rss/news-releases.xml?items=25",
-      "allowed_hosts": [
-        "micron.com"
-      ]
-    },
-    {
       "ticker": "NVDA",
       "source_name": "NVIDIA Newsroom",
       "feed_url": "https://nvidianews.nvidia.com/rss.xml",
       "allowed_hosts": [
         "nvidia.com"
       ]
+    }
+  ],
+  "disabled_sources": [
+    {
+      "ticker": "MU",
+      "source_name": "Micron Investor Relations",
+      "feed_url": "https://investors.micron.com/rss/news-releases.xml?items=25",
+      "reason": "Endpoint exhausted bounded read-timeout retries during reviewed live run 29138091476; MU remains covered by the allowlisted SEC submissions collector.",
+      "re_enable_requires": "A separate reviewed endpoint-health run with zero failures."
     }
   ]
 }
