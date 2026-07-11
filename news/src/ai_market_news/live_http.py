@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import ssl
 import time
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
@@ -80,6 +81,7 @@ def fetch_bytes(
 ) -> HttpResult:
     validate_request_url(url, allowed_hosts)
     require(bool(user_agent.strip()), "a declared user agent is required")
+    require(timeout_seconds > 0, "timeout_seconds must be positive")
     require(max_bytes > 0, "max_bytes must be positive")
     require(0 <= retries <= 5, "retries must be between 0 and 5")
 
@@ -115,9 +117,9 @@ def fetch_bytes(
             if exc.code not in RETRYABLE_STATUS or attempt == retries:
                 raise CollectorError(f"HTTP {exc.code} while fetching allowlisted primary source") from exc
             time.sleep(retry_delay(exc, attempt))
-        except URLError as exc:
+        except (URLError, TimeoutError, ssl.SSLError) as exc:
             if attempt == retries:
-                raise CollectorError("network error while fetching allowlisted primary source") from exc
+                raise CollectorError("network timeout or transport error while fetching allowlisted primary source") from exc
             time.sleep(min(2.0 ** attempt, 8.0))
 
     raise CollectorError("primary-source request exhausted retries")
