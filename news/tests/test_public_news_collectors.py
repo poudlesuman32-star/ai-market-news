@@ -84,19 +84,31 @@ class PublicNewsCollectorTests(unittest.TestCase):
         with self.assertRaisesRegex(CollectorError, "duplicate company release ID"):
             collect_company_release_fixture(payload, collected_at_utc=COLLECTED_AT)
 
-    def test_live_modes_are_not_authorized(self) -> None:
+    def test_live_modes_require_reviewed_config_and_user_agents(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "out.jsonl"
-            with self.assertRaisesRegex(CollectorError, "live SEC collection is not authorized"):
+            with self.assertRaisesRegex(CollectorError, "live SEC collection requires --config"):
                 sec_main([
-                    "--input", str(FIXTURES / "sec_filings.json"),
                     "--output", str(output),
                     "--collected-at", COLLECTED_AT,
                     "--mode", "live",
                 ])
-            with self.assertRaisesRegex(CollectorError, "live company-source collection is not authorized"):
+            with self.assertRaisesRegex(CollectorError, "live company collection requires --config"):
                 company_main([
-                    "--input", str(FIXTURES / "company_releases.json"),
+                    "--output", str(output),
+                    "--collected-at", COLLECTED_AT,
+                    "--mode", "live",
+                ])
+            with self.assertRaisesRegex(CollectorError, "declared user agent"):
+                sec_main([
+                    "--config", str(ROOT / "news/config/sec_companies.json"),
+                    "--output", str(output),
+                    "--collected-at", COLLECTED_AT,
+                    "--mode", "live",
+                ])
+            with self.assertRaisesRegex(CollectorError, "requires a user agent"):
+                company_main([
+                    "--config", str(ROOT / "news/config/official_company_sources.json"),
                     "--output", str(output),
                     "--collected-at", COLLECTED_AT,
                     "--mode", "live",

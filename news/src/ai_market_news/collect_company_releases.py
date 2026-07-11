@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
-from .collector_common import CollectorError, build_public_record, load_json_object, require, write_jsonl
+from .collector_common import build_public_record, load_json_object, require, write_jsonl
+from .company_feed_adapter import collect_company_feeds_live
 
 
 def collect_company_release_fixture(payload: dict[str, Any], *, collected_at_utc: str) -> list[dict[str, Any]]:
@@ -46,19 +48,48 @@ def collect_company_release_fixture(payload: dict[str, Any], *, collected_at_utc
     return records
 
 
+def write_metrics(path: Path | None, value: dict[str, Any]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Collect official company news from a controlled fixture")
-    parser.add_argument("--input", type=Path, required=True)
+    parser = argparse.ArgumentParser(description="Collect official company release metadata")
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--config", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--metrics-output", type=Path)
     parser.add_argument("--collected-at", required=True)
     parser.add_argument("--mode", choices=["fixture", "live"], default="fixture")
+    parser.add_argument("--user-agent", default="")
+    parser.add_argument("--lookback-days", type=int, default=7)
     args = parser.parse_args(argv)
 
-    if args.mode != "fixture":
-        raise CollectorError("live company-source collection is not authorized in this gate")
+    if args.mode == "fixture":
+        require(args.input is not None, "fixture company collection requires --input")
+        records = collect_company_release_fixture(load_json_object(args.input), collected_at_utc=args.collected_at)
+        metrics = {
+            "schema_version": "1.0.0",
+            "provider": "official_company_source",
+            "request_count": 0,
+            "configured_source_count": 0,
+            "record_count": len(records),
+            "failures": [],
+            "article_pages_fetched": False,
+        }
+    else:
+        require(args.config is not None, "live company collection requires --config")
+        records, metrics = collect_company_feeds_live(
+            load_json_object(args.config),
+            collected_at_utc=args.collected_at,
+            user_agent=args.user_agent,
+            lookback_days=args.lookback_days,
+        )
 
-    records = collect_company_release_fixture(load_json_object(args.input), collected_at_utc=args.collected_at)
     write_jsonl(records, args.output)
+    write_metrics(args.metrics_output, metrics)
     return 0
 
 

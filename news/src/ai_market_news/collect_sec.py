@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
 from .collector_common import CollectorError, build_public_record, load_json_object, require, write_jsonl
+from .sec_adapter import collect_sec_live
 
 
 def collect_sec_fixture(payload: dict[str, Any], *, collected_at_utc: str) -> list[dict[str, Any]]:
@@ -48,19 +50,48 @@ def collect_sec_fixture(payload: dict[str, Any], *, collected_at_utc: str) -> li
     return records
 
 
+def write_metrics(path: Path | None, value: dict[str, Any]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Collect public SEC filing news from a controlled fixture")
-    parser.add_argument("--input", type=Path, required=True)
+    parser = argparse.ArgumentParser(description="Collect public SEC filing metadata")
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--config", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--metrics-output", type=Path)
     parser.add_argument("--collected-at", required=True)
     parser.add_argument("--mode", choices=["fixture", "live"], default="fixture")
+    parser.add_argument("--user-agent", default="")
+    parser.add_argument("--lookback-days", type=int, default=7)
     args = parser.parse_args(argv)
 
-    if args.mode != "fixture":
-        raise CollectorError("live SEC collection is not authorized in this gate")
+    if args.mode == "fixture":
+        require(args.input is not None, "fixture SEC collection requires --input")
+        records = collect_sec_fixture(load_json_object(args.input), collected_at_utc=args.collected_at)
+        metrics = {
+            "schema_version": "1.0.0",
+            "provider": "sec_edgar",
+            "request_count": 0,
+            "configured_source_count": 0,
+            "record_count": len(records),
+            "failures": [],
+            "full_document_content_fetched": False,
+        }
+    else:
+        require(args.config is not None, "live SEC collection requires --config")
+        records, metrics = collect_sec_live(
+            load_json_object(args.config),
+            collected_at_utc=args.collected_at,
+            user_agent=args.user_agent,
+            lookback_days=args.lookback_days,
+        )
 
-    records = collect_sec_fixture(load_json_object(args.input), collected_at_utc=args.collected_at)
     write_jsonl(records, args.output)
+    write_metrics(args.metrics_output, metrics)
     return 0
 
 

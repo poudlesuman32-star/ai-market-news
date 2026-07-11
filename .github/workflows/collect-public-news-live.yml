@@ -1,0 +1,178 @@
+name: PPI public news live primary-source preview
+run-name: Live public news preview #${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      sec_user_agent:
+        description: Declared SEC user agent with organization name and contact email
+        required: true
+        type: string
+      lookback_days:
+        description: Number of calendar days to inspect, from 1 through 30
+        required: true
+        default: "7"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-public-news-live-primary-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Collect reviewed live SEC and official-company metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate manual inputs
+        env:
+          SEC_USER_AGENT: ${{ inputs.sec_user_agent }}
+          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+        run: |
+          test -n "$SEC_USER_AGENT"
+          case "$SEC_USER_AGENT" in
+            *@*) ;;
+            *) echo "SEC user agent must contain a contact email" >&2; exit 1 ;;
+          esac
+          python - <<'PY'
+          import os
+          value = int(os.environ["LOOKBACK_DAYS"])
+          assert 1 <= value <= 30
+          PY
+
+      - name: Compile live collector modules
+        run: |
+          python -m py_compile \
+            news/src/ai_market_news/collector_common.py \
+            news/src/ai_market_news/live_http.py \
+            news/src/ai_market_news/sec_adapter.py \
+            news/src/ai_market_news/company_feed_adapter.py \
+            news/src/ai_market_news/collect_sec.py \
+            news/src/ai_market_news/collect_company_releases.py \
+            news/src/ai_market_news/normalize_news.py \
+            news/src/ai_market_news/deduplicate_news.py \
+            news/src/ai_market_news/tag_catalysts.py \
+            news/src/ai_market_news/tag_infrastructure_layers.py \
+            news/src/ai_market_news/transform_news.py \
+            news/src/ai_market_news/build_preview_artifacts.py
+
+      - name: Run complete public-news test suite
+        env:
+          PYTHONPATH: news/src
+        run: python -m unittest discover -s news/tests -p "test_*.py" -v
+
+      - name: Collect allowlisted live primary sources
+        env:
+          PYTHONPATH: news/src
+          SEC_USER_AGENT: ${{ inputs.sec_user_agent }}
+          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+        run: |
+          mkdir -p live-preview/input live-preview/metrics live-preview/artifacts
+          echo "START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+          COLLECTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "COLLECTED_AT=$COLLECTED_AT" >> "$GITHUB_ENV"
+          python -m ai_market_news.collect_sec \
+            --mode live \
+            --config news/config/sec_companies.json \
+            --output live-preview/input/sec.jsonl \
+            --metrics-output live-preview/metrics/sec.json \
+            --collected-at "$COLLECTED_AT" \
+            --user-agent "$SEC_USER_AGENT" \
+            --lookback-days "$LOOKBACK_DAYS"
+          python -m ai_market_news.collect_company_releases \
+            --mode live \
+            --config news/config/official_company_sources.json \
+            --output live-preview/input/company.jsonl \
+            --metrics-output live-preview/metrics/company.json \
+            --collected-at "$COLLECTED_AT" \
+            --user-agent "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)" \
+            --lookback-days "$LOOKBACK_DAYS"
+
+      - name: Normalize, deduplicate, and tag
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.transform_news \
+            --input live-preview/input/sec.jsonl \
+            --input live-preview/input/company.jsonl \
+            --output live-preview/artifacts/news.jsonl
+
+      - name: Load provider metrics
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          from pathlib import Path
+
+          sec = json.loads(Path("live-preview/metrics/sec.json").read_text(encoding="utf-8"))
+          company = json.loads(Path("live-preview/metrics/company.json").read_text(encoding="utf-8"))
+          failures = sorted(set(sec["failures"] + company["failures"]))
+          print(f"SEC_REQUEST_COUNT={int(sec['request_count'])}")
+          print(f"COMPANY_REQUEST_COUNT={int(company['request_count'])}")
+          print("PROVIDER_FAILURES_JSON=" + json.dumps(failures, separators=(",", ":")))
+          PY
+
+      - name: Build live preview evidence
+        env:
+          PYTHONPATH: news/src
+        run: |
+          RAW_COUNT=$(($(wc -l < live-preview/input/sec.jsonl) + $(wc -l < live-preview/input/company.jsonl)))
+          NORMALIZED_COUNT=$(wc -l < live-preview/artifacts/news.jsonl)
+          DUPLICATE_COUNT=$((RAW_COUNT - NORMALIZED_COUNT))
+          RUNTIME_SECONDS=$(($(date +%s) - START_EPOCH))
+          python -m ai_market_news.build_preview_artifacts \
+            --news live-preview/artifacts/news.jsonl \
+            --receipt-output live-preview/artifacts/collection_receipt.json \
+            --manifest-output live-preview/artifacts/news_manifest.preview.json \
+            --report-output live-preview/artifacts/run_report.json \
+            --source-commit "${GITHUB_SHA}" \
+            --run-id "live-preview-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --collection-mode live_primary_sources \
+            --workflow-event "${GITHUB_EVENT_NAME}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" \
+            --workflow-run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --runtime-seconds "$RUNTIME_SECONDS" \
+            --sec-request-count "$SEC_REQUEST_COUNT" \
+            --company-request-count "$COMPANY_REQUEST_COUNT" \
+            --raw-event-count "$RAW_COUNT" \
+            --normalized-event-count "$NORMALIZED_COUNT" \
+            --duplicate-count "$DUPLICATE_COUNT" \
+            --provider-failures-json "$PROVIDER_FAILURES_JSON"
+
+      - name: Upload reviewed live preview evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-public-news-live-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: live-preview/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Require a qualifying live preview
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("live-preview/artifacts/run_report.json").read_text(encoding="utf-8"))
+          assert report["collection_mode"] == "live_primary_sources"
+          assert report["this_run_qualifies"] is True
+          assert report["provider_network_calls_enabled"] is True
+          assert report["provider_failures"] == []
+          assert report["accepted_event_count"] > 0
+          assert report["published_to_repository"] is False
+          assert report["schedule_enabled"] is False
+          PY

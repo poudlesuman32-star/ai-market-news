@@ -8,6 +8,7 @@ on:
       - "scripts/publish_public_news_snapshot.sh"
       - ".github/workflows/public-news-collectors.yml"
       - ".github/workflows/collect-public-news.yml"
+      - ".github/workflows/collect-public-news-live.yml"
   workflow_dispatch:
 
 permissions:
@@ -19,7 +20,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate fixture pipeline and R5 operational gate
+    name: Validate fixture, live-primary, and R5 operational gates
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -37,6 +38,9 @@ jobs:
         run: |
           python -m py_compile \
             news/src/ai_market_news/collector_common.py \
+            news/src/ai_market_news/live_http.py \
+            news/src/ai_market_news/sec_adapter.py \
+            news/src/ai_market_news/company_feed_adapter.py \
             news/src/ai_market_news/collect_sec.py \
             news/src/ai_market_news/collect_company_releases.py \
             news/src/ai_market_news/normalize_news.py \
@@ -143,18 +147,23 @@ jobs:
           assert report["required_successful_preview_runs"] == 5
           PY
 
-      - name: Confirm validation workflow safety boundary
+      - name: Confirm workflow safety boundaries
         run: |
           python - <<'PY'
           from pathlib import Path
 
           validation = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
-          preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
+          fixture_preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
+          live_preview = Path(".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
           publisher = Path("scripts/publish_public_news_snapshot.sh").read_text(encoding="utf-8")
-          for text in (validation, preview):
-              for value in ("secrets" + ".", "sche" + "dule:", "contents:" + " write"):
+          for text in (validation, fixture_preview, live_preview):
+              for value in ("secrets" + ".", "sche" + "dule:", "contents:" + " write", "git " + "push"):
                   assert value not in text, f"forbidden workflow capability: {value}"
-          assert "public-news-data" not in preview
+          assert "public-news-data" not in fixture_preview
+          assert "public-news-data" not in live_preview
+          assert "live_primary_sources" in live_preview
+          assert "workflow_dispatch" in live_preview
+          assert "article_pages_fetched" not in live_preview
           assert "require-publication" in publisher
           assert publisher.count('git -C "$PUBLISH_ROOT" push') == 1
           assert "iteration-16-market-data" not in publisher
