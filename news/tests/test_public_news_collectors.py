@@ -70,6 +70,14 @@ class PublicNewsCollectorTests(unittest.TestCase):
         for record in first:
             self.assert_public_record(record)
 
+    def test_sec_live_config_includes_frequent_primary_source_coverage(self) -> None:
+        config = json.loads((ROOT / "news/config/sec_companies.json").read_text(encoding="utf-8"))
+        forms = {str(value).strip().upper() for value in config["forms"]}
+        self.assertIn("4", forms)
+        self.assertIn("8-K", forms)
+        self.assertIn("10-Q", forms)
+        self.assertIn("10-K", forms)
+
     def test_duplicate_sec_accession_fails_closed(self) -> None:
         payload = load_fixture("sec_filings.json")
         payload = copy.deepcopy(payload)
