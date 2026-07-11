@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "forms": [
+    "8-K",
+    "10-K",
+    "10-Q",
+    "6-K"
+  ],
+  "companies": [
+    {
+      "ticker": "AAPL",
+      "cik": "0000320193",
+      "company_name": "Apple Inc."
+    },
+    {
+      "ticker": "MU",
+      "cik": "0000723125",
+      "company_name": "Micron Technology, Inc."
+    },
+    {
+      "ticker": "NVDA",
+      "cik": "0001045810",
+      "company_name": "NVIDIA Corporation"
+    }
+  ]
+}
