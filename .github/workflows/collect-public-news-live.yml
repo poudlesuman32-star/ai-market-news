@@ -11,7 +11,7 @@ on:
       lookback_days:
         description: Number of calendar days to inspect, from 1 through 30
         required: true
-        default: "7"
+        default: "30"
         type: string
 
 permissions:
@@ -67,7 +67,8 @@ jobs:
             news/src/ai_market_news/tag_catalysts.py \
             news/src/ai_market_news/tag_infrastructure_layers.py \
             news/src/ai_market_news/transform_news.py \
-            news/src/ai_market_news/build_preview_artifacts.py
+            news/src/ai_market_news/build_preview_artifacts.py \
+            news/src/ai_market_news/enforce_live_preview_gate.py
 
       - name: Run complete public-news test suite
         env:
@@ -152,6 +153,14 @@ jobs:
             --duplicate-count "$DUPLICATE_COUNT" \
             --provider-failures-json "$PROVIDER_FAILURES_JSON"
 
+      - name: Enforce mixed-provider live preview gate
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.enforce_live_preview_gate \
+            --receipt live-preview/artifacts/collection_receipt.json \
+            --report live-preview/artifacts/run_report.json
+
       - name: Upload reviewed live preview evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -167,9 +176,14 @@ jobs:
           import json
           from pathlib import Path
 
+          receipt = json.loads(Path("live-preview/artifacts/collection_receipt.json").read_text(encoding="utf-8"))
           report = json.loads(Path("live-preview/artifacts/run_report.json").read_text(encoding="utf-8"))
           assert report["collection_mode"] == "live_primary_sources"
           assert report["this_run_qualifies"] is True
+          assert report["qualification_exclusion_reasons"] == []
+          assert all(report["live_primary_countability_checks"].values())
+          assert receipt["provider_counts"].get("sec_edgar", 0) > 0
+          assert receipt["provider_counts"].get("official_company_source", 0) > 0
           assert report["provider_network_calls_enabled"] is True
           assert report["provider_failures"] == []
           assert report["accepted_event_count"] > 0
