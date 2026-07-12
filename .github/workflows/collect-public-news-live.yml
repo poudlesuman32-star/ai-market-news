@@ -2,6 +2,8 @@ name: PPI public news live primary-source preview
 run-name: Live public news preview #${{ github.run_number }}
 
 on:
+  schedule:
+    - cron: "15 13 * * 1-5"
   workflow_dispatch:
     inputs:
       sec_user_agent:
@@ -26,6 +28,10 @@ jobs:
     name: Collect reviewed live SEC and official-company metadata
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SEC_USER_AGENT: ${{ github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT || inputs.sec_user_agent }}
+      LOOKBACK_DAYS: ${{ github.event_name == 'schedule' && '30' || inputs.lookback_days }}
+      SCHEDULED_LOOKBACK_DAYS: "30"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,10 +43,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate manual inputs
-        env:
-          SEC_USER_AGENT: ${{ inputs.sec_user_agent }}
-          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+      - name: Validate preview inputs
         run: |
           test -n "$SEC_USER_AGENT"
           case "$SEC_USER_AGENT" in
@@ -51,6 +54,8 @@ jobs:
           import os
           value = int(os.environ["LOOKBACK_DAYS"])
           assert 1 <= value <= 30
+          if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+              assert value == 30
           PY
 
       - name: Compile live collector modules
@@ -78,8 +83,6 @@ jobs:
       - name: Collect allowlisted live primary sources
         env:
           PYTHONPATH: news/src
-          SEC_USER_AGENT: ${{ inputs.sec_user_agent }}
-          LOOKBACK_DAYS: ${{ inputs.lookback_days }}
         run: |
           mkdir -p live-preview/input live-preview/metrics live-preview/artifacts
           echo "START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
@@ -174,11 +177,15 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           receipt = json.loads(Path("live-preview/artifacts/collection_receipt.json").read_text(encoding="utf-8"))
           report = json.loads(Path("live-preview/artifacts/run_report.json").read_text(encoding="utf-8"))
+          scheduled = os.environ["GITHUB_EVENT_NAME"] == "schedule"
           assert report["collection_mode"] == "live_primary_sources"
+          assert report["workflow_event"] == os.environ["GITHUB_EVENT_NAME"]
+          assert report["schedule_enabled"] is scheduled
           assert report["this_run_qualifies"] is True
           assert report["qualification_exclusion_reasons"] == []
           assert all(report["live_primary_countability_checks"].values())
@@ -188,5 +195,6 @@ jobs:
           assert report["provider_failures"] == []
           assert report["accepted_event_count"] > 0
           assert report["published_to_repository"] is False
-          assert report["schedule_enabled"] is False
+          assert report["publication_enabled"] is False
+          assert report["external_writes_enabled"] is False
           PY

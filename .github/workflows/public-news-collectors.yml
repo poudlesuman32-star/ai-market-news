@@ -156,9 +156,17 @@ jobs:
           fixture_preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
           live_preview = Path(".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
           publisher = Path("scripts/publish_public_news_snapshot.sh").read_text(encoding="utf-8")
-          for text in (validation, fixture_preview, live_preview):
+
+          for text in (validation, fixture_preview):
               for value in ("secrets" + ".", "sche" + "dule:", "contents:" + " write", "git " + "push"):
                   assert value not in text, f"forbidden workflow capability: {value}"
+
+          for value in ("secrets" + ".", "contents:" + " write", "git " + "push", "repository_" + "dispatch"):
+              assert value not in live_preview, f"forbidden live-preview capability: {value}"
+
+          assert 'cron: "15 13 * * 1-5"' in live_preview
+          assert "PPI_SEC_USER_AGENT" in live_preview
+          assert 'SCHEDULED_LOOKBACK_DAYS: "30"' in live_preview
           assert "public-news-data" not in fixture_preview
           assert "public-news-data" not in live_preview
           assert "live_primary_sources" in live_preview

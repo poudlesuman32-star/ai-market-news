@@ -49,6 +49,7 @@ class PublicNewsPreviewTests(unittest.TestCase):
         self.assertEqual(manifest["publication_status"], "preview_only")
         self.assertIsNone(manifest["data_commit"])
         self.assertIsNone(manifest["public_commit"])
+        self.assertEqual(report["phase"], "manual_preview")
         self.assertFalse(report["publication_enabled"])
         self.assertFalse(report["contents_write_permission_authorized"])
         self.assertFalse(report["schedule_enabled"])
@@ -57,6 +58,49 @@ class PublicNewsPreviewTests(unittest.TestCase):
         self.assertFalse(report["external_writes_enabled"])
         self.assertEqual(report["artifact_retention_days"], 3)
         self.assertEqual(report["required_successful_preview_runs"], 5)
+
+    def test_scheduled_preview_is_truthful_and_non_publishing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            news_path = Path(temporary) / "news.jsonl"
+            write_jsonl(transformed_records(), news_path)
+            _, manifest, report = build_preview_artifacts(
+                news_path=news_path,
+                source_repository="poudlesuman32-star/ai-market-news",
+                source_commit=SOURCE_COMMIT,
+                run_id="scheduled-preview-test-1",
+                generated_at_utc=COLLECTED_AT,
+                collection_mode="live_primary_sources",
+                workflow_event="schedule",
+                workflow_run_id="123",
+                workflow_run_attempt="1",
+                sec_request_count=1,
+                company_request_count=1,
+            )
+        self.assertEqual(report["phase"], "scheduled_preview")
+        self.assertEqual(report["workflow_event"], "schedule")
+        self.assertTrue(report["schedule_enabled"])
+        self.assertTrue(report["provider_network_calls_enabled"])
+        self.assertFalse(report["publication_enabled"])
+        self.assertFalse(report["published_to_repository"])
+        self.assertFalse(report["external_writes_enabled"])
+        self.assertEqual(manifest["publication_status"], "preview_only")
+        self.assertIsNone(manifest["data_commit"])
+        self.assertIsNone(manifest["public_commit"])
+
+    def test_unsupported_workflow_event_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            news_path = Path(temporary) / "news.jsonl"
+            write_jsonl(transformed_records(), news_path)
+            with self.assertRaisesRegex(CollectorError, "unsupported preview workflow event"):
+                build_preview_artifacts(
+                    news_path=news_path,
+                    source_repository="poudlesuman32-star/ai-market-news",
+                    source_commit=SOURCE_COMMIT,
+                    run_id="preview-test-event",
+                    generated_at_utc=COLLECTED_AT,
+                    collection_mode="fixture",
+                    workflow_event="push",
+                )
 
     def test_private_field_contamination_fails_closed(self) -> None:
         records = transformed_records()
@@ -88,14 +132,8 @@ class PublicNewsPreviewTests(unittest.TestCase):
         self.assertFalse(gate["schedule_authorized"])
         self.assertFalse(gate["secrets_authorized"])
         self.assertFalse(gate["external_writes_authorized"])
-        run_keys = {
-            (run["workflow_run_id"], run["workflow_run_attempt"])
-            for run in gate["successful_runs"]
-        }
-        artifact_hashes = {
-            run["artifact_bundle_sha256"]
-            for run in gate["successful_runs"]
-        }
+        run_keys = {(run["workflow_run_id"], run["workflow_run_attempt"]) for run in gate["successful_runs"]}
+        artifact_hashes = {run["artifact_bundle_sha256"] for run in gate["successful_runs"]}
         self.assertEqual(len(run_keys), 5)
         self.assertEqual(len(artifact_hashes), 5)
         self.assertTrue(all(run["accepted_event_count"] > 0 for run in gate["successful_runs"]))
@@ -116,6 +154,19 @@ class PublicNewsPreviewTests(unittest.TestCase):
         self.assertIn("collection_receipt.json", workflow)
         self.assertIn("news_manifest.preview.json", workflow)
         self.assertIn("run_report.json", workflow)
+
+    def test_live_preview_workflow_has_safe_temporary_schedule(self) -> None:
+        workflow = (ROOT / ".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
+        lowered = workflow.lower()
+        self.assertIn('cron: "15 13 * * 1-5"', workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("PPI_SEC_USER_AGENT", workflow)
+        self.assertIn('SCHEDULED_LOOKBACK_DAYS: "30"', workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertNotIn("contents: write", workflow)
+        self.assertNotIn("git push", lowered)
+        self.assertNotIn("repository_dispatch", lowered)
+        self.assertNotIn("public-news-data", workflow)
 
 
 if __name__ == "__main__":

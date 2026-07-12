@@ -23,6 +23,7 @@ FORBIDDEN_PUBLIC_FIELDS = {
     "private_evidence",
     "internal_score",
 }
+SUPPORTED_WORKFLOW_EVENTS = {"workflow_dispatch", "schedule"}
 
 
 def load_news(path: Path) -> list[dict[str, Any]]:
@@ -81,7 +82,7 @@ def build_preview_artifacts(
     require(COMMIT_RE.fullmatch(source_commit) is not None, "source_commit must be a 40-character SHA")
     require(bool(run_id.strip()), "run_id is required")
     require(collection_mode in {"fixture", "live_primary_sources"}, "unsupported preview collection mode")
-    require(workflow_event == "workflow_dispatch", "only workflow_dispatch preview runs are supported")
+    require(workflow_event in SUPPORTED_WORKFLOW_EVENTS, "unsupported preview workflow event")
     require(str(workflow_run_id).isdigit() and int(workflow_run_id) > 0, "workflow_run_id must be a positive integer")
     require(str(workflow_run_attempt).isdigit() and int(workflow_run_attempt) > 0, "workflow_run_attempt must be a positive integer")
     for name, value in (
@@ -98,10 +99,7 @@ def build_preview_artifacts(
     failures = sorted(set(provider_failures or []))
     records = load_news(news_path)
     providers = sorted({str(record["provider"]) for record in records})
-    provider_counts = {
-        provider: sum(1 for record in records if str(record["provider"]) == provider)
-        for provider in providers
-    }
+    provider_counts = {provider: sum(1 for record in records if str(record["provider"]) == provider) for provider in providers}
     tickers = sorted({str(record["ticker"]) for record in records})
     event_ids = {str(record["event_id"]) for record in records}
     published = sorted(str(record["published_at_utc"]) for record in records)
@@ -110,6 +108,7 @@ def build_preview_artifacts(
     normalized_count = len(records) if normalized_event_count is None else int(normalized_event_count)
     require(raw_count >= len(records), "raw_event_count cannot be less than accepted records")
     require(normalized_count >= len(records), "normalized_event_count cannot be less than accepted records")
+    scheduled = workflow_event == "schedule"
 
     receipt = {
         "schema_version": "1.1.0",
@@ -163,7 +162,7 @@ def build_preview_artifacts(
     report = {
         "schema_version": "1.1.0",
         "stage": "PPI-R5",
-        "phase": "manual_preview",
+        "phase": "scheduled_preview" if scheduled else "manual_preview",
         "run_id": run_id,
         "workflow_run_id": str(workflow_run_id),
         "workflow_run_attempt": str(workflow_run_attempt),
@@ -188,7 +187,7 @@ def build_preview_artifacts(
         "required_successful_preview_runs": 5,
         "publication_enabled": False,
         "contents_write_permission_authorized": False,
-        "schedule_enabled": False,
+        "schedule_enabled": scheduled,
         "provider_network_calls_enabled": collection_mode == "live_primary_sources",
         "secrets_required": False,
         "external_writes_enabled": False,
