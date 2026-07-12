@@ -10,7 +10,7 @@ from .collector_common import CollectorError, require
 
 CONTRACT_ID = "PPI-R9-PUBLIC-INPUT-001"
 CONTRACT_SHA256 = "cf2d19d7a4a05f3e6e0b7d847659cf4f6f4798a789e645dd8c2d06eae8c171c9"
-VALIDATOR_VERSION = "public-input-contract-binding-v1"
+VALIDATOR_VERSION = "public-input-contract-binding-v2"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -39,6 +39,19 @@ def bind_public_input_contract(
     report = _read_json(report_path)
     independent = _read_json(independent_path)
 
+    input_sha256 = {
+        "news.jsonl": _sha256(news_path),
+        "collection_receipt.json": _sha256(receipt_path),
+        "news_manifest.preview.json": _sha256(manifest_path),
+        "run_report.json": _sha256(report_path),
+        "independent_validation.json": _sha256(independent_path),
+    }
+    independently_validated_inputs = {
+        key: value
+        for key, value in input_sha256.items()
+        if key != "independent_validation.json"
+    }
+
     request_counts = receipt.get("request_counts", {})
     provider_counts = receipt.get("provider_counts", {})
     checks = {
@@ -50,8 +63,9 @@ def bind_public_input_contract(
         "accepted_official_company_record_present": int(provider_counts.get("official_company_source", 0)) > 0,
         "provider_failures_fail_closed": receipt.get("provider_failures") == [] and report.get("provider_failures") == [],
         "independent_validator_passed": independent.get("candidate_valid") is True and independent.get("failures") == [],
+        "independent_input_hashes_match": independent.get("input_sha256") == independently_validated_inputs,
         "manual_authorization_absent": independent.get("publication_authorized") is False and independent.get("official_r9_count_authorized") is False,
-        "exact_news_hash_recomputed": receipt.get("dataset_sha256") == manifest.get("file_sha256") == _sha256(news_path),
+        "exact_news_hash_recomputed": receipt.get("dataset_sha256") == manifest.get("file_sha256") == input_sha256["news.jsonl"],
     }
     failures = sorted(name for name, passed in checks.items() if not passed)
     status = "candidate_ready_for_manual_authorization" if not failures else "validation_failed"
@@ -64,13 +78,7 @@ def bind_public_input_contract(
         "checks": checks,
         "failures": failures,
         "blocked_external": [] if failures else ["manual_approval_required"],
-        "input_sha256": {
-            "news.jsonl": _sha256(news_path),
-            "collection_receipt.json": _sha256(receipt_path),
-            "news_manifest.preview.json": _sha256(manifest_path),
-            "run_report.json": _sha256(report_path),
-            "independent_validation.json": _sha256(independent_path),
-        },
+        "input_sha256": input_sha256,
         "publication_authorized": False,
         "official_r9_count_authorized": False,
     }
