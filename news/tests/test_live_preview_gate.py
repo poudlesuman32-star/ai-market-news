@@ -31,13 +31,15 @@ def receipt(*, sec_records: int = 1, company_records: int = 1, sec_requests: int
     }
 
 
-def report() -> dict:
+def report(*, workflow_event: str = "workflow_dispatch", schedule_enabled: bool = False) -> dict:
     return {
-        "workflow_event": "workflow_dispatch",
+        "workflow_event": workflow_event,
         "accepted_event_count": 2,
         "rejected_event_count": 0,
         "published_to_repository": False,
-        "schedule_enabled": False,
+        "publication_enabled": False,
+        "external_writes_enabled": False,
+        "schedule_enabled": schedule_enabled,
         "this_run_qualifies": True,
     }
 
@@ -54,12 +56,28 @@ class LivePreviewGateTests(unittest.TestCase):
             self.assertEqual(result, json.loads(report_path.read_text(encoding="utf-8")))
             return result
 
-    def test_mixed_sec_and_company_preview_qualifies(self) -> None:
+    def test_mixed_sec_and_company_manual_preview_qualifies(self) -> None:
         result = self.run_gate(receipt())
         self.assertTrue(result["this_run_qualifies"])
         self.assertEqual(result["live_primary_gate_version"], GATE_VERSION)
         self.assertEqual(result["qualification_exclusion_reasons"], [])
         self.assertTrue(all(result["live_primary_countability_checks"].values()))
+
+    def test_mixed_sec_and_company_scheduled_preview_qualifies(self) -> None:
+        result = self.run_gate(receipt(), report(workflow_event="schedule", schedule_enabled=True))
+        self.assertTrue(result["this_run_qualifies"])
+        self.assertEqual(result["qualification_exclusion_reasons"], [])
+        self.assertTrue(all(result["live_primary_countability_checks"].values()))
+
+    def test_schedule_mode_mismatch_fails_closed(self) -> None:
+        result = self.run_gate(receipt(), report(workflow_event="schedule", schedule_enabled=False))
+        self.assertFalse(result["this_run_qualifies"])
+        self.assertIn("schedule_mode_consistent", result["qualification_exclusion_reasons"])
+
+    def test_unsupported_event_fails_closed(self) -> None:
+        result = self.run_gate(receipt(), report(workflow_event="push", schedule_enabled=False))
+        self.assertFalse(result["this_run_qualifies"])
+        self.assertIn("workflow_event_supported", result["qualification_exclusion_reasons"])
 
     def test_requests_without_accepted_sec_records_do_not_qualify(self) -> None:
         result = self.run_gate(receipt(sec_records=0))
