@@ -7,8 +7,9 @@ from typing import Any
 
 from .collector_common import CollectorError, require
 
-GATE_VERSION = "live-primary-mixed-v1"
+GATE_VERSION = "live-primary-mixed-v2"
 REQUIRED_PROVIDERS = ("sec_edgar", "official_company_source")
+SUPPORTED_EVENTS = {"workflow_dispatch", "schedule"}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -37,9 +38,12 @@ def enforce_live_preview_gate(*, receipt_path: Path, report_path: Path) -> dict[
     require(isinstance(provider_counts, dict), "receipt provider_counts must be an object")
     require(isinstance(failures, list), "receipt provider_failures must be a list")
 
+    workflow_event = report.get("workflow_event")
+    scheduled = workflow_event == "schedule"
     checks = {
         "collection_mode_live_primary_sources": receipt.get("collection_mode") == "live_primary_sources",
-        "workflow_dispatch": report.get("workflow_event") == "workflow_dispatch",
+        "workflow_event_supported": workflow_event in SUPPORTED_EVENTS,
+        "schedule_mode_consistent": report.get("schedule_enabled") is scheduled,
         "sec_network_requests_recorded": int(request_counts.get("sec", 0)) > 0,
         "official_company_network_requests_recorded": int(request_counts.get("official_company_sources", 0)) > 0,
         "accepted_sec_record_present": int(provider_counts.get("sec_edgar", 0)) > 0,
@@ -48,7 +52,7 @@ def enforce_live_preview_gate(*, receipt_path: Path, report_path: Path) -> dict[
         "accepted_events_present": int(report.get("accepted_event_count", 0)) > 0,
         "rejected_events_empty": int(report.get("rejected_event_count", 0)) == 0,
         "publication_disabled": report.get("published_to_repository") is False,
-        "schedule_disabled": report.get("schedule_enabled") is False,
+        "external_writes_disabled": report.get("external_writes_enabled") is False,
     }
     exclusion_reasons = sorted(name for name, passed in checks.items() if not passed)
     qualifies = not exclusion_reasons
