@@ -16,7 +16,7 @@ EXPECTED_CONTRACT_ID = "PPI-R9-AUTONOMY-002"
 EXPECTED_ENVIRONMENT = "ppi-r9-manual-approval"
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-ACTOR_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+ACTOR_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
 
 
 def read_object(path: Path) -> dict[str, Any]:
@@ -140,7 +140,7 @@ def validate_publication_request(
     require(report.get("contents_write_permission_authorized") is False, "candidate run had write authority")
     require(receipt.get("run_id") == report.get("run_id"), "receipt and report run identity mismatch")
 
-    base_evidence = {
+    request_fields = {
         "schema_version": "1.0.0",
         "authorization_type": "protected_environment_request",
         "environment": EXPECTED_ENVIRONMENT,
@@ -158,11 +158,15 @@ def validate_publication_request(
         "source_completed_at_utc": canonical_utc(completed),
         "issued_at_utc": canonical_utc(issued),
         "expires_at_utc": canonical_utc(expires),
-        "validated_at_utc": canonical_utc(now),
-        "validation_result": "passed",
     }
-    evidence = dict(base_evidence)
-    evidence["authorization_request_sha256"] = request_digest(base_evidence)
+    evidence = dict(request_fields)
+    evidence.update(
+        {
+            "authorization_request_sha256": request_digest(request_fields),
+            "validated_at_utc": canonical_utc(now),
+            "validation_result": "passed",
+        }
+    )
     return evidence
 
 
