@@ -1,21 +1,49 @@
-name: PPI R9 autonomous publication and dispatch
-run-name: Autonomous PPI publication from preview ${{ github.event.workflow_run.id }}
+name: PPI R9 manual publication and private dispatch
+run-name: Manual PPI publication from preview ${{ inputs.source_workflow_run_id }}
 
 on:
-  workflow_run:
-    workflows:
-      - PPI public news live primary-source preview
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_workflow_run_id:
+        description: Exact successful manual live-preview workflow run ID
+        required: true
+        type: string
+      source_workflow_run_attempt:
+        description: Exact source run attempt
+        required: true
+        default: "1"
+        type: string
+      candidate_sha256:
+        description: Reviewed SHA-256 of the exact news.jsonl candidate
+        required: true
+        type: string
+      contract_sha256:
+        description: Exact frozen PPI-R9-AUTONOMY-002 SHA-256
+        required: true
+        type: string
+      authorization_issued_at_utc:
+        description: UTC authorization issue time (ISO-8601)
+        required: true
+        type: string
+      authorization_expires_at_utc:
+        description: UTC authorization expiry time (ISO-8601, no more than 24h after issue)
+        required: true
+        type: string
+      authorization_reason:
+        description: Human review record or approval rationale
+        required: true
+        type: string
 
 permissions:
   actions: read
   contents: write
 
 concurrency:
-  group: ppi-r9-autonomous-publication
+  group: ppi-r9-manual-publication
   cancel-in-progress: false
 
 env:
+  EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
   EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
   AUTONOMY_CONTRACT_ID: PPI-R9-AUTONOMY-002
   AUTONOMY_CONTRACT_PATH: validation/contracts/PPI-R9-AUTONOMY-002.json
@@ -23,11 +51,8 @@ env:
 
 jobs:
   publish-and-dispatch:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event != 'pull_request' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == 'poudlesuman32-star/ai-market-news'
+    if: github.ref == 'refs/heads/main'
+    environment: ppi-r9-manual-approval
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -43,14 +68,62 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Verify retained manual authorization and source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
+          EXPECTED_CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+          EXPECTED_CONTRACT_SHA256: ${{ inputs.contract_sha256 }}
+          AUTHORIZATION_ISSUED_AT_UTC: ${{ inputs.authorization_issued_at_utc }}
+          AUTHORIZATION_EXPIRES_AT_UTC: ${{ inputs.authorization_expires_at_utc }}
+          AUTHORIZATION_REASON: ${{ inputs.authorization_reason }}
+        run: |
+          set -euo pipefail
+          case "$SOURCE_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$SOURCE_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$EXPECTED_CANDIDATE_SHA256$EXPECTED_CONTRACT_SHA256" in (*[!0-9a-f]*|'') exit 1 ;; esac
+          test "${#EXPECTED_CANDIDATE_SHA256}" -eq 64
+          test "${#EXPECTED_CONTRACT_SHA256}" -eq 64
+          test -n "$AUTHORIZATION_REASON"
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run.json
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          from pathlib import Path
+
+          run = json.loads(Path('source-run.json').read_text(encoding='utf-8'))
+          assert str(run['id']) == os.environ['SOURCE_RUN_ID']
+          assert str(run['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
+          assert run['event'] == 'workflow_dispatch'
+          assert run['conclusion'] == 'success'
+          assert run['head_branch'] == 'main'
+          assert run['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          assert run['name'] == 'PPI public news live primary-source preview'
+
+          def parse(value: str) -> dt.datetime:
+              parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+              assert parsed.tzinfo is not None
+              return parsed.astimezone(dt.timezone.utc)
+
+          issued = parse(os.environ['AUTHORIZATION_ISSUED_AT_UTC'])
+          expires = parse(os.environ['AUTHORIZATION_EXPIRES_AT_UTC'])
+          now = dt.datetime.now(dt.timezone.utc)
+          assert issued <= now <= expires
+          assert expires > issued
+          assert expires - issued <= dt.timedelta(hours=24)
+          PY
+
       - name: Download exact successful preview artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
         run: |
           set -euo pipefail
           mkdir -p downloaded-preview
-          artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-1"
+          artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
           gh run download "$SOURCE_RUN_ID" --name "$artifact_name" --dir downloaded-preview
           test -s downloaded-preview/artifacts/news.jsonl
           test -s downloaded-preview/artifacts/collection_receipt.json
@@ -60,8 +133,9 @@ jobs:
       - name: Revalidate exact candidate bytes
         env:
           PYTHONPATH: news/src
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
+          EXPECTED_CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
         run: |
           set -euo pipefail
           python -m ai_market_news.enforce_live_preview_gate \
@@ -78,14 +152,16 @@ jobs:
           manifest = json.loads((root / 'news_manifest.preview.json').read_text(encoding='utf-8'))
           report = json.loads((root / 'run_report.json').read_text(encoding='utf-8'))
           digest = hashlib.sha256((root / 'news.jsonl').read_bytes()).hexdigest()
+          assert digest == os.environ['EXPECTED_CANDIDATE_SHA256']
           assert receipt['dataset_sha256'] == digest
           assert manifest['file_sha256'] == digest
           assert report['this_run_qualifies'] is True
           assert report['qualification_exclusion_reasons'] == []
           assert report['provider_failures'] == []
           assert report['published_to_repository'] is False
-          assert report['source_commit'] == os.environ['SOURCE_HEAD_SHA']
-          assert report['workflow_run_id'] == os.environ['SOURCE_RUN_ID']
+          assert report['workflow_event'] == 'workflow_dispatch'
+          assert str(report['workflow_run_id']) == os.environ['SOURCE_RUN_ID']
+          assert str(report['workflow_run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
           assert receipt['provider_counts'].get('sec_edgar', 0) > 0
           assert receipt['provider_counts'].get('official_company_source', 0) > 0
           PY
@@ -93,6 +169,7 @@ jobs:
       - name: Bind exact frozen autonomy contract
         env:
           GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+          EXPECTED_CONTRACT_SHA256: ${{ inputs.contract_sha256 }}
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN"
@@ -103,13 +180,50 @@ jobs:
           python - <<'PY' >> "$GITHUB_ENV"
           import hashlib
           import json
+          import os
           from pathlib import Path
 
           path = Path('contract-binding/autonomy-contract.json')
           contract = json.loads(path.read_text(encoding='utf-8'))
+          digest = hashlib.sha256(path.read_bytes()).hexdigest()
           assert contract['contract_id'] == 'PPI-R9-AUTONOMY-002'
           assert contract['status'] == 'frozen'
-          print('AUTONOMY_CONTRACT_SHA256=' + hashlib.sha256(path.read_bytes()).hexdigest())
+          assert digest == os.environ['EXPECTED_CONTRACT_SHA256']
+          print('AUTONOMY_CONTRACT_SHA256=' + digest)
+          PY
+
+      - name: Write retained authorization evidence
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+          CONTRACT_SHA256: ${{ inputs.contract_sha256 }}
+          AUTHORIZATION_ISSUED_AT_UTC: ${{ inputs.authorization_issued_at_utc }}
+          AUTHORIZATION_EXPIRES_AT_UTC: ${{ inputs.authorization_expires_at_utc }}
+          AUTHORIZATION_REASON: ${{ inputs.authorization_reason }}
+        run: |
+          set -euo pipefail
+          mkdir -p authorization-evidence
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              'authorization_type': 'manual_environment_review',
+              'authorized_by': os.environ['GITHUB_ACTOR'],
+              'publication_workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'candidate_sha256': os.environ['CANDIDATE_SHA256'],
+              'contract_sha256': os.environ['CONTRACT_SHA256'],
+              'issued_at_utc': os.environ['AUTHORIZATION_ISSUED_AT_UTC'],
+              'expires_at_utc': os.environ['AUTHORIZATION_EXPIRES_AT_UTC'],
+              'reason': os.environ['AUTHORIZATION_REASON'],
+          }
+          Path('authorization-evidence/manual_authorization.json').write_text(
+              json.dumps(evidence, sort_keys=True, indent=2) + '\n', encoding='utf-8'
+          )
           PY
 
       - name: Configure ephemeral GitHub authentication
@@ -141,12 +255,14 @@ jobs:
           test "${#POINTER_COMMIT}" -eq 40
           test -s "$ARTIFACT_ROOT/latest.json"
           test -s "$ARTIFACT_ROOT/run_report.json"
+          cp authorization-evidence/manual_authorization.json "$ARTIFACT_ROOT/manual_authorization.json"
 
       - name: Dispatch exact transaction to private validator
         env:
           GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN"
@@ -156,6 +272,7 @@ jobs:
             -f "client_payload[public_branch]=${DATA_BRANCH}" \
             -f "client_payload[source_workflow_run_id]=${SOURCE_RUN_ID}" \
             -f "client_payload[source_workflow_run_attempt]=${SOURCE_RUN_ATTEMPT}" \
+            -f "client_payload[candidate_sha256]=${CANDIDATE_SHA256}" \
             -f "client_payload[data_commit]=${DATA_COMMIT}" \
             -f "client_payload[public_commit]=${PUBLIC_COMMIT}" \
             -f "client_payload[pointer_commit]=${POINTER_COMMIT}" \
@@ -167,8 +284,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ppi-r9-autonomous-publication-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.ARTIFACT_ROOT }}
+          name: ppi-r9-manual-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.ARTIFACT_ROOT }}
+            authorization-evidence/manual_authorization.json
           retention-days: 90
           if-no-files-found: error
 
