@@ -89,7 +89,7 @@ git worktree add --detach "$PUBLISH_ROOT" "$REMOTE_PUBLISHED_HEAD"
 git -C "$PUBLISH_ROOT" config user.name "github-actions-public-news-publisher"
 git -C "$PUBLISH_ROOT" config user.email "github-actions-public-news-publisher@users.noreply.github.com"
 
-RESOLUTION_FILE="$RUNNER_TEMP/existing-publication.json"
+export RESOLUTION_FILE="$RUNNER_TEMP/existing-publication.json"
 PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.resolve_existing_news_publication \
   --repository-root "$PUBLISH_ROOT" \
   --news "$NEWS_FILE" \
