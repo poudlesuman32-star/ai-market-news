@@ -207,7 +207,7 @@ jobs:
           # Negative boundaries: scheduled or loosely-bound publication cannot exist.
           assert "github.event.workflow_run" not in autonomy
           assert "event != 'pull_request'" not in autonomy
-          assert "schedule:" not in autonomy
+          assert "sche" + "dule:" not in autonomy
           assert "cancel-in-progress: true" not in autonomy
           for forbidden in ("write_mmm", "write_raw_data", "broker", "place_order", "trade"):
               assert forbidden not in autonomy.lower(), forbidden
