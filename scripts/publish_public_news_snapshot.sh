@@ -93,6 +93,30 @@ export PREVIOUS_PUBLISHED_HEAD="$(git rev-parse "refs/remotes/origin/$DATA_BRANC
 git worktree add --detach "$PUBLISH_ROOT" "$PREVIOUS_PUBLISHED_HEAD"
 git -C "$PUBLISH_ROOT" config user.name "github-actions-public-news-publisher"
 git -C "$PUBLISH_ROOT" config user.email "github-actions-public-news-publisher@users.noreply.github.com"
+
+# A candidate digest may be published only once, even if a previous dispatch failed.
+PYTHONPATH="${PYTHONPATH:-news/src}" python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+from ai_market_news.collector_common import require
+
+receipt = json.loads(Path(os.environ["COLLECTION_RECEIPT_FILE"]).read_text(encoding="utf-8"))
+candidate_digest = receipt.get("dataset_sha256")
+require(isinstance(candidate_digest, str) and len(candidate_digest) == 64, "candidate digest is invalid")
+root = Path(os.environ["PUBLISH_ROOT"])
+matches = []
+for manifest_path in sorted(root.glob("snapshots/*/news_manifest.json")):
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"cannot validate published manifest: {manifest_path}") from exc
+    if manifest.get("file_sha256") == candidate_digest:
+        matches.append(str(manifest_path.relative_to(root)))
+require(not matches, f"candidate digest already published: {matches}")
+PY
+
 mkdir -p "$PUBLISH_ROOT/$SNAPSHOT_PATH" "$ARTIFACT_ROOT/$SNAPSHOT_PATH"
 
 cp "$NEWS_FILE" "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl"
