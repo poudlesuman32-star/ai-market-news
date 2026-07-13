@@ -112,7 +112,8 @@ for manifest_path in sorted(root.glob("snapshots/*/news_manifest.json")):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"cannot validate published manifest: {manifest_path}") from exc
-    if manifest.get("file_sha256") == candidate_digest:
+    published_digest = manifest.get("news_file_sha256", manifest.get("file_sha256"))
+    if published_digest == candidate_digest:
         matches.append(str(manifest_path.relative_to(root)))
 require(not matches, f"candidate digest already published: {matches}")
 PY
