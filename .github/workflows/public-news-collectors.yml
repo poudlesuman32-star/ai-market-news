@@ -55,7 +55,8 @@ jobs:
             news/src/ai_market_news/build_news_latest_pointer.py \
             news/src/ai_market_news/verify_news_publication_transaction.py \
             news/src/ai_market_news/validate_r9_publication_request.py \
-            news/tests/test_r9_publication_request_black_box.py
+            news/tests/test_r9_publication_request_black_box.py \
+            news/tests/test_r9_publication_transaction_black_box.py
           bash -n scripts/publish_public_news_snapshot.sh
 
       - name: Run public news tests
@@ -69,14 +70,22 @@ jobs:
           import ast
           from pathlib import Path
 
-          path = Path('news/tests/test_r9_publication_request_black_box.py')
-          tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+          paths = [
+              Path('news/tests/test_r9_publication_request_black_box.py'),
+              Path('news/tests/test_r9_publication_transaction_black_box.py'),
+          ]
           violations = []
-          for node in ast.walk(tree):
-              if isinstance(node, ast.ImportFrom) and (node.module or '').startswith('ai_market_news'):
-                  violations.append(node.module)
-              if isinstance(node, ast.Import):
-                  violations.extend(alias.name for alias in node.names if alias.name.startswith('ai_market_news'))
+          for path in paths:
+              tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.ImportFrom) and (node.module or '').startswith('ai_market_news'):
+                      violations.append(f'{path}:{node.module}')
+                  if isinstance(node, ast.Import):
+                      violations.extend(
+                          f'{path}:{alias.name}'
+                          for alias in node.names
+                          if alias.name.startswith('ai_market_news')
+                      )
           assert not violations, violations
           PY
 
@@ -176,7 +185,10 @@ jobs:
           autonomy = Path('.github/workflows/ppi-r9-autonomous-publication.yml').read_text(encoding='utf-8')
           publisher = Path('scripts/publish_public_news_snapshot.sh').read_text(encoding='utf-8')
           request_validator = Path('news/src/ai_market_news/validate_r9_publication_request.py').read_text(encoding='utf-8')
-          black_box = Path('news/tests/test_r9_publication_request_black_box.py').read_text(encoding='utf-8')
+          black_boxes = [
+              Path('news/tests/test_r9_publication_request_black_box.py').read_text(encoding='utf-8'),
+              Path('news/tests/test_r9_publication_transaction_black_box.py').read_text(encoding='utf-8'),
+          ]
           write_permission = 'contents:' + ' write'
           validation_runtime = validation.split('      - name: Confirm workflow safety boundaries', 1)[0]
 
@@ -228,9 +240,10 @@ jobs:
           assert 'run report source commit mismatch' in request_validator
           assert 'authorization window exceeds 24 hours from source completion' in request_validator
           assert 'candidate digest mismatch' in request_validator
-          assert 'subprocess.run' in black_box
-          for forbidden_import in ('from ai_market_news', 'import ai_market_news'):
-              assert forbidden_import not in black_box
+          for black_box in black_boxes:
+              assert 'subprocess.run' in black_box
+              for forbidden_import in ('from ai_market_news', 'import ai_market_news'):
+                  assert forbidden_import not in black_box
 
           assert 'github.event.workflow_run' not in autonomy
           assert "event != 'pull_request'" not in autonomy
