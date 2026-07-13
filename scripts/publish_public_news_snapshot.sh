@@ -55,17 +55,12 @@ export SNAPSHOT_ID="${RUN_STAMP}-${SHORT_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 export SNAPSHOT_PATH="snapshots/${SNAPSHOT_ID}"
 export PUBLISH_ROOT="$RUNNER_TEMP/public-news-publish"
 export ARTIFACT_ROOT="$RUNNER_TEMP/public-news-publication-artifact"
-
-{
-  echo "SNAPSHOT_ID=$SNAPSHOT_ID"
-  echo "SNAPSHOT_PATH=$SNAPSHOT_PATH"
-  echo "ARTIFACT_ROOT=$ARTIFACT_ROOT"
-} >> "$GITHUB_ENV"
+export PUBLICATION_REUSED="false"
 
 [[ -s "$NEWS_FILE" ]] || { echo "news.jsonl is empty or missing" >&2; exit 1; }
 [[ -s "$COLLECTION_RECEIPT_FILE" ]] || { echo "collection_receipt.json is empty or missing" >&2; exit 1; }
 
-# Validate the exact candidate files before any commit is created.
+# Validate the exact candidate files before any branch mutation or resume decision.
 PYTHONPATH="${PYTHONPATH:-news/src}" python - <<'PY'
 import json
 import os
@@ -89,66 +84,127 @@ require(not receipt.get("provider_failures"), "provider failures block publicati
 PY
 
 git fetch --no-tags origin "$DATA_BRANCH:refs/remotes/origin/$DATA_BRANCH"
-export PREVIOUS_PUBLISHED_HEAD="$(git rev-parse "refs/remotes/origin/$DATA_BRANCH")"
-git worktree add --detach "$PUBLISH_ROOT" "$PREVIOUS_PUBLISHED_HEAD"
+export REMOTE_PUBLISHED_HEAD="$(git rev-parse "refs/remotes/origin/$DATA_BRANCH")"
+git worktree add --detach "$PUBLISH_ROOT" "$REMOTE_PUBLISHED_HEAD"
 git -C "$PUBLISH_ROOT" config user.name "github-actions-public-news-publisher"
 git -C "$PUBLISH_ROOT" config user.email "github-actions-public-news-publisher@users.noreply.github.com"
-mkdir -p "$PUBLISH_ROOT/$SNAPSHOT_PATH" "$ARTIFACT_ROOT/$SNAPSHOT_PATH"
 
-cp "$NEWS_FILE" "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl"
-cp "$COLLECTION_RECEIPT_FILE" "$PUBLISH_ROOT/$SNAPSHOT_PATH/collection_receipt.json"
-
-git -C "$PUBLISH_ROOT" add -- \
-  "$SNAPSHOT_PATH/news.jsonl" \
-  "$SNAPSHOT_PATH/collection_receipt.json"
-require_staged_paths \
-  "$PUBLISH_ROOT" \
-  "$SNAPSHOT_PATH/news.jsonl" \
-  "$SNAPSHOT_PATH/collection_receipt.json"
-git -C "$PUBLISH_ROOT" commit -m "data(public-news): publish $SNAPSHOT_ID"
-export DATA_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
-
-PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.build_news_manifest \
-  --news "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl" \
-  --receipt "$PUBLISH_ROOT/$SNAPSHOT_PATH/collection_receipt.json" \
-  --snapshot-path "$SNAPSHOT_PATH" \
-  --data-commit "$DATA_COMMIT" \
-  --source-repository "$GITHUB_REPOSITORY" \
-  --output "$PUBLISH_ROOT/$SNAPSHOT_PATH/news_manifest.json"
-
-git -C "$PUBLISH_ROOT" add -- "$SNAPSHOT_PATH/news_manifest.json"
-require_staged_paths "$PUBLISH_ROOT" "$SNAPSHOT_PATH/news_manifest.json"
-git -C "$PUBLISH_ROOT" commit -m "manifest(public-news): publish $SNAPSHOT_ID"
-export PUBLIC_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
-
-PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.build_news_latest_pointer \
-  --manifest "$PUBLISH_ROOT/$SNAPSHOT_PATH/news_manifest.json" \
-  --public-commit "$PUBLIC_COMMIT" \
-  --output "$PUBLISH_ROOT/latest.json"
-
-git -C "$PUBLISH_ROOT" add -- latest.json
-require_staged_paths "$PUBLISH_ROOT" latest.json
-git -C "$PUBLISH_ROOT" commit -m "pointer(public-news): publish $SNAPSHOT_ID"
-export POINTER_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
-
-PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.verify_news_publication_transaction \
+export RESOLUTION_FILE="$RUNNER_TEMP/existing-publication.json"
+PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.resolve_existing_news_publication \
   --repository-root "$PUBLISH_ROOT" \
-  --previous-head "$PREVIOUS_PUBLISHED_HEAD" \
-  --data-commit "$DATA_COMMIT" \
-  --public-commit "$PUBLIC_COMMIT" \
-  --pointer-commit "$POINTER_COMMIT" \
-  --snapshot-path "$SNAPSHOT_PATH"
+  --news "$NEWS_FILE" \
+  --receipt "$COLLECTION_RECEIPT_FILE" \
+  --output "$RESOLUTION_FILE"
+RESOLUTION_STATUS="$(python - <<'PY'
+import json
+import os
+from pathlib import Path
 
-# This is intentionally the only push. Any failure above leaves the remote pointer unchanged.
-git -C "$PUBLISH_ROOT" push origin "HEAD:refs/heads/$DATA_BRANCH"
-git fetch --no-tags origin "$DATA_BRANCH:refs/remotes/origin/$DATA_BRANCH"
-export REMOTE_PUBLISHED_HEAD="$(git rev-parse "refs/remotes/origin/$DATA_BRANCH")"
-[[ "$REMOTE_PUBLISHED_HEAD" == "$POINTER_COMMIT" ]]
+value = json.loads(Path(os.environ["RESOLUTION_FILE"]).read_text(encoding="utf-8"))
+print(value["status"])
+PY
+)"
 
+if [[ "$RESOLUTION_STATUS" == "found" ]]; then
+  python - <<'PY' > "$RUNNER_TEMP/existing-publication.env"
+import json
+import os
+import shlex
+from pathlib import Path
+
+value = json.loads(Path(os.environ["RESOLUTION_FILE"]).read_text(encoding="utf-8"))
+for key in ("previous_head", "data_commit", "public_commit", "pointer_commit", "snapshot_path"):
+    print(f"export {key.upper()}={shlex.quote(str(value[key]))}")
+PY
+  # The file contains only validated hashes and a validated snapshots/ path.
+  source "$RUNNER_TEMP/existing-publication.env"
+  rm -f "$RUNNER_TEMP/existing-publication.env"
+  export SNAPSHOT_ID="${SNAPSHOT_PATH#snapshots/}"
+  export PUBLICATION_REUSED="true"
+
+  PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.verify_news_publication_transaction \
+    --repository-root "$PUBLISH_ROOT" \
+    --previous-head "$PREVIOUS_HEAD" \
+    --data-commit "$DATA_COMMIT" \
+    --public-commit "$PUBLIC_COMMIT" \
+    --pointer-commit "$POINTER_COMMIT" \
+    --snapshot-path "$SNAPSHOT_PATH"
+elif [[ "$RESOLUTION_STATUS" == "not_found" ]]; then
+  export PREVIOUS_HEAD="$REMOTE_PUBLISHED_HEAD"
+
+  mkdir -p "$PUBLISH_ROOT/$SNAPSHOT_PATH"
+  cp "$NEWS_FILE" "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl"
+  cp "$COLLECTION_RECEIPT_FILE" "$PUBLISH_ROOT/$SNAPSHOT_PATH/collection_receipt.json"
+
+  git -C "$PUBLISH_ROOT" add -- \
+    "$SNAPSHOT_PATH/news.jsonl" \
+    "$SNAPSHOT_PATH/collection_receipt.json"
+  require_staged_paths \
+    "$PUBLISH_ROOT" \
+    "$SNAPSHOT_PATH/news.jsonl" \
+    "$SNAPSHOT_PATH/collection_receipt.json"
+  git -C "$PUBLISH_ROOT" commit -m "data(public-news): publish $SNAPSHOT_ID"
+  export DATA_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
+
+  PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.build_news_manifest \
+    --news "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl" \
+    --receipt "$PUBLISH_ROOT/$SNAPSHOT_PATH/collection_receipt.json" \
+    --snapshot-path "$SNAPSHOT_PATH" \
+    --data-commit "$DATA_COMMIT" \
+    --source-repository "$GITHUB_REPOSITORY" \
+    --output "$PUBLISH_ROOT/$SNAPSHOT_PATH/news_manifest.json"
+
+  git -C "$PUBLISH_ROOT" add -- "$SNAPSHOT_PATH/news_manifest.json"
+  require_staged_paths "$PUBLISH_ROOT" "$SNAPSHOT_PATH/news_manifest.json"
+  git -C "$PUBLISH_ROOT" commit -m "manifest(public-news): publish $SNAPSHOT_ID"
+  export PUBLIC_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
+
+  PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.build_news_latest_pointer \
+    --manifest "$PUBLISH_ROOT/$SNAPSHOT_PATH/news_manifest.json" \
+    --public-commit "$PUBLIC_COMMIT" \
+    --output "$PUBLISH_ROOT/latest.json"
+
+  git -C "$PUBLISH_ROOT" add -- latest.json
+  require_staged_paths "$PUBLISH_ROOT" latest.json
+  git -C "$PUBLISH_ROOT" commit -m "pointer(public-news): publish $SNAPSHOT_ID"
+  export POINTER_COMMIT="$(git -C "$PUBLISH_ROOT" rev-parse HEAD)"
+
+  PYTHONPATH="${PYTHONPATH:-news/src}" python -m ai_market_news.verify_news_publication_transaction \
+    --repository-root "$PUBLISH_ROOT" \
+    --previous-head "$PREVIOUS_HEAD" \
+    --data-commit "$DATA_COMMIT" \
+    --public-commit "$PUBLIC_COMMIT" \
+    --pointer-commit "$POINTER_COMMIT" \
+    --snapshot-path "$SNAPSHOT_PATH"
+
+  # This is intentionally the only push. Any failure above leaves the remote pointer unchanged.
+  git -C "$PUBLISH_ROOT" push origin "HEAD:refs/heads/$DATA_BRANCH"
+  git fetch --no-tags origin "$DATA_BRANCH:refs/remotes/origin/$DATA_BRANCH"
+  export REMOTE_PUBLISHED_HEAD="$(git rev-parse "refs/remotes/origin/$DATA_BRANCH")"
+  [[ "$REMOTE_PUBLISHED_HEAD" == "$POINTER_COMMIT" ]]
+else
+  echo "Unexpected publication resolution status: $RESOLUTION_STATUS" >&2
+  exit 1
+fi
+
+mkdir -p "$ARTIFACT_ROOT/$SNAPSHOT_PATH"
 cp "$PUBLISH_ROOT/$SNAPSHOT_PATH/news.jsonl" "$ARTIFACT_ROOT/$SNAPSHOT_PATH/news.jsonl"
 cp "$PUBLISH_ROOT/$SNAPSHOT_PATH/collection_receipt.json" "$ARTIFACT_ROOT/$SNAPSHOT_PATH/collection_receipt.json"
 cp "$PUBLISH_ROOT/$SNAPSHOT_PATH/news_manifest.json" "$ARTIFACT_ROOT/$SNAPSHOT_PATH/news_manifest.json"
-cp "$PUBLISH_ROOT/latest.json" "$ARTIFACT_ROOT/latest.json"
+git -C "$PUBLISH_ROOT" show "$POINTER_COMMIT:latest.json" > "$ARTIFACT_ROOT/latest.json"
+
+# Persist all transaction identifiers for subsequent workflow steps. Shell exports do not cross step boundaries.
+{
+  echo "SNAPSHOT_ID=$SNAPSHOT_ID"
+  echo "SNAPSHOT_PATH=$SNAPSHOT_PATH"
+  echo "ARTIFACT_ROOT=$ARTIFACT_ROOT"
+  echo "PREVIOUS_PUBLISHED_HEAD=$PREVIOUS_HEAD"
+  echo "DATA_COMMIT=$DATA_COMMIT"
+  echo "PUBLIC_COMMIT=$PUBLIC_COMMIT"
+  echo "POINTER_COMMIT=$POINTER_COMMIT"
+  echo "REMOTE_PUBLISHED_HEAD=$REMOTE_PUBLISHED_HEAD"
+  echo "PUBLICATION_REUSED=$PUBLICATION_REUSED"
+} >> "$GITHUB_ENV"
 
 PYTHONPATH="${PYTHONPATH:-news/src}" python - <<'PY'
 import json
@@ -166,11 +222,13 @@ report = {
     "source_commit": os.environ["GITHUB_SHA"],
     "publication_branch": os.environ["DATA_BRANCH"],
     "snapshot_path": os.environ["SNAPSHOT_PATH"],
-    "previous_published_head": os.environ["PREVIOUS_PUBLISHED_HEAD"],
+    "previous_published_head": os.environ["PREVIOUS_HEAD"],
     "data_commit": os.environ["DATA_COMMIT"],
     "public_commit": os.environ["PUBLIC_COMMIT"],
     "pointer_commit": os.environ["POINTER_COMMIT"],
     "remote_published_head": os.environ["REMOTE_PUBLISHED_HEAD"],
+    "publication_reused": os.environ["PUBLICATION_REUSED"] == "true",
+    "publication_push_performed": os.environ["PUBLICATION_REUSED"] != "true",
     "runtime_seconds": int(time.time()) - int(os.environ["START_EPOCH"]),
     "record_count": receipt["record_count"],
     "event_count": receipt["event_count"],

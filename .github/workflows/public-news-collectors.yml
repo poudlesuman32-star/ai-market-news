@@ -9,6 +9,7 @@ on:
       - ".github/workflows/public-news-collectors.yml"
       - ".github/workflows/collect-public-news.yml"
       - ".github/workflows/collect-public-news-live.yml"
+      - ".github/workflows/ppi-r9-autonomous-publication.yml"
   workflow_dispatch:
 
 permissions:
@@ -52,13 +53,42 @@ jobs:
             news/src/ai_market_news/preview_gate.py \
             news/src/ai_market_news/build_news_manifest.py \
             news/src/ai_market_news/build_news_latest_pointer.py \
-            news/src/ai_market_news/verify_news_publication_transaction.py
+            news/src/ai_market_news/verify_news_publication_transaction.py \
+            news/src/ai_market_news/resolve_existing_news_publication.py \
+            news/src/ai_market_news/validate_r9_publication_request.py \
+            news/tests/test_r9_publication_request_black_box.py \
+            news/tests/test_r9_publication_transaction_black_box.py
           bash -n scripts/publish_public_news_snapshot.sh
 
       - name: Run public news tests
         env:
           PYTHONPATH: news/src
         run: python -m unittest discover -s news/tests -p "test_*.py" -v
+
+      - name: Verify publication black-box independence
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          paths = [
+              Path('news/tests/test_r9_publication_request_black_box.py'),
+              Path('news/tests/test_r9_publication_transaction_black_box.py'),
+          ]
+          violations = []
+          for path in paths:
+              tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.ImportFrom) and (node.module or '').startswith('ai_market_news'):
+                      violations.append(f'{path}:{node.module}')
+                  if isinstance(node, ast.Import):
+                      violations.extend(
+                          f'{path}:{alias.name}'
+                          for alias in node.names
+                          if alias.name.startswith('ai_market_news')
+                      )
+          assert not violations, violations
+          PY
 
       - name: Validate current preview gate
         env:
@@ -73,23 +103,21 @@ jobs:
           from ai_market_news.collector_common import CollectorError
           from ai_market_news.preview_gate import require_publication_authorized
 
-          gate = json.loads(Path("news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
-          authorized = False
+          gate = json.loads(Path('news/config/public_news_preview_gate.json').read_text(encoding='utf-8'))
           try:
               require_publication_authorized(gate)
               authorized = True
           except CollectorError:
               authorized = False
-
-          assert authorized is gate["publication_authorized"]
-          assert gate["contents_write_permission_authorized"] is gate["publication_authorized"]
+          assert authorized is gate['publication_authorized']
+          assert gate['contents_write_permission_authorized'] is gate['publication_authorized']
           if authorized:
-              assert gate["gate_satisfied"] is True
-              assert gate["review_approved"] is True
-              assert gate["approved_by"]
-              assert gate["approved_at_utc"]
+              assert gate['gate_satisfied'] is True
+              assert gate['review_approved'] is True
+              assert gate['approved_by']
+              assert gate['approved_at_utc']
           else:
-              assert gate["review_approved"] is False
+              assert gate['review_approved'] is False
           PY
 
       - name: Run deterministic fixture preview
@@ -136,15 +164,15 @@ jobs:
           import json
           from pathlib import Path
 
-          rows = [json.loads(line) for line in Path("public-news-preview/news.jsonl").read_text(encoding="utf-8").splitlines()]
-          report = json.loads(Path("public-news-preview/run_report.json").read_text(encoding="utf-8"))
-          assert all(row["validation"] == "transformed_valid" for row in rows)
-          assert all(row["synthetic_content_used"] is False for row in rows)
-          assert all(row["source_content_modified"] is False for row in rows)
-          assert report["publication_enabled"] is False
-          assert report["published_to_repository"] is False
-          assert report["this_run_qualifies"] is True
-          assert report["required_successful_preview_runs"] == 5
+          rows = [json.loads(line) for line in Path('public-news-preview/news.jsonl').read_text(encoding='utf-8').splitlines()]
+          report = json.loads(Path('public-news-preview/run_report.json').read_text(encoding='utf-8'))
+          assert all(row['validation'] == 'transformed_valid' for row in rows)
+          assert all(row['synthetic_content_used'] is False for row in rows)
+          assert all(row['source_content_modified'] is False for row in rows)
+          assert report['publication_enabled'] is False
+          assert report['published_to_repository'] is False
+          assert report['this_run_qualifies'] is True
+          assert report['required_successful_preview_runs'] == 5
           PY
 
       - name: Confirm workflow safety boundaries
@@ -152,27 +180,87 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          validation = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
-          fixture_preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
-          live_preview = Path(".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
-          publisher = Path("scripts/publish_public_news_snapshot.sh").read_text(encoding="utf-8")
+          validation = Path('.github/workflows/public-news-collectors.yml').read_text(encoding='utf-8')
+          fixture_preview = Path('.github/workflows/collect-public-news.yml').read_text(encoding='utf-8')
+          live_preview = Path('.github/workflows/collect-public-news-live.yml').read_text(encoding='utf-8')
+          autonomy = Path('.github/workflows/ppi-r9-autonomous-publication.yml').read_text(encoding='utf-8')
+          publisher = Path('scripts/publish_public_news_snapshot.sh').read_text(encoding='utf-8')
+          resolver = Path('news/src/ai_market_news/resolve_existing_news_publication.py').read_text(encoding='utf-8')
+          request_validator = Path('news/src/ai_market_news/validate_r9_publication_request.py').read_text(encoding='utf-8')
+          black_boxes = [
+              Path('news/tests/test_r9_publication_request_black_box.py').read_text(encoding='utf-8'),
+              Path('news/tests/test_r9_publication_transaction_black_box.py').read_text(encoding='utf-8'),
+          ]
+          write_permission = 'contents:' + ' write'
+          validation_runtime = validation.split('      - name: Confirm workflow safety boundaries', 1)[0]
 
-          for text in (validation, fixture_preview):
-              for value in ("secrets" + ".", "sche" + "dule:", "contents:" + " write", "git " + "push"):
-                  assert value not in text, f"forbidden workflow capability: {value}"
-
-          for value in ("secrets" + ".", "contents:" + " write", "git " + "push", "repository_" + "dispatch"):
-              assert value not in live_preview, f"forbidden live-preview capability: {value}"
+          for text in (validation_runtime, fixture_preview):
+              for value in ('secrets' + '.', 'sche' + 'dule:', write_permission, 'git ' + 'push'):
+                  assert value not in text, f'forbidden workflow capability: {value}'
+          for value in ('secrets' + '.', write_permission, 'git ' + 'push', 'repository_' + 'dispatch'):
+              assert value not in live_preview, f'forbidden live-preview capability: {value}'
 
           assert 'cron: "15 13 * * 1-5"' in live_preview
-          assert "PPI_SEC_USER_AGENT" in live_preview
+          assert 'PPI_SEC_USER_AGENT' in live_preview
           assert 'SCHEDULED_LOOKBACK_DAYS: "30"' in live_preview
-          assert "public-news-data" not in fixture_preview
-          assert "public-news-data" not in live_preview
-          assert "live_primary_sources" in live_preview
-          assert "workflow_dispatch" in live_preview
-          assert "article_pages_fetched" not in live_preview
-          assert "require-publication" in publisher
+          assert 'public-news-data' not in fixture_preview
+          assert 'public-news-data' not in live_preview
+          assert 'live_primary_sources' in live_preview
+          assert 'workflow_dispatch' in live_preview
+          assert 'article_pages_fetched' not in live_preview
+
+          assert 'workflow_run:' not in autonomy
+          assert 'workflow_dispatch:' in autonomy
+          assert 'validate-request:' in autonomy
+          assert 'publish-and-dispatch:' in autonomy
+          assert autonomy.index('validate-request:') < autonomy.index('publish-and-dispatch:')
+          assert 'environment: ppi-r9-manual-approval' in autonomy
+          assert autonomy.count(write_permission) == 1
+          assert 'permissions:\n      actions: read\n      contents: read' in autonomy
+          assert f'permissions:\n      actions: read\n      {write_permission}' in autonomy
+          assert 'authorization_reason' not in autonomy
+          assert 'authorized_by' not in autonomy
+          assert 'required_reviewer_gate_verified' in autonomy
+          assert "'approval_reviewer_identity_claimed': False" in autonomy
+          assert 'source_workflow_run_id:' in autonomy
+          assert 'source_workflow_run_attempt:' in autonomy
+          assert 'candidate_sha256:' in autonomy
+          assert 'contract_sha256:' in autonomy
+          assert 'authorization_issued_at_utc:' in autonomy
+          assert 'authorization_expires_at_utc:' in autonomy
+          assert 'validate_r9_publication_request' in autonomy
+          assert 'authorization_request_sha256' in autonomy
+          assert 'source_head_sha' in autonomy
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in autonomy
+          assert 'ppi_public_snapshot_ready' in autonomy
+          assert 'PPI-R9-AUTONOMY-002' in autonomy
+          assert 'persist-credentials: false' in autonomy
+          assert 'AUTONOMY_CONTRACT_SHA256' in autonomy
+
+          assert 'source_run.get("event") == "workflow_dispatch"' in request_validator
+          assert 'receipt source commit mismatch' in request_validator
+          assert 'run report source commit mismatch' in request_validator
+          assert 'authorization window exceeds 24 hours from source completion' in request_validator
+          assert 'candidate digest mismatch' in request_validator
+          assert 'verify_transaction(' in resolver
+          assert 'published receipt digest mismatch' in resolver
+          for black_box in black_boxes:
+              assert 'subprocess.run' in black_box
+              for forbidden_import in ('from ai_market_news', 'import ai_market_news'):
+                  assert forbidden_import not in black_box
+
+          assert 'github.event.workflow_run' not in autonomy
+          assert "event != 'pull_request'" not in autonomy
+          assert 'sche' + 'dule:' not in autonomy
+          assert 'cancel-in-progress: true' not in autonomy
+          for forbidden in ('write_mmm', 'write_raw_data', 'place_order', 'automatic_trading'):
+              assert forbidden not in autonomy.lower(), forbidden
+
+          assert 'require-publication' in publisher
           assert publisher.count('git -C "$PUBLISH_ROOT" push') == 1
-          assert "iteration-16-market-data" not in publisher
+          assert 'resolve_existing_news_publication' in publisher
+          assert 'PUBLICATION_REUSED' in publisher
+          assert 'DATA_COMMIT=$DATA_COMMIT' in publisher
+          assert 'POINTER_COMMIT=$POINTER_COMMIT' in publisher
+          assert 'iteration-16-market-data' not in publisher
           PY
