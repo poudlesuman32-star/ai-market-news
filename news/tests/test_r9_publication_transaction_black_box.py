@@ -26,6 +26,14 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
     def git(self, repository: Path, *arguments: str) -> str:
         return self.run_command(["git", *arguments], cwd=repository).stdout.strip()
 
+    def read_github_env(self, path: Path) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, separator, value = line.partition("=")
+            self.assertEqual(separator, "=", line)
+            values[key] = value
+        return values
+
     def write_candidate(self, root: Path) -> tuple[Path, Path, str]:
         news = root / "candidate-news.jsonl"
         records = [
@@ -116,7 +124,7 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
         )
         return environment
 
-    def test_commit_abc_bytes_and_duplicate_gate(self) -> None:
+    def test_commit_abc_bytes_and_exact_retry_resume(self) -> None:
         source_root = Path(__file__).resolve().parents[2]
         script = source_root / "scripts/publish_public_news_snapshot.sh"
         with tempfile.TemporaryDirectory() as directory:
@@ -150,12 +158,19 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
                 source_root=source_root,
             )
             self.run_command(["bash", str(script)], cwd=work, env=first_env)
+            first_persisted = self.read_github_env(Path(first_env["GITHUB_ENV"]))
 
             self.git(work, "fetch", "origin", "public-news-data")
             pointer_commit = self.git(work, "rev-parse", "origin/public-news-data")
             public_commit = self.git(work, "rev-parse", f"{pointer_commit}^")
             data_commit = self.git(work, "rev-parse", f"{public_commit}^")
             self.assertEqual(self.git(work, "rev-parse", f"{data_commit}^"), previous_head)
+            self.assertEqual(first_persisted["DATA_COMMIT"], data_commit)
+            self.assertEqual(first_persisted["PUBLIC_COMMIT"], public_commit)
+            self.assertEqual(first_persisted["POINTER_COMMIT"], pointer_commit)
+            self.assertEqual(first_persisted["PREVIOUS_PUBLISHED_HEAD"], previous_head)
+            self.assertEqual(first_persisted["REMOTE_PUBLISHED_HEAD"], pointer_commit)
+            self.assertEqual(first_persisted["PUBLICATION_REUSED"], "false")
 
             data_paths = set(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", data_commit).splitlines())
             manifest_paths = set(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", public_commit).splitlines())
@@ -179,7 +194,6 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
             self.assertEqual(latest["data_commit"], data_commit)
             self.assertEqual(latest["public_commit"], public_commit)
             self.assertNotIn("pointer_commit", latest)
-            self.assertEqual(self.git(work, "rev-parse", "origin/public-news-data"), pointer_commit)
 
             second_env = self.publication_environment(
                 root=root,
@@ -189,11 +203,26 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
                 run_id="12345679",
                 source_root=source_root,
             )
-            duplicate = self.run_command(["bash", str(script)], cwd=work, env=second_env, check=False)
-            self.assertNotEqual(duplicate.returncode, 0)
-            self.assertIn("candidate digest already published", duplicate.stderr)
+            self.run_command(["bash", str(script)], cwd=work, env=second_env)
+            second_persisted = self.read_github_env(Path(second_env["GITHUB_ENV"]))
+            self.assertEqual(second_persisted["DATA_COMMIT"], data_commit)
+            self.assertEqual(second_persisted["PUBLIC_COMMIT"], public_commit)
+            self.assertEqual(second_persisted["POINTER_COMMIT"], pointer_commit)
+            self.assertEqual(second_persisted["SNAPSHOT_PATH"], snapshot_path)
+            self.assertEqual(second_persisted["PREVIOUS_PUBLISHED_HEAD"], previous_head)
+            self.assertEqual(second_persisted["REMOTE_PUBLISHED_HEAD"], pointer_commit)
+            self.assertEqual(second_persisted["PUBLICATION_REUSED"], "true")
             self.git(work, "fetch", "origin", "public-news-data")
             self.assertEqual(self.git(work, "rev-parse", "origin/public-news-data"), pointer_commit)
+
+            second_report = json.loads(
+                (Path(second_persisted["ARTIFACT_ROOT"]) / "run_report.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(second_report["publication_reused"])
+            self.assertFalse(second_report["publication_push_performed"])
+            self.assertEqual(second_report["data_commit"], data_commit)
+            self.assertEqual(second_report["public_commit"], public_commit)
+            self.assertEqual(second_report["pointer_commit"], pointer_commit)
 
 
 if __name__ == "__main__":
