@@ -157,7 +157,6 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
             data_commit = self.git(work, "rev-parse", f"{public_commit}^")
             self.assertEqual(self.git(work, "rev-parse", f"{data_commit}^"), previous_head)
 
-            self.assertEqual(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", data_commit).splitlines().__len__(), 2)
             data_paths = set(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", data_commit).splitlines())
             manifest_paths = set(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", public_commit).splitlines())
             pointer_paths = set(self.git(work, "diff-tree", "--no-commit-id", "--name-only", "-r", pointer_commit).splitlines())
@@ -179,7 +178,8 @@ class R9PublicationTransactionBlackBoxTests(unittest.TestCase):
             self.assertEqual(manifest["news_file_sha256"], digest)
             self.assertEqual(latest["data_commit"], data_commit)
             self.assertEqual(latest["public_commit"], public_commit)
-            self.assertEqual(latest["pointer_commit"], pointer_commit)
+            self.assertNotIn("pointer_commit", latest)
+            self.assertEqual(self.git(work, "rev-parse", "origin/public-news-data"), pointer_commit)
 
             second_env = self.publication_environment(
                 root=root,
