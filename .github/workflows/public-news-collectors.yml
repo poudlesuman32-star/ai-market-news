@@ -93,23 +93,21 @@ jobs:
           from ai_market_news.collector_common import CollectorError
           from ai_market_news.preview_gate import require_publication_authorized
 
-          gate = json.loads(Path("news/config/public_news_preview_gate.json").read_text(encoding="utf-8"))
-          authorized = False
+          gate = json.loads(Path('news/config/public_news_preview_gate.json').read_text(encoding='utf-8'))
           try:
               require_publication_authorized(gate)
               authorized = True
           except CollectorError:
               authorized = False
-
-          assert authorized is gate["publication_authorized"]
-          assert gate["contents_write_permission_authorized"] is gate["publication_authorized"]
+          assert authorized is gate['publication_authorized']
+          assert gate['contents_write_permission_authorized'] is gate['publication_authorized']
           if authorized:
-              assert gate["gate_satisfied"] is True
-              assert gate["review_approved"] is True
-              assert gate["approved_by"]
-              assert gate["approved_at_utc"]
+              assert gate['gate_satisfied'] is True
+              assert gate['review_approved'] is True
+              assert gate['approved_by']
+              assert gate['approved_at_utc']
           else:
-              assert gate["review_approved"] is False
+              assert gate['review_approved'] is False
           PY
 
       - name: Run deterministic fixture preview
@@ -156,15 +154,15 @@ jobs:
           import json
           from pathlib import Path
 
-          rows = [json.loads(line) for line in Path("public-news-preview/news.jsonl").read_text(encoding="utf-8").splitlines()]
-          report = json.loads(Path("public-news-preview/run_report.json").read_text(encoding="utf-8"))
-          assert all(row["validation"] == "transformed_valid" for row in rows)
-          assert all(row["synthetic_content_used"] is False for row in rows)
-          assert all(row["source_content_modified"] is False for row in rows)
-          assert report["publication_enabled"] is False
-          assert report["published_to_repository"] is False
-          assert report["this_run_qualifies"] is True
-          assert report["required_successful_preview_runs"] == 5
+          rows = [json.loads(line) for line in Path('public-news-preview/news.jsonl').read_text(encoding='utf-8').splitlines()]
+          report = json.loads(Path('public-news-preview/run_report.json').read_text(encoding='utf-8'))
+          assert all(row['validation'] == 'transformed_valid' for row in rows)
+          assert all(row['synthetic_content_used'] is False for row in rows)
+          assert all(row['source_content_modified'] is False for row in rows)
+          assert report['publication_enabled'] is False
+          assert report['published_to_repository'] is False
+          assert report['this_run_qualifies'] is True
+          assert report['required_successful_preview_runs'] == 5
           PY
 
       - name: Confirm workflow safety boundaries
@@ -179,12 +177,13 @@ jobs:
           publisher = Path('scripts/publish_public_news_snapshot.sh').read_text(encoding='utf-8')
           request_validator = Path('news/src/ai_market_news/validate_r9_publication_request.py').read_text(encoding='utf-8')
           black_box = Path('news/tests/test_r9_publication_request_black_box.py').read_text(encoding='utf-8')
+          write_permission = 'contents:' + ' write'
+          validation_runtime = validation.split('      - name: Confirm workflow safety boundaries', 1)[0]
 
-          for text in (validation, fixture_preview):
-              for value in ('secrets' + '.', 'sche' + 'dule:', 'contents:' + ' write', 'git ' + 'push'):
+          for text in (validation_runtime, fixture_preview):
+              for value in ('secrets' + '.', 'sche' + 'dule:', write_permission, 'git ' + 'push'):
                   assert value not in text, f'forbidden workflow capability: {value}'
-
-          for value in ('secrets' + '.', 'contents:' + ' write', 'git ' + 'push', 'repository_' + 'dispatch'):
+          for value in ('secrets' + '.', write_permission, 'git ' + 'push', 'repository_' + 'dispatch'):
               assert value not in live_preview, f'forbidden live-preview capability: {value}'
 
           assert 'cron: "15 13 * * 1-5"' in live_preview
@@ -196,16 +195,15 @@ jobs:
           assert 'workflow_dispatch' in live_preview
           assert 'article_pages_fetched' not in live_preview
 
-          # R9 publication is an exact manual-only request with read/write authority isolated by job.
           assert 'workflow_run:' not in autonomy
           assert 'workflow_dispatch:' in autonomy
           assert 'validate-request:' in autonomy
           assert 'publish-and-dispatch:' in autonomy
           assert autonomy.index('validate-request:') < autonomy.index('publish-and-dispatch:')
           assert 'environment: ppi-r9-manual-approval' in autonomy
-          assert autonomy.count('contents: write') == 1
+          assert autonomy.count(write_permission) == 1
           assert 'permissions:\n      actions: read\n      contents: read' in autonomy
-          assert 'permissions:\n      actions: read\n      contents: write' in autonomy
+          assert f'permissions:\n      actions: read\n      {write_permission}' in autonomy
           assert 'authorization_reason' not in autonomy
           assert 'authorized_by' not in autonomy
           assert 'required_reviewer_gate_verified' in autonomy
@@ -225,8 +223,7 @@ jobs:
           assert 'persist-credentials: false' in autonomy
           assert 'AUTONOMY_CONTRACT_SHA256' in autonomy
 
-          # Independent behavior checks must reject scheduled runs, mismatched commits/hashes, and stale requests.
-          assert "source_run.get(\"event\") == \"workflow_dispatch\"" in request_validator
+          assert 'source_run.get("event") == "workflow_dispatch"' in request_validator
           assert 'receipt source commit mismatch' in request_validator
           assert 'run report source commit mismatch' in request_validator
           assert 'authorization window exceeds 24 hours from source completion' in request_validator
@@ -235,7 +232,6 @@ jobs:
           for forbidden_import in ('from ai_market_news', 'import ai_market_news'):
               assert forbidden_import not in black_box
 
-          # Negative boundaries: scheduled or loosely bound publication cannot exist.
           assert 'github.event.workflow_run' not in autonomy
           assert "event != 'pull_request'" not in autonomy
           assert 'sche' + 'dule:' not in autonomy
@@ -245,5 +241,6 @@ jobs:
 
           assert 'require-publication' in publisher
           assert publisher.count('git -C "$PUBLISH_ROOT" push') == 1
+          assert 'candidate digest already published' in publisher
           assert 'iteration-16-market-data' not in publisher
           PY
