@@ -177,7 +177,7 @@ jobs:
 
           assert "workflow_run:" in autonomy
           assert "PPI public news live primary-source preview" in autonomy
-          assert "contents: write" in autonomy
+          assert "contents:" + " write" in autonomy
           assert "actions: read" in autonomy
           assert "PPI_CROSS_REPOSITORY_AUTOMATION" in autonomy
           assert "ppi_public_snapshot_ready" in autonomy
