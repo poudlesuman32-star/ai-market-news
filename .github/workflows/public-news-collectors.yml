@@ -9,6 +9,7 @@ on:
       - ".github/workflows/public-news-collectors.yml"
       - ".github/workflows/collect-public-news.yml"
       - ".github/workflows/collect-public-news-live.yml"
+      - ".github/workflows/ppi-r9-autonomous-publication.yml"
   workflow_dispatch:
 
 permissions:
@@ -155,6 +156,7 @@ jobs:
           validation = Path(".github/workflows/public-news-collectors.yml").read_text(encoding="utf-8")
           fixture_preview = Path(".github/workflows/collect-public-news.yml").read_text(encoding="utf-8")
           live_preview = Path(".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
+          autonomy = Path(".github/workflows/ppi-r9-autonomous-publication.yml").read_text(encoding="utf-8")
           publisher = Path("scripts/publish_public_news_snapshot.sh").read_text(encoding="utf-8")
 
           for text in (validation, fixture_preview):
@@ -172,6 +174,22 @@ jobs:
           assert "live_primary_sources" in live_preview
           assert "workflow_dispatch" in live_preview
           assert "article_pages_fetched" not in live_preview
+
+          assert "workflow_run:" in autonomy
+          assert "PPI public news live primary-source preview" in autonomy
+          assert "contents: write" in autonomy
+          assert "actions: read" in autonomy
+          assert "PPI_CROSS_REPOSITORY_AUTOMATION" in autonomy
+          assert "ppi_public_snapshot_ready" in autonomy
+          assert "PPI-R9-AUTONOMY-002" in autonomy
+          assert "persist-credentials: false" in autonomy
+          assert "head_branch == 'main'" in autonomy
+          assert "head_repository.full_name == 'poudlesuman32-star/ai-market-news'" in autonomy
+          assert "provider_failures" in autonomy
+          assert "AUTONOMY_CONTRACT_SHA256" in autonomy
+          for forbidden in ("write_mmm", "write_raw_data", "broker", "place_order", "trade"):
+              assert forbidden not in autonomy.lower(), forbidden
+
           assert "require-publication" in publisher
           assert publisher.count('git -C "$PUBLISH_ROOT" push') == 1
           assert "iteration-16-market-data" not in publisher
