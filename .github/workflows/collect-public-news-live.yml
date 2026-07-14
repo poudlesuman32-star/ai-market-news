@@ -3,7 +3,7 @@ run-name: Live public news preview #${{ github.run_number }}
 
 on:
   schedule:
-    - cron: "15 13 * * 1-5"
+    - cron: "15 1,7,13,19 * * 1-5"
   workflow_dispatch:
     inputs:
       sec_user_agent:
@@ -32,6 +32,8 @@ jobs:
       SEC_USER_AGENT: ${{ github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT || inputs.sec_user_agent }}
       LOOKBACK_DAYS: ${{ github.event_name == 'schedule' && '30' || inputs.lookback_days }}
       SCHEDULED_LOOKBACK_DAYS: "30"
+      RETRY_SCHEDULE_CONTRACT_ID: PPI-R9-CANDIDATE-RETRY-SCHEDULE-002
+      RETRY_SCHEDULE_CONTRACT_SHA256: 3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -156,6 +158,39 @@ jobs:
             --duplicate-count "$DUPLICATE_COUNT" \
             --provider-failures-json "$PROVIDER_FAILURES_JSON"
 
+      - name: Write frozen retry schedule evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "schema_version": "1.0.0",
+              "contract_id": os.environ["RETRY_SCHEDULE_CONTRACT_ID"],
+              "contract_sha256": os.environ["RETRY_SCHEDULE_CONTRACT_SHA256"],
+              "contract_status": "frozen",
+              "workflow_event": os.environ["GITHUB_EVENT_NAME"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "source_commit": os.environ["GITHUB_SHA"],
+              "scheduled_utc_slots": ["01:15", "07:15", "13:15", "19:15"],
+              "weekday_only": True,
+              "interval_hours": 6,
+              "scheduled_lookback_days": 30,
+              "candidate_workflow_contents_permission": "read",
+              "direct_publication_authority": False,
+              "direct_private_dispatch_authority": False,
+              "r10_enabled": False,
+              "prohibited_actions_enabled": False,
+          }
+          Path("live-preview/artifacts/retry_schedule_contract.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
       - name: Enforce mixed-provider live preview gate
         env:
           PYTHONPATH: news/src
@@ -182,6 +217,9 @@ jobs:
 
           receipt = json.loads(Path("live-preview/artifacts/collection_receipt.json").read_text(encoding="utf-8"))
           report = json.loads(Path("live-preview/artifacts/run_report.json").read_text(encoding="utf-8"))
+          schedule_contract = json.loads(
+              Path("live-preview/artifacts/retry_schedule_contract.json").read_text(encoding="utf-8")
+          )
           scheduled = os.environ["GITHUB_EVENT_NAME"] == "schedule"
           assert report["collection_mode"] == "live_primary_sources"
           assert report["workflow_event"] == os.environ["GITHUB_EVENT_NAME"]
@@ -197,4 +235,13 @@ jobs:
           assert report["published_to_repository"] is False
           assert report["publication_enabled"] is False
           assert report["external_writes_enabled"] is False
+          assert schedule_contract["contract_id"] == os.environ["RETRY_SCHEDULE_CONTRACT_ID"]
+          assert schedule_contract["contract_sha256"] == os.environ["RETRY_SCHEDULE_CONTRACT_SHA256"]
+          assert schedule_contract["scheduled_utc_slots"] == ["01:15", "07:15", "13:15", "19:15"]
+          assert schedule_contract["interval_hours"] == 6
+          assert schedule_contract["weekday_only"] is True
+          assert schedule_contract["direct_publication_authority"] is False
+          assert schedule_contract["direct_private_dispatch_authority"] is False
+          assert schedule_contract["r10_enabled"] is False
+          assert schedule_contract["prohibited_actions_enabled"] is False
           PY
