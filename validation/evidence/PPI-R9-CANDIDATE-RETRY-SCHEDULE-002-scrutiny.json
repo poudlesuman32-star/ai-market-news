@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0.0",
+  "evidence_id": "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002-SCRUTINY-001",
+  "validator": "scrutiny",
+  "contract_id": "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002",
+  "contract_sha256": "3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e",
+  "contract_merge_commit": "0d219fa538655c37b66b48c78268b929a218f406",
+  "implementation_commit": "d1c06c847150460f421c23ff1c8ac12710455d6c",
+  "validation_result": "passed",
+  "validation_type": "contract_first_source_workflow_security_and_boundary_review",
+  "ci": [
+    {
+      "run_id": 29354267375,
+      "workflow": "PPI public news pipeline",
+      "conclusion": "success"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "retry_schedule_contract_hash_exact",
+      "status": "passed",
+      "evidence": [
+        "Frozen contract merged at 0d219fa538655c37b66b48c78268b929a218f406",
+        "Exact frozen SHA-256 3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e",
+        ".github/workflows/collect-public-news-live.yml binds RETRY_SCHEDULE_CONTRACT_ID and RETRY_SCHEDULE_CONTRACT_SHA256",
+        "news/tests/test_public_news_preview.py rejects a changed contract hash",
+        "CI run 29354267375 passed on implementation head d1c06c847150460f421c23ff1c8ac12710455d6c"
+      ]
+    },
+    {
+      "id": "four_weekday_utc_slots_exact",
+      "status": "passed",
+      "evidence": [
+        "The workflow contains exactly one cron expression: 15 1,7,13,19 * * 1-5",
+        "The approved UTC slots are 01:15, 07:15, 13:15, and 19:15 Monday through Friday",
+        "The previous 13:15 slot is preserved",
+        "news/tests/test_r9_candidate_retry_schedule_black_box.py rejects the previous once-daily cron, weekends, extra schedules, and three-hour frequency"
+      ]
+    },
+    {
+      "id": "manual_diagnostics_preserved",
+      "status": "passed",
+      "evidence": [
+        "workflow_dispatch remains present",
+        "sec_user_agent remains a required manual input",
+        "lookback_days remains a required manual input with default 30",
+        "The input validator still enforces 1 through 30 days",
+        "The schedule change does not modify collection, normalization, deduplication, tagging, or manual artifact behavior"
+      ]
+    },
+    {
+      "id": "read_only_candidate_permissions_preserved",
+      "status": "passed",
+      "evidence": [
+        "Top-level candidate permission remains contents: read",
+        "actions/checkout keeps persist-credentials: false",
+        "The candidate workflow contains no contents: write, git push, repository_dispatch, public-news-data reference, registry mutation, or R10 enablement",
+        "Independent automated publication remains a separate workflow governed by PPI-R9-AUTONOMY-002",
+        "CI safety-boundary assertions passed in run 29354267375"
+      ]
+    },
+    {
+      "id": "scheduled_identity_and_lookback_unchanged",
+      "status": "passed",
+      "evidence": [
+        "Scheduled SEC identity is still read only from repository variable PPI_SEC_USER_AGENT",
+        "The workflow requires a nonempty user agent containing a contact email before collection",
+        "Scheduled LOOKBACK_DAYS remains fixed at 30",
+        "Manual lookback remains bounded from 1 through 30",
+        "No secret value is written to retained schedule-contract evidence"
+      ]
+    },
+    {
+      "id": "concurrency_prevents_overlapping_candidate_runs",
+      "status": "passed",
+      "evidence": [
+        "The concurrency group remains ppi-public-news-live-primary-preview",
+        "cancel-in-progress remains false",
+        "All four scheduled events share the same concurrency group and therefore serialize rather than overlap or cancel an in-flight run",
+        "The black-box and workflow safety tests require this boundary"
+      ]
+    }
+  ],
+  "failed_assertions": [],
+  "blocked_assertions": [],
+  "notes": "Scrutiny validation covers only the six assertions assigned to scrutiny. It does not claim that a target-repository scheduled run has occurred and does not authorize R10, production scoring, promotion, dashboard publication, MMM/raw_data writes, broker actions, orders, or trading."
+}

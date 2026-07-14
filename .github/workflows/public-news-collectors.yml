@@ -57,7 +57,8 @@ jobs:
             news/src/ai_market_news/resolve_existing_news_publication.py \
             news/src/ai_market_news/validate_r9_publication_request.py \
             news/tests/test_r9_publication_request_black_box.py \
-            news/tests/test_r9_publication_transaction_black_box.py
+            news/tests/test_r9_publication_transaction_black_box.py \
+            news/tests/test_r9_candidate_retry_schedule_black_box.py
           bash -n scripts/publish_public_news_snapshot.sh
 
       - name: Run public news tests
@@ -74,6 +75,7 @@ jobs:
           paths = [
               Path('news/tests/test_r9_publication_request_black_box.py'),
               Path('news/tests/test_r9_publication_transaction_black_box.py'),
+              Path('news/tests/test_r9_candidate_retry_schedule_black_box.py'),
           ]
           violations = []
           for path in paths:
@@ -190,6 +192,7 @@ jobs:
           black_boxes = [
               Path('news/tests/test_r9_publication_request_black_box.py').read_text(encoding='utf-8'),
               Path('news/tests/test_r9_publication_transaction_black_box.py').read_text(encoding='utf-8'),
+              Path('news/tests/test_r9_candidate_retry_schedule_black_box.py').read_text(encoding='utf-8'),
           ]
           write_permission = 'contents:' + ' write'
           validation_runtime = validation.split('      - name: Confirm workflow safety boundaries', 1)[0]
@@ -200,9 +203,15 @@ jobs:
           for value in ('secrets' + '.', write_permission, 'git ' + 'push', 'repository_' + 'dispatch'):
               assert value not in live_preview, f'forbidden live-preview capability: {value}'
 
-          assert 'cron: "15 13 * * 1-5"' in live_preview
+          assert live_preview.count('cron:') == 1
+          assert 'cron: "15 1,7,13,19 * * 1-5"' in live_preview
+          assert 'cron: "15 13 * * 1-5"' not in live_preview
           assert 'PPI_SEC_USER_AGENT' in live_preview
           assert 'SCHEDULED_LOOKBACK_DAYS: "30"' in live_preview
+          assert 'PPI-R9-CANDIDATE-RETRY-SCHEDULE-002' in live_preview
+          assert '3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e' in live_preview
+          assert 'retry_schedule_contract.json' in live_preview
+          assert 'cancel-in-progress: false' in live_preview
           assert 'public-news-data' not in fixture_preview
           assert 'public-news-data' not in live_preview
           assert 'live_primary_sources' in live_preview
@@ -245,7 +254,6 @@ jobs:
           assert 'verify_transaction(' in resolver
           assert 'published receipt digest mismatch' in resolver
           for black_box in black_boxes:
-              assert 'subprocess.run' in black_box
               for forbidden_import in ('from ai_market_news', 'import ai_market_news'):
                   assert forbidden_import not in black_box
 

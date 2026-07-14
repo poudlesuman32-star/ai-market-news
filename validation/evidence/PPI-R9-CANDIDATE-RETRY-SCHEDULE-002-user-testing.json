@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0.0",
+  "evidence_id": "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002-USER-TESTING-001",
+  "validator": "user_testing",
+  "contract_id": "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002",
+  "contract_sha256": "3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e",
+  "contract_merge_commit": "0d219fa538655c37b66b48c78268b929a218f406",
+  "implementation_commit": "d1c06c847150460f421c23ff1c8ac12710455d6c",
+  "validation_result": "blocked_external",
+  "validation_type": "contract_first_independent_black_box_validation_pending_target_scheduled_runtime",
+  "interface": {
+    "command": "PYTHONPATH=news/src python -m unittest discover -s news/tests -p \"test_*.py\" -v",
+    "focused_command": "python -m unittest news.tests.test_r9_candidate_retry_schedule_black_box -v",
+    "implementation_imports_used_by_validator": false,
+    "documented_by_test": "news/tests/test_r9_candidate_retry_schedule_black_box.py"
+  },
+  "ci": [
+    {
+      "run_id": 29354267375,
+      "workflow": "PPI public news pipeline",
+      "conclusion": "success"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "black_box_schedule_shape_exact",
+      "status": "passed",
+      "evidence": [
+        "The black-box test reads only the checked-out workflow files and uses Python standard-library modules",
+        "It imports no ai_market_news implementation module",
+        "It proves exactly one cron expression with UTC hours 1, 7, 13, and 19 and six-hour intervals",
+        "It rejects the old once-daily cron, weekends, extra schedules, and higher-frequency schedules",
+        "CI run 29354267375 passed the complete black-box suite"
+      ]
+    },
+    {
+      "id": "scheduled_candidate_still_fails_closed",
+      "status": "passed",
+      "evidence": [
+        "news/tests/test_live_preview_gate.py rejects schedule-mode mismatch, unsupported events, zero accepted SEC records, missing official-company requests, and provider failures",
+        "news/tests/test_validate_live_preview_candidate.py rejects dataset tampering, count mismatch, provider-count mismatch, and publication permission",
+        "The candidate workflow calls enforce_live_preview_gate before any downstream workflow can observe a successful conclusion",
+        "The separated automated publication workflow independently rechecks exact source run, candidate hash, mixed-provider evidence, privacy, provider failures, source commit, and frozen autonomy contract before publication"
+      ]
+    },
+    {
+      "id": "qualifying_candidate_only_cascades_under_autonomy_contract",
+      "status": "passed",
+      "evidence": [
+        "The candidate workflow itself has no repository_dispatch or write authority",
+        ".github/workflows/ppi-r9-automated-publication.yml listens only to completed PPI public news live primary-source preview workflow runs",
+        "The automated publication job requires success, main branch, and a non-pull-request source event",
+        "Publication is bound to frozen PPI-R9-AUTONOMY-002 SHA-256 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704",
+        "The black-box test rejects a changed autonomy hash or a reintroduced manual environment gate"
+      ]
+    },
+    {
+      "id": "runtime_slot_and_artifacts_truthful",
+      "status": "blocked",
+      "blocker_class": "time_or_trading_day_required",
+      "evidence": [
+        "The workflow writes retry_schedule_contract.json with exact contract ID and hash, run ID and attempt, source commit, event, four approved slots, fixed lookback, read-only permission, and prohibited-action flags",
+        "No scheduled execution from the newly merged cadence can exist before the implementation is merged and an approved weekday UTC slot occurs",
+        "Required target evidence remains one real scheduled run at 01:15, 07:15, 13:15, or 19:15 UTC with retained candidate artifacts and truthful downstream outcome"
+      ],
+      "human_action_required": false,
+      "next_action": "After merge, observe the next approved weekday UTC slot, inspect its retained artifact bundle and any downstream workflow runs, then update this assertion and rerun the final validation gate."
+    },
+    {
+      "id": "prohibited_actions_remain_disabled",
+      "status": "passed",
+      "evidence": [
+        "The candidate workflow retains contents: read and contains no direct push or private dispatch",
+        "The schedule-contract artifact explicitly records direct_publication_authority=false, direct_private_dispatch_authority=false, r10_enabled=false, and prohibited_actions_enabled=false",
+        "The schedule black-box test rejects write permission and scans for MMM writes, raw_data writes, broker actions, order placement, and automatic trading",
+        "The cadence change does not modify R10, scoring, promotion, dashboard, production-write, broker, order, or trading code"
+      ]
+    }
+  ],
+  "failed_assertions": [],
+  "blocked_assertions": [
+    "runtime_slot_and_artifacts_truthful"
+  ],
+  "blocker_class": "time_or_trading_day_required",
+  "affected_downstream_tasks": [
+    "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002 final validation only"
+  ],
+  "work_completed_around_blocker": [
+    "Contract drafted, frozen, and merged before implementation",
+    "Four-slot workflow implementation complete",
+    "Unit, negative, deterministic, permissions, security-boundary, and black-box tests green",
+    "Scrutiny validator passed all assigned assertions",
+    "Four of five user-testing assertions passed offline"
+  ],
+  "notes": "The validator fails closed because the contract explicitly requires target-repository scheduled runtime evidence. The implementation is merge-safe and may remain implemented_unvalidated until the next approved weekday UTC slot supplies that evidence. No human action is currently required."
+}
