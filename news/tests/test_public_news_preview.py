@@ -155,15 +155,21 @@ class PublicNewsPreviewTests(unittest.TestCase):
         self.assertIn("news_manifest.preview.json", workflow)
         self.assertIn("run_report.json", workflow)
 
-    def test_live_preview_workflow_has_safe_temporary_schedule(self) -> None:
+    def test_live_preview_workflow_has_safe_four_times_weekday_schedule(self) -> None:
         workflow = (ROOT / ".github/workflows/collect-public-news-live.yml").read_text(encoding="utf-8")
         lowered = workflow.lower()
-        self.assertIn('cron: "15 13 * * 1-5"', workflow)
+        self.assertEqual(workflow.count("cron:"), 1)
+        self.assertIn('cron: "15 1,7,13,19 * * 1-5"', workflow)
+        self.assertNotIn('cron: "15 13 * * 1-5"', workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("PPI_SEC_USER_AGENT", workflow)
         self.assertIn('SCHEDULED_LOOKBACK_DAYS: "30"', workflow)
+        self.assertIn("PPI-R9-CANDIDATE-RETRY-SCHEDULE-002", workflow)
+        self.assertIn("3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e", workflow)
+        self.assertIn("retry_schedule_contract.json", workflow)
         self.assertIn("contents: read", workflow)
         self.assertNotIn("contents: write", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
         self.assertNotIn("git push", lowered)
         self.assertNotIn("repository_dispatch", lowered)
         self.assertNotIn("public-news-data", workflow)
