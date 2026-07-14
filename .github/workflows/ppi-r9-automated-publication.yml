@@ -1,0 +1,235 @@
+name: PPI R9 automated publication and private dispatch
+run-name: Automated PPI publication from preview ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows: ["PPI public news live primary-source preview"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-r9-automated-publication
+  cancel-in-progress: false
+
+env:
+  EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
+  EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
+  AUTONOMY_CONTRACT_ID: PPI-R9-AUTONOMY-002
+  AUTONOMY_CONTRACT_PATH: validation/contracts/PPI-R9-AUTONOMY-002.json
+  AUTONOMY_CONTRACT_SHA256: 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704
+  DATA_BRANCH: public-news-data
+
+jobs:
+  publish-and-dispatch:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request'
+    permissions:
+      actions: read
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out reviewed public source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download exact successful preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          case "$SOURCE_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$SOURCE_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
+          mkdir -p source-run downloaded-preview publication-evidence contract-binding
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run/run.json
+          artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+          gh run download "$SOURCE_RUN_ID" --repo "$EXPECTED_PUBLIC_REPOSITORY" --name "$artifact_name" --dir downloaded-preview
+          test -s downloaded-preview/artifacts/news.jsonl
+          test -s downloaded-preview/artifacts/collection_receipt.json
+          test -s downloaded-preview/artifacts/news_manifest.preview.json
+          test -s downloaded-preview/artifacts/run_report.json
+
+      - name: Enforce exact autonomous candidate gate
+        env:
+          PYTHONPATH: news/src
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          python -m ai_market_news.enforce_live_preview_gate \
+            --receipt downloaded-preview/artifacts/collection_receipt.json \
+            --report downloaded-preview/artifacts/run_report.json
+          python - <<'PY' >> "$GITHUB_ENV"
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          source = json.loads(Path('source-run/run.json').read_text(encoding='utf-8'))
+          receipt = json.loads(Path('downloaded-preview/artifacts/collection_receipt.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('downloaded-preview/artifacts/news_manifest.preview.json').read_text(encoding='utf-8'))
+          report = json.loads(Path('downloaded-preview/artifacts/run_report.json').read_text(encoding='utf-8'))
+          news = Path('downloaded-preview/artifacts/news.jsonl')
+          digest = hashlib.sha256(news.read_bytes()).hexdigest()
+          assert str(source['id']) == os.environ['SOURCE_RUN_ID']
+          assert str(source['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
+          assert source['name'] == 'PPI public news live primary-source preview'
+          assert source['event'] in {'schedule', 'workflow_dispatch'}
+          assert source['status'] == 'completed' and source['conclusion'] == 'success'
+          assert source['head_branch'] == 'main' and source['head_sha'] == os.environ['SOURCE_HEAD_SHA']
+          assert source['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          assert receipt['dataset_sha256'] == digest
+          assert receipt['source_commit'] == os.environ['SOURCE_HEAD_SHA']
+          assert receipt['collection_complete'] is True
+          assert receipt['provider_failures'] == []
+          assert receipt['private_content_excluded'] is True
+          assert receipt['synthetic_content_used'] is False
+          assert receipt['source_content_modified'] is False
+          assert int(receipt['provider_counts'].get('sec_edgar', 0)) > 0
+          assert int(receipt['provider_counts'].get('official_company_source', 0)) > 0
+          assert manifest['file_sha256'] == digest
+          assert report['this_run_qualifies'] is True
+          assert report['qualification_exclusion_reasons'] == []
+          assert report['provider_failures'] == []
+          assert report['published_to_repository'] is False
+          assert report['external_writes_enabled'] is False
+          print('CANDIDATE_SHA256=' + digest)
+          print('SOURCE_HEAD_SHA=' + source['head_sha'])
+          print('SOURCE_WORKFLOW_EVENT=' + source['event'])
+          PY
+
+      - name: Bind exact frozen autonomy contract
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/contents/${AUTONOMY_CONTRACT_PATH}?ref=main" \
+            --jq .content | tr -d '\n' | base64 --decode > contract-binding/autonomy-contract.json
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          path = Path('contract-binding/autonomy-contract.json')
+          contract = json.loads(path.read_text(encoding='utf-8'))
+          assert contract['contract_id'] == os.environ['AUTONOMY_CONTRACT_ID']
+          assert contract['status'] == 'frozen'
+          assert hashlib.sha256(path.read_bytes()).hexdigest() == os.environ['AUTONOMY_CONTRACT_SHA256']
+          PY
+
+      - name: Write truthful autonomous authorization evidence
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          evidence = {
+              'schema_version': '1.0.0',
+              'authorization_type': 'frozen_contract_autonomous_execution',
+              'manual_approval_required': False,
+              'source_repository': os.environ['EXPECTED_PUBLIC_REPOSITORY'],
+              'source_workflow_name': 'PPI public news live primary-source preview',
+              'source_workflow_event': os.environ['SOURCE_WORKFLOW_EVENT'],
+              'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'candidate_sha256': os.environ['CANDIDATE_SHA256'],
+              'contract_id': os.environ['AUTONOMY_CONTRACT_ID'],
+              'contract_sha256': os.environ['AUTONOMY_CONTRACT_SHA256'],
+              'publication_workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'publication_workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'prohibited_actions_enabled': False,
+          }
+          payload = json.dumps(evidence, sort_keys=True, separators=(',', ':')).encode('utf-8')
+          evidence['authorization_request_sha256'] = hashlib.sha256(payload).hexdigest()
+          Path('publication-evidence/publication_authorization.json').write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print('AUTHORIZATION_REQUEST_SHA256=' + evidence['authorization_request_sha256'])
+          PY
+
+      - name: Configure ephemeral GitHub authentication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $auth"
+
+      - name: Publish immutable Commit A B C transaction
+        env:
+          PYTHONPATH: news/src
+          NEWS_FILE: downloaded-preview/artifacts/news.jsonl
+          COLLECTION_RECEIPT_FILE: downloaded-preview/artifacts/collection_receipt.json
+        run: bash scripts/publish_public_news_snapshot.sh
+
+      - name: Verify and retain published transaction metadata
+        run: |
+          set -euo pipefail
+          for value in DATA_COMMIT PUBLIC_COMMIT POINTER_COMMIT SNAPSHOT_PATH ARTIFACT_ROOT; do test -n "${!value:-}"; done
+          test "${#DATA_COMMIT}" -eq 40
+          test "${#PUBLIC_COMMIT}" -eq 40
+          test "${#POINTER_COMMIT}" -eq 40
+          test -s "$ARTIFACT_ROOT/latest.json"
+          test -s "$ARTIFACT_ROOT/run_report.json"
+          cp -R "$ARTIFACT_ROOT"/. publication-evidence/
+
+      - name: Dispatch exact transaction to private validator
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api --method POST "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" \
+            -f event_type=ppi_public_snapshot_ready \
+            -f "client_payload[public_repository]=${GITHUB_REPOSITORY}" \
+            -f "client_payload[public_branch]=${DATA_BRANCH}" \
+            -f "client_payload[source_workflow_run_id]=${SOURCE_RUN_ID}" \
+            -f "client_payload[source_workflow_run_attempt]=${SOURCE_RUN_ATTEMPT}" \
+            -f "client_payload[source_head_sha]=${SOURCE_HEAD_SHA}" \
+            -f "client_payload[candidate_sha256]=${CANDIDATE_SHA256}" \
+            -f "client_payload[authorization_request_sha256]=${AUTHORIZATION_REQUEST_SHA256}" \
+            -f "client_payload[publication_workflow_run_id]=${GITHUB_RUN_ID}" \
+            -f "client_payload[publication_workflow_run_attempt]=${GITHUB_RUN_ATTEMPT}" \
+            -f "client_payload[data_commit]=${DATA_COMMIT}" \
+            -f "client_payload[public_commit]=${PUBLIC_COMMIT}" \
+            -f "client_payload[pointer_commit]=${POINTER_COMMIT}" \
+            -f "client_payload[snapshot_path]=${SNAPSHOT_PATH}" \
+            -f "client_payload[contract_id]=${AUTONOMY_CONTRACT_ID}" \
+            -f "client_payload[contract_sha256]=${AUTONOMY_CONTRACT_SHA256}"
+
+      - name: Upload immutable publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r9-automated-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: publication-evidence/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Remove ephemeral authentication
+        if: always()
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
