@@ -7,9 +7,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/collect-public-news-live.yml"
+AUTOMATED_PUBLICATION_WORKFLOW = ROOT / ".github/workflows/ppi-r9-automated-publication.yml"
 EXPECTED_CRON = "15 1,7,13,19 * * 1-5"
 EXPECTED_CONTRACT_ID = "PPI-R9-CANDIDATE-RETRY-SCHEDULE-002"
 EXPECTED_CONTRACT_SHA256 = "3d5dc56da9e845a451a4523272175c8b1eb6959cd25fb8b97502435aa978bd8e"
+AUTONOMY_CONTRACT_ID = "PPI-R9-AUTONOMY-002"
+AUTONOMY_CONTRACT_SHA256 = "2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704"
 
 
 class ScheduleShapeError(ValueError):
@@ -64,9 +67,38 @@ def validate_schedule_text(text: str) -> None:
         raise ScheduleShapeError(f"candidate workflow gained prohibited authority: {present}")
 
 
+def validate_automated_publication_boundary(text: str) -> None:
+    required = {
+        "name: PPI R9 automated publication and private dispatch",
+        "workflow_run:",
+        'workflows: ["PPI public news live primary-source preview"]',
+        "github.event.workflow_run.conclusion == 'success'",
+        "github.event.workflow_run.head_branch == 'main'",
+        "github.event.workflow_run.event != 'pull_request'",
+        AUTONOMY_CONTRACT_ID,
+        AUTONOMY_CONTRACT_SHA256,
+        "Enforce exact autonomous candidate gate",
+        "Publish immutable Commit A B C transaction",
+        "ppi_public_snapshot_ready",
+        "publication_authorization.json",
+        "'manual_approval_required': False",
+        "'prohibited_actions_enabled': False",
+    }
+    missing = sorted(value for value in required if value not in text)
+    if missing:
+        raise ScheduleShapeError(f"autonomous boundary missing: {missing}")
+    if text.index("Enforce exact autonomous candidate gate") > text.index("Publish immutable Commit A B C transaction"):
+        raise ScheduleShapeError("publication precedes candidate validation")
+    if "environment: ppi-r9-manual-approval" in text:
+        raise ScheduleShapeError("automated path regained a manual environment gate")
+    if "schedule:" in text:
+        raise ScheduleShapeError("publication workflow gained an independent schedule")
+
+
 class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
     def setUp(self) -> None:
         self.workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.automated_publication = AUTOMATED_PUBLICATION_WORKFLOW.read_text(encoding="utf-8")
 
     def test_documented_workflow_has_exact_four_weekday_slots(self) -> None:
         validate_schedule_text(self.workflow)
@@ -109,6 +141,15 @@ class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
         self.assertIn("lookback_days:", self.workflow)
         self.assertIn('default: "30"', self.workflow)
         self.assertIn("assert 1 <= value <= 30", self.workflow)
+
+    def test_qualifying_candidate_cascades_only_under_frozen_autonomy_contract(self) -> None:
+        validate_automated_publication_boundary(self.automated_publication)
+
+    def test_manual_gate_or_changed_autonomy_hash_fails_closed(self) -> None:
+        changed = self.automated_publication.replace(AUTONOMY_CONTRACT_SHA256, "0" * 64)
+        changed += "\nenvironment: ppi-r9-manual-approval\n"
+        with self.assertRaisesRegex(ScheduleShapeError, "autonomous boundary missing|manual environment gate"):
+            validate_automated_publication_boundary(changed)
 
 
 if __name__ == "__main__":
