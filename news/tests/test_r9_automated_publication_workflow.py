@@ -8,6 +8,7 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         cls.workflow = Path('.github/workflows/ppi-r9-automated-publication.yml').read_text(encoding='utf-8')
 
     def test_exact_preview_workflow_run_trigger(self) -> None:
+        self.assertIn('name: PPI R9 automated publication and private dispatch', self.workflow)
         self.assertIn('workflow_run:', self.workflow)
         self.assertIn('workflows: ["PPI public news live primary-source preview"]', self.workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
@@ -26,6 +27,10 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertNotIn('environment: ppi-r9-manual-approval', self.workflow)
         self.assertIn("'manual_approval_required': False", self.workflow)
         self.assertIn("'prohibited_actions_enabled': False", self.workflow)
+        self.assertNotIn('manual_authorization.json', self.workflow)
+        self.assertNotIn('ppi-r9-manual-publication', self.workflow)
+        self.assertIn('publication_authorization.json', self.workflow)
+        self.assertIn('ppi-r9-automated-publication-', self.workflow)
         self.assertNotIn('MMM', self.workflow)
         self.assertNotIn('broker', self.workflow.lower())
         self.assertNotIn('trading', self.workflow.lower())
