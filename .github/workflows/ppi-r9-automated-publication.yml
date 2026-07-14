@@ -1,4 +1,4 @@
-name: PPI R9 manual publication and private dispatch
+name: PPI R9 automated publication and private dispatch
 run-name: Automated PPI publication from preview ${{ github.event.workflow_run.id }}
 
 on:
@@ -163,7 +163,7 @@ jobs:
           }
           payload = json.dumps(evidence, sort_keys=True, separators=(',', ':')).encode('utf-8')
           evidence['authorization_request_sha256'] = hashlib.sha256(payload).hexdigest()
-          Path('publication-evidence/manual_authorization.json').write_text(
+          Path('publication-evidence/publication_authorization.json').write_text(
               json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8'
           )
           print('AUTHORIZATION_REQUEST_SHA256=' + evidence['authorization_request_sha256'])
@@ -225,7 +225,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ppi-r9-manual-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ppi-r9-automated-publication-${{ github.run_id }}-${{ github.run_attempt }}
           path: publication-evidence/
           retention-days: 90
           if-no-files-found: error
