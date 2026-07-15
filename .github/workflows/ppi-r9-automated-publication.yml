@@ -1,9 +1,11 @@
 name: PPI R9 automated publication and private dispatch
-run-name: Automated PPI publication from preview ${{ github.event.workflow_run.id }}
+run-name: Automated PPI publication from candidate ${{ github.event.workflow_run.id }}
 
 on:
   workflow_run:
-    workflows: ["PPI public news live primary-source preview"]
+    workflows:
+      - PPI public news live primary-source preview
+      - PPI automated read-only live primary-source candidate
     types: [completed]
 
 permissions:
@@ -45,7 +47,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Download exact successful preview
+      - name: Download exact successful candidate
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -56,12 +58,25 @@ jobs:
           case "$SOURCE_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
           mkdir -p source-run downloaded-preview publication-evidence contract-binding
           gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run/run.json
-          artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+          source_workflow_name="$(python -c 'import json; print(json.load(open("source-run/run.json", encoding="utf-8"))["name"])')"
+          case "$source_workflow_name" in
+            "PPI public news live primary-source preview")
+              artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+              ;;
+            "PPI automated read-only live primary-source candidate")
+              artifact_name="ppi-readonly-live-candidate-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+              ;;
+            *)
+              echo "Unsupported R9 source workflow: $source_workflow_name" >&2
+              exit 1
+              ;;
+          esac
           gh run download "$SOURCE_RUN_ID" --repo "$EXPECTED_PUBLIC_REPOSITORY" --name "$artifact_name" --dir downloaded-preview
           test -s downloaded-preview/artifacts/news.jsonl
           test -s downloaded-preview/artifacts/collection_receipt.json
           test -s downloaded-preview/artifacts/news_manifest.preview.json
           test -s downloaded-preview/artifacts/run_report.json
+          printf 'SOURCE_WORKFLOW_NAME=%s\n' "$source_workflow_name" >> "$GITHUB_ENV"
 
       - name: Enforce exact autonomous candidate gate
         env:
@@ -86,9 +101,14 @@ jobs:
           report = json.loads(Path('downloaded-preview/artifacts/run_report.json').read_text(encoding='utf-8'))
           news = Path('downloaded-preview/artifacts/news.jsonl')
           digest = hashlib.sha256(news.read_bytes()).hexdigest()
+          allowed_workflows = {
+              'PPI public news live primary-source preview',
+              'PPI automated read-only live primary-source candidate',
+          }
           assert str(source['id']) == os.environ['SOURCE_RUN_ID']
           assert str(source['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
-          assert source['name'] == 'PPI public news live primary-source preview'
+          assert source['name'] in allowed_workflows
+          assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']
           assert source['event'] in {'schedule', 'workflow_dispatch'}
           assert source['status'] == 'completed' and source['conclusion'] == 'success'
           assert source['head_branch'] == 'main' and source['head_sha'] == os.environ['SOURCE_HEAD_SHA']
@@ -149,7 +169,7 @@ jobs:
               'authorization_type': 'frozen_contract_autonomous_execution',
               'manual_approval_required': False,
               'source_repository': os.environ['EXPECTED_PUBLIC_REPOSITORY'],
-              'source_workflow_name': 'PPI public news live primary-source preview',
+              'source_workflow_name': os.environ['SOURCE_WORKFLOW_NAME'],
               'source_workflow_event': os.environ['SOURCE_WORKFLOW_EVENT'],
               'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
               'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
@@ -207,6 +227,7 @@ jobs:
             -f event_type=ppi_public_snapshot_ready \
             -f "client_payload[public_repository]=${GITHUB_REPOSITORY}" \
             -f "client_payload[public_branch]=${DATA_BRANCH}" \
+            -f "client_payload[source_workflow_name]=${SOURCE_WORKFLOW_NAME}" \
             -f "client_payload[source_workflow_run_id]=${SOURCE_RUN_ID}" \
             -f "client_payload[source_workflow_run_attempt]=${SOURCE_RUN_ATTEMPT}" \
             -f "client_payload[source_head_sha]=${SOURCE_HEAD_SHA}" \

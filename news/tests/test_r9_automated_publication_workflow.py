@@ -7,12 +7,20 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = Path('.github/workflows/ppi-r9-automated-publication.yml').read_text(encoding='utf-8')
 
-    def test_exact_preview_workflow_run_trigger(self) -> None:
+    def test_supported_candidate_workflow_run_triggers(self) -> None:
         self.assertIn('name: PPI R9 automated publication and private dispatch', self.workflow)
         self.assertIn('workflow_run:', self.workflow)
-        self.assertIn('workflows: ["PPI public news live primary-source preview"]', self.workflow)
+        self.assertIn('- PPI public news live primary-source preview', self.workflow)
+        self.assertIn('- PPI automated read-only live primary-source candidate', self.workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", self.workflow)
+
+    def test_exact_artifact_mapping_fails_closed(self) -> None:
+        self.assertIn('ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}', self.workflow)
+        self.assertIn('ppi-readonly-live-candidate-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}', self.workflow)
+        self.assertIn('Unsupported R9 source workflow', self.workflow)
+        self.assertIn("assert source['name'] in allowed_workflows", self.workflow)
+        self.assertIn("assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']", self.workflow)
 
     def test_frozen_contract_and_mixed_provider_gate_precede_publication(self) -> None:
         contract = self.workflow.index('Bind exact frozen autonomy contract')
@@ -39,6 +47,7 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertIn('persist-credentials: false', self.workflow)
         self.assertIn('Remove ephemeral authentication', self.workflow)
         self.assertIn('event_type=ppi_public_snapshot_ready', self.workflow)
+        self.assertIn('client_payload[source_workflow_name]', self.workflow)
         self.assertIn('client_payload[pointer_commit]', self.workflow)
         self.assertIn('client_payload[contract_sha256]', self.workflow)
 
