@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .collector_common import CollectorError, require
+from .enforce_live_candidate_gate import enforce_live_candidate_gate
 
 GATE_VERSION = "live-primary-mixed-v2"
 REQUIRED_PROVIDERS = ("sec_edgar", "official_company_source")
@@ -30,6 +31,17 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
 def enforce_live_preview_gate(*, receipt_path: Path, report_path: Path) -> dict[str, Any]:
     receipt = read_json(receipt_path)
     report = read_json(report_path)
+
+    # The autonomous publication workflow supports both the legacy preview
+    # producer and the current read-only candidate producer. Candidate-only
+    # artifacts must be revalidated by their stricter frozen gate rather than
+    # being interpreted as legacy previews.
+    if receipt.get("candidate_only") is True or report.get("candidate_only") is True:
+        require(
+            receipt.get("candidate_only") is True and report.get("candidate_only") is True,
+            "candidate-only marker must agree between receipt and report",
+        )
+        return enforce_live_candidate_gate(receipt_path=receipt_path, report_path=report_path)
 
     request_counts = receipt.get("request_counts")
     provider_counts = receipt.get("provider_counts")
