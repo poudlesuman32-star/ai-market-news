@@ -84,7 +84,9 @@ def validate_automated_publication_boundary(text: str) -> None:
         "Enforce exact autonomous candidate gate",
         "Publish immutable Commit A B C transaction",
         "ppi_public_snapshot_ready",
-        "client_payload[source_workflow_name]",
+        "'transaction_json': transaction_json",
+        "assert len(client_payload) == 10",
+        "private_dispatch_request.json",
         "publication_authorization.json",
         "'manual_approval_required': False",
         "'prohibited_actions_enabled': False",
@@ -98,6 +100,8 @@ def validate_automated_publication_boundary(text: str) -> None:
         raise ScheduleShapeError("automated path regained a manual environment gate")
     if "schedule:" in text:
         raise ScheduleShapeError("publication workflow gained an independent schedule")
+    if "client_payload[source_workflow_name]" in text:
+        raise ScheduleShapeError("publication workflow regained the oversized flat dispatch payload")
 
 
 class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
