@@ -1,0 +1,249 @@
+{
+  "actual_end_date": "2026-07-15",
+  "actual_end_date_all_symbols": "2026-07-15",
+  "actual_start_date": "2026-05-29",
+  "adjustment_method": "adjusted_close/raw_close factor applied identically to open, high, low, and close",
+  "collected_at_utc": "2026-07-16T07:36:58.304795Z",
+  "contract_id": "iteration-16-market-source-v1",
+  "corporate_action_adjusted": true,
+  "csv_sha256": "4fff9bcd6180a34b69ac0a647da2804f22e40146d64fbbb200d241837fb013fe",
+  "iteration": 16,
+  "per_symbol": {
+    "BE": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NYQ",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 1532525400,
+        "fullExchangeName": "NYSE",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/BE?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:55.969084Z",
+        "symbol": "BE"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "CAR": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 432394200,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/CAR?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:56.233867Z",
+        "symbol": "CAR"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "GEV": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NYQ",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 1711546200,
+        "fullExchangeName": "NYSE",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/GEV?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:56.425593Z",
+        "symbol": "GEV"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "INTC": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 322151400,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/INTC?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:56.692092Z",
+        "symbol": "INTC"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "MU": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 454944600,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/MU?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:57.023519Z",
+        "symbol": "MU"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "NVDA": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 917015400,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/NVDA?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:57.228055Z",
+        "symbol": "NVDA"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "PLTR": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 1601472600,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/PLTR?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:57.465689Z",
+        "symbol": "PLTR"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "POWL": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 322151400,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/POWL?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:57.670042Z",
+        "symbol": "POWL"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "SNDK": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NMS",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 1739457000,
+        "fullExchangeName": "NasdaqGS",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/SNDK?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:57.861758Z",
+        "symbol": "SNDK"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "SPY": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "PCX",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 728317800,
+        "fullExchangeName": "NYSEArca",
+        "gmtoffset": -14400,
+        "instrumentType": "ETF",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:58.089448Z",
+        "symbol": "SPY"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    },
+    "VRT": {
+      "end_date": "2026-07-15",
+      "provider_metadata": {
+        "attempt_count": 1,
+        "currency": "USD",
+        "dataGranularity": "1d",
+        "exchangeName": "NYQ",
+        "exchangeTimezoneName": "America/New_York",
+        "firstTradeDate": 1533216600,
+        "fullExchangeName": "NYSE",
+        "gmtoffset": -14400,
+        "instrumentType": "EQUITY",
+        "request_url": "https://query1.finance.yahoo.com/v8/finance/chart/VRT?period1=1779926400&period2=1784332800&interval=1d&events=div%2Csplits&includeAdjustedClose=true",
+        "retrieved_at_utc": "2026-07-16T07:36:58.304138Z",
+        "symbol": "VRT"
+      },
+      "row_count": 32,
+      "start_date": "2026-05-29"
+    }
+  },
+  "provider_host": "query1.finance.yahoo.com",
+  "provider_name": "Yahoo Finance chart API",
+  "receipt_version": "1.0.0",
+  "regular_session_only": true,
+  "request_count": 11,
+  "requested_end_date": "2026-07-16",
+  "requested_start_date": "2026-05-29",
+  "required_symbols": [
+    "BE",
+    "CAR",
+    "GEV",
+    "INTC",
+    "MU",
+    "NVDA",
+    "PLTR",
+    "POWL",
+    "SNDK",
+    "SPY",
+    "VRT"
+  ],
+  "row_count": 352,
+  "source_data_modified": false,
+  "symbol_count": 11,
+  "synthetic_prices_used": false,
+  "target_end_date": "2026-07-24",
+  "target_window_complete": false,
+  "validated_row_count": 352
+}
