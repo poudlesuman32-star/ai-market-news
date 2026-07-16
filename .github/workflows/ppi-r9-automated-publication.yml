@@ -71,21 +71,50 @@ jobs:
               exit 1
               ;;
           esac
+          export ARTIFACT_NAME="$artifact_name"
 
           downloaded=false
           for attempt in 1 2 3 4 5 6; do
-            rm -rf downloaded-preview
+            rm -rf downloaded-preview source-run/candidate.zip
             mkdir -p downloaded-preview
-            if gh run download "$SOURCE_RUN_ID" \
-              --repo "$EXPECTED_PUBLIC_REPOSITORY" \
-              --name "$artifact_name" \
-              --dir downloaded-preview; then
+            gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts" > source-run/artifacts.json
+            artifact_id="$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path('source-run/artifacts.json').read_text(encoding='utf-8'))
+          matches = [
+              artifact for artifact in payload.get('artifacts', [])
+              if artifact.get('name') == os.environ['ARTIFACT_NAME']
+              and artifact.get('expired') is False
+              and str(artifact.get('workflow_run', {}).get('id', os.environ['SOURCE_RUN_ID'])) == os.environ['SOURCE_RUN_ID']
+          ]
+          if len(matches) == 1:
+              print(matches[0]['id'])
+          PY
+            )"
+            if [[ -n "$artifact_id" ]] && \
+              gh api -H "Accept: application/vnd.github+json" \
+                "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+                > source-run/candidate.zip && \
+              unzip -q source-run/candidate.zip -d downloaded-preview && \
+              test -s downloaded-preview/artifacts/news.jsonl && \
+              test -s downloaded-preview/artifacts/collection_receipt.json && \
+              test -s downloaded-preview/artifacts/news_manifest.preview.json && \
+              test -s downloaded-preview/artifacts/run_report.json; then
               downloaded=true
               break
             fi
-            echo "Candidate artifact not yet downloadable (attempt ${attempt}/6): ${artifact_name}" >&2
-            gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts" \
-              --jq '.artifacts[] | [.name, .expired, .size_in_bytes] | @tsv' || true
+            echo "Exact candidate artifact not yet retrievable (attempt ${attempt}/6): ${artifact_name}" >&2
+            python - <<'PY' || true
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('source-run/artifacts.json').read_text(encoding='utf-8'))
+          for artifact in payload.get('artifacts', []):
+              print(artifact.get('id'), artifact.get('name'), artifact.get('expired'), artifact.get('size_in_bytes'))
+          PY
             sleep 10
           done
 
@@ -99,8 +128,9 @@ jobs:
               'failure_stage': 'candidate_artifact_download',
               'source_run_id': os.environ['SOURCE_RUN_ID'],
               'source_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
-              'artifact_name': os.environ.get('artifact_name', ''),
+              'artifact_name': os.environ['ARTIFACT_NAME'],
               'attempts': 6,
+              'download_method': 'exact_artifact_id_api',
               'fail_closed': True,
           }
           Path('publication-evidence/download_failure.json').write_text(
@@ -111,10 +141,6 @@ jobs:
             exit 1
           fi
 
-          test -s downloaded-preview/artifacts/news.jsonl
-          test -s downloaded-preview/artifacts/collection_receipt.json
-          test -s downloaded-preview/artifacts/news_manifest.preview.json
-          test -s downloaded-preview/artifacts/run_report.json
           printf 'SOURCE_WORKFLOW_NAME=%s\n' "$source_workflow_name" >> "$GITHUB_ENV"
 
       - name: Enforce exact autonomous candidate gate
