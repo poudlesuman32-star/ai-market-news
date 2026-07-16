@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import unittest
 
 from ai_market_news.collector_common import CollectorError
@@ -11,7 +12,7 @@ COLLECTED_AT = "2026-07-10T18:00:00Z"
 
 
 class LivePrimarySourceTests(unittest.TestCase):
-    def test_sec_live_collects_metadata_only_records(self) -> None:
+    def test_sec_live_fetches_bounded_primary_document_evidence(self) -> None:
         config = {
             "schema_version": "1.0.0",
             "forms": ["8-K", "10-Q"],
@@ -33,12 +34,29 @@ class LivePrimarySourceTests(unittest.TestCase):
                 }
             }
         }
+        document_body = b"""<html><head><style>hidden</style></head><body>
+        <h1>Quarterly earnings</h1><p>Revenue increased and management raised guidance.</p>
+        <script>ignored()</script></body></html>"""
 
         def fetcher(url, **kwargs):
             self.assertEqual(url, "https://data.sec.gov/submissions/CIK0001045810.json")
-            self.assertEqual(kwargs["allowed_hosts"], {"data.sec.gov"})
+            self.assertEqual(kwargs["allowed_hosts"], {"sec.gov"})
             self.assertIn("contact@example.com", kwargs["user_agent"])
             return payload, 1
+
+        def document_fetcher(url, **kwargs):
+            self.assertEqual(
+                url,
+                "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000123/nvda-20260709.htm",
+            )
+            self.assertEqual(kwargs["allowed_hosts"], {"sec.gov"})
+            self.assertEqual(kwargs["max_bytes"], 1_500_000)
+            return HttpResult(
+                body=document_body,
+                final_url=url,
+                request_count=1,
+                content_type="text/html; charset=utf-8",
+            )
 
         records, metrics = collect_sec_live(
             config,
@@ -46,6 +64,7 @@ class LivePrimarySourceTests(unittest.TestCase):
             user_agent="PPI Test contact@example.com",
             lookback_days=7,
             fetcher=fetcher,
+            document_fetcher=document_fetcher,
         )
         self.assertEqual(len(records), 1)
         record = records[0]
@@ -53,12 +72,59 @@ class LivePrimarySourceTests(unittest.TestCase):
         self.assertEqual(record["filing_type"], "8-K")
         self.assertEqual(record["provider_article_id"], "0001045810-26-000123")
         self.assertIn("/Archives/edgar/data/1045810/000104581026000123/", record["source_url"])
-        self.assertNotIn("filing body", record["summary"].casefold())
+        self.assertIn("Quarterly earnings", record["summary"])
+        self.assertIn("raised guidance", record["summary"])
+        self.assertNotIn("ignored()", record["summary"])
         self.assertFalse(record["synthetic_content_used"])
         self.assertFalse(record["source_content_modified"])
-        self.assertEqual(metrics["request_count"], 1)
+        self.assertEqual(metrics["request_count"], 2)
         self.assertEqual(metrics["failures"], [])
+        self.assertTrue(metrics["full_document_content_fetched"])
+        self.assertEqual(metrics["primary_document_fetch_count"], 1)
+        self.assertEqual(
+            metrics["primary_document_sha256"]["0001045810-26-000123"],
+            hashlib.sha256(document_body).hexdigest(),
+        )
+
+    def test_sec_form4_is_not_document_fetched(self) -> None:
+        config = {
+            "schema_version": "1.0.0",
+            "forms": ["4"],
+            "companies": [{"ticker": "AAPL", "cik": "0000320193", "company_name": "Apple Inc."}],
+        }
+        payload = {
+            "filings": {
+                "recent": {
+                    "accessionNumber": ["0000320193-26-000111"],
+                    "form": ["4"],
+                    "acceptanceDateTime": ["2026-07-10T12:00:00Z"],
+                    "filingDate": ["2026-07-10"],
+                    "reportDate": ["2026-07-10"],
+                    "primaryDocument": ["ownership.xml"],
+                    "primaryDocDescription": ["Ownership report"],
+                    "items": [""],
+                }
+            }
+        }
+
+        def fetcher(url, **kwargs):
+            return payload, 1
+
+        def forbidden_document_fetcher(url, **kwargs):
+            self.fail("Form 4 must not fetch a primary document")
+
+        records, metrics = collect_sec_live(
+            config,
+            collected_at_utc=COLLECTED_AT,
+            user_agent="PPI Test contact@example.com",
+            lookback_days=7,
+            fetcher=fetcher,
+            document_fetcher=forbidden_document_fetcher,
+        )
+        self.assertEqual(len(records), 1)
         self.assertFalse(metrics["full_document_content_fetched"])
+        self.assertEqual(metrics["primary_document_fetch_count"], 0)
+        self.assertEqual(metrics["primary_document_sha256"], {})
 
     def test_sec_failure_is_isolated(self) -> None:
         config = {
@@ -89,12 +155,21 @@ class LivePrimarySourceTests(unittest.TestCase):
                 raise CollectorError("simulated provider failure")
             return valid, 1
 
+        def document_fetcher(url, **kwargs):
+            return HttpResult(
+                body=b"<html><body>Apple announced a financing agreement.</body></html>",
+                final_url=url,
+                request_count=1,
+                content_type="text/html",
+            )
+
         records, metrics = collect_sec_live(
             config,
             collected_at_utc=COLLECTED_AT,
             user_agent="PPI Test contact@example.com",
             lookback_days=7,
             fetcher=fetcher,
+            document_fetcher=document_fetcher,
         )
         self.assertEqual([record["ticker"] for record in records], ["AAPL"])
         self.assertEqual(metrics["failures"], ["sec_edgar:MU:collection_failed"])

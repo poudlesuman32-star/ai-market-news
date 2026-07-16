@@ -1,13 +1,66 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from typing import Any, Callable
 
 from .collector_common import CollectorError, build_public_record, require
-from .live_http import RateLimiter, fetch_json
+from .live_http import HttpResult, RateLimiter, fetch_bytes, fetch_json
 
-SEC_HOSTS = {"data.sec.gov"}
+SEC_HOSTS = {"sec.gov"}
 SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+SUBSTANTIVE_FORMS = {"8-K", "10-K", "10-Q", "6-K"}
+MAX_DOCUMENT_BYTES = 1_500_000
+MAX_DOCUMENT_EXCERPT_CHARS = 2_400
+
+
+class _VisibleTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._hidden_depth = 0
+        self._parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() in {"script", "style", "noscript"}:
+            self._hidden_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() in {"script", "style", "noscript"} and self._hidden_depth:
+            self._hidden_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._hidden_depth == 0 and data.strip():
+            self._parts.append(data)
+
+    def text(self) -> str:
+        return " ".join(self._parts)
+
+
+def extract_primary_document_text(body: bytes, content_type: str) -> str:
+    try:
+        decoded = body.decode("utf-8")
+    except UnicodeDecodeError:
+        decoded = body.decode("utf-8", errors="replace")
+    lowered = content_type.casefold()
+    if "html" in lowered or "xml" in lowered or "<html" in decoded[:500].casefold():
+        parser = _VisibleTextParser()
+        parser.feed(decoded)
+        decoded = parser.text()
+    return " ".join(decoded.split())
+
+
+def bounded_document_excerpt(text: str) -> str:
+    normalized = " ".join(text.split())
+    require(bool(normalized), "SEC primary document contains no readable text")
+    if len(normalized) <= MAX_DOCUMENT_EXCERPT_CHARS:
+        return normalized
+    clipped = normalized[:MAX_DOCUMENT_EXCERPT_CHARS]
+    boundary = clipped.rfind(" ")
+    if boundary >= MAX_DOCUMENT_EXCERPT_CHARS // 2:
+        clipped = clipped[:boundary]
+    return clipped.rstrip() + "…"
 
 
 def parse_utc(value: str) -> datetime:
@@ -76,6 +129,7 @@ def collect_sec_live(
     user_agent: str,
     lookback_days: int,
     fetcher: Callable[..., tuple[dict[str, Any], int]] = fetch_json,
+    document_fetcher: Callable[..., HttpResult] = fetch_bytes,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     require(bool(user_agent.strip()), "SEC live collection requires a declared user agent")
     require("@" in user_agent, "SEC user agent must include a contact email")
@@ -89,6 +143,8 @@ def collect_sec_live(
     failures: list[str] = []
     seen_accessions: set[str] = set()
     request_count = 0
+    document_hashes: dict[str, str] = {}
+    document_fetch_count = 0
 
     for company in companies:
         ticker = company["ticker"]
@@ -141,6 +197,23 @@ def collect_sec_live(
                 if report_date:
                     summary_parts.append(f"Report date: {report_date}.")
 
+                if form in SUBSTANTIVE_FORMS:
+                    document = document_fetcher(
+                        source_url,
+                        allowed_hosts=SEC_HOSTS,
+                        user_agent=user_agent,
+                        accept="text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.1",
+                        rate_limiter=limiter,
+                        max_bytes=MAX_DOCUMENT_BYTES,
+                    )
+                    request_count += document.request_count
+                    document_fetch_count += 1
+                    document_hashes[accession] = hashlib.sha256(document.body).hexdigest()
+                    excerpt = bounded_document_excerpt(
+                        extract_primary_document_text(document.body, document.content_type)
+                    )
+                    summary_parts.append(f"Verified primary-document excerpt: {excerpt}")
+
                 records.append(
                     build_public_record(
                         ticker=ticker,
@@ -170,5 +243,7 @@ def collect_sec_live(
         "configured_source_count": len(companies),
         "record_count": len(records),
         "failures": sorted(set(failures)),
-        "full_document_content_fetched": False,
+        "full_document_content_fetched": document_fetch_count > 0,
+        "primary_document_fetch_count": document_fetch_count,
+        "primary_document_sha256": dict(sorted(document_hashes.items())),
     }
