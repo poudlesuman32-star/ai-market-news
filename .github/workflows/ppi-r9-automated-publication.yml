@@ -288,24 +288,67 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          transaction = {
+              'public_repository': os.environ['GITHUB_REPOSITORY'],
+              'public_branch': os.environ['DATA_BRANCH'],
+              'source_workflow_name': os.environ['SOURCE_WORKFLOW_NAME'],
+              'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'candidate_sha256': os.environ['CANDIDATE_SHA256'],
+              'authorization_request_sha256': os.environ['AUTHORIZATION_REQUEST_SHA256'],
+              'publication_workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'publication_workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'data_commit': os.environ['DATA_COMMIT'],
+              'public_commit': os.environ['PUBLIC_COMMIT'],
+              'pointer_commit': os.environ['POINTER_COMMIT'],
+              'snapshot_path': os.environ['SNAPSHOT_PATH'],
+              'contract_id': os.environ['AUTONOMY_CONTRACT_ID'],
+              'contract_sha256': os.environ['AUTONOMY_CONTRACT_SHA256'],
+          }
+          transaction_json = json.dumps(transaction, sort_keys=True, separators=(',', ':'))
+          client_payload = {
+              'schema_version': '1.0.0',
+              'transaction_json': transaction_json,
+              'public_repository': transaction['public_repository'],
+              'public_branch': transaction['public_branch'],
+              'publication_workflow_run_id': transaction['publication_workflow_run_id'],
+              'publication_workflow_run_attempt': transaction['publication_workflow_run_attempt'],
+              'data_commit': transaction['data_commit'],
+              'pointer_commit': transaction['pointer_commit'],
+              'snapshot_path': transaction['snapshot_path'],
+              'contract_sha256': transaction['contract_sha256'],
+          }
+          expected_client_keys = {
+              'schema_version',
+              'transaction_json',
+              'public_repository',
+              'public_branch',
+              'publication_workflow_run_id',
+              'publication_workflow_run_attempt',
+              'data_commit',
+              'pointer_commit',
+              'snapshot_path',
+              'contract_sha256',
+          }
+          assert set(client_payload) == expected_client_keys
+          assert len(client_payload) == 10
+          request = {
+              'event_type': 'ppi_public_snapshot_ready',
+              'client_payload': client_payload,
+          }
+          Path('publication-evidence/private_dispatch_request.json').write_text(
+              json.dumps(request, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
           gh api --method POST "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" \
-            -f event_type=ppi_public_snapshot_ready \
-            -f "client_payload[public_repository]=${GITHUB_REPOSITORY}" \
-            -f "client_payload[public_branch]=${DATA_BRANCH}" \
-            -f "client_payload[source_workflow_name]=${SOURCE_WORKFLOW_NAME}" \
-            -f "client_payload[source_workflow_run_id]=${SOURCE_RUN_ID}" \
-            -f "client_payload[source_workflow_run_attempt]=${SOURCE_RUN_ATTEMPT}" \
-            -f "client_payload[source_head_sha]=${SOURCE_HEAD_SHA}" \
-            -f "client_payload[candidate_sha256]=${CANDIDATE_SHA256}" \
-            -f "client_payload[authorization_request_sha256]=${AUTHORIZATION_REQUEST_SHA256}" \
-            -f "client_payload[publication_workflow_run_id]=${GITHUB_RUN_ID}" \
-            -f "client_payload[publication_workflow_run_attempt]=${GITHUB_RUN_ATTEMPT}" \
-            -f "client_payload[data_commit]=${DATA_COMMIT}" \
-            -f "client_payload[public_commit]=${PUBLIC_COMMIT}" \
-            -f "client_payload[pointer_commit]=${POINTER_COMMIT}" \
-            -f "client_payload[snapshot_path]=${SNAPSHOT_PATH}" \
-            -f "client_payload[contract_id]=${AUTONOMY_CONTRACT_ID}" \
-            -f "client_payload[contract_sha256]=${AUTONOMY_CONTRACT_SHA256}"
+            --input publication-evidence/private_dispatch_request.json
 
       - name: Upload immutable publication evidence
         if: always()
