@@ -4,7 +4,9 @@ import hashlib
 import re
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
+from pathlib import PurePosixPath
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 from .collector_common import CollectorError, build_public_record, require
 from .live_http import HttpResult, RateLimiter, fetch_bytes, fetch_json
@@ -12,8 +14,11 @@ from .live_http import HttpResult, RateLimiter, fetch_bytes, fetch_json
 SEC_HOSTS = {"sec.gov"}
 SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 SUBSTANTIVE_FORMS = {"8-K", "10-K", "10-Q", "6-K"}
+EXHIBIT_TYPE_PREFIX = "EX-99"
 MAX_DOCUMENT_BYTES = 1_500_000
-MAX_DOCUMENT_EXCERPT_CHARS = 2_400
+MAX_PRIMARY_EXCERPT_CHARS = 1_200
+MAX_EXHIBIT_EXCERPT_CHARS = 1_600
+MAX_EXHIBITS_PER_FILING = 2
 
 
 class _VisibleTextParser(HTMLParser):
@@ -38,7 +43,48 @@ class _VisibleTextParser(HTMLParser):
         return " ".join(self._parts)
 
 
-def extract_primary_document_text(body: bytes, content_type: str) -> str:
+class _FilingIndexParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._in_row = False
+        self._in_cell = False
+        self._cells: list[str] = []
+        self._cell_parts: list[str] = []
+        self._cell_href: str | None = None
+        self.rows: list[tuple[list[str], list[str | None]]] = []
+        self._hrefs: list[str | None] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        lowered = tag.casefold()
+        if lowered == "tr":
+            self._in_row = True
+            self._cells = []
+            self._hrefs = []
+        elif self._in_row and lowered in {"td", "th"}:
+            self._in_cell = True
+            self._cell_parts = []
+            self._cell_href = None
+        elif self._in_cell and lowered == "a":
+            values = dict(attrs)
+            self._cell_href = values.get("href")
+
+    def handle_endtag(self, tag: str) -> None:
+        lowered = tag.casefold()
+        if self._in_cell and lowered in {"td", "th"}:
+            self._cells.append(" ".join(" ".join(self._cell_parts).split()))
+            self._hrefs.append(self._cell_href)
+            self._in_cell = False
+        elif self._in_row and lowered == "tr":
+            if self._cells:
+                self.rows.append((list(self._cells), list(self._hrefs)))
+            self._in_row = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_cell and data.strip():
+            self._cell_parts.append(data)
+
+
+def extract_document_text(body: bytes, content_type: str) -> str:
     try:
         decoded = body.decode("utf-8")
     except UnicodeDecodeError:
@@ -51,16 +97,52 @@ def extract_primary_document_text(body: bytes, content_type: str) -> str:
     return " ".join(decoded.split())
 
 
-def bounded_document_excerpt(text: str) -> str:
+def bounded_document_excerpt(text: str, maximum: int) -> str:
     normalized = " ".join(text.split())
-    require(bool(normalized), "SEC primary document contains no readable text")
-    if len(normalized) <= MAX_DOCUMENT_EXCERPT_CHARS:
+    require(bool(normalized), "SEC document contains no readable text")
+    require(maximum > 0, "SEC excerpt maximum must be positive")
+    if len(normalized) <= maximum:
         return normalized
-    clipped = normalized[:MAX_DOCUMENT_EXCERPT_CHARS]
+    clipped = normalized[:maximum]
     boundary = clipped.rfind(" ")
-    if boundary >= MAX_DOCUMENT_EXCERPT_CHARS // 2:
+    if boundary >= maximum // 2:
         clipped = clipped[:boundary]
     return clipped.rstrip() + "…"
+
+
+def safe_exhibit_filename(href: str) -> str:
+    parsed = urlparse(str(href).strip())
+    require(not parsed.scheme and not parsed.netloc, "SEC exhibit link must be relative")
+    path = PurePosixPath(parsed.path)
+    require(len(path.parts) == 1, "SEC exhibit link must reference one same-accession file")
+    filename = path.name
+    require(bool(filename) and filename not in {".", ".."}, "SEC exhibit filename is invalid")
+    require(re.fullmatch(r"[A-Za-z0-9._-]+", filename) is not None, "SEC exhibit filename is unsafe")
+    return filename
+
+
+def parse_exhibit_documents(index_body: bytes, content_type: str) -> list[tuple[str, str]]:
+    text = index_body.decode("utf-8", errors="replace")
+    require("html" in content_type.casefold() or "<table" in text[:5000].casefold(), "SEC filing index is not HTML")
+    parser = _FilingIndexParser()
+    parser.feed(text)
+    selected: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for cells, hrefs in parser.rows:
+        exhibit_type = next((cell.strip().upper() for cell in cells if cell.strip().upper().startswith(EXHIBIT_TYPE_PREFIX)), "")
+        if not exhibit_type:
+            continue
+        href = next((value for value in hrefs if value), None)
+        if not href:
+            continue
+        filename = safe_exhibit_filename(href)
+        if filename in seen:
+            continue
+        seen.add(filename)
+        selected.append((exhibit_type, filename))
+        if len(selected) >= MAX_EXHIBITS_PER_FILING:
+            break
+    return selected
 
 
 def parse_utc(value: str) -> datetime:
@@ -143,19 +225,16 @@ def collect_sec_live(
     failures: list[str] = []
     seen_accessions: set[str] = set()
     request_count = 0
-    document_hashes: dict[str, str] = {}
-    document_fetch_count = 0
+    primary_hashes: dict[str, str] = {}
+    exhibit_hashes: dict[str, dict[str, str]] = {}
+    primary_fetch_count = 0
+    exhibit_fetch_count = 0
 
     for company in companies:
         ticker = company["ticker"]
         url = SEC_SUBMISSIONS_URL.format(cik=company["cik"])
         try:
-            payload, attempts = fetcher(
-                url,
-                allowed_hosts=SEC_HOSTS,
-                user_agent=user_agent,
-                rate_limiter=limiter,
-            )
+            payload, attempts = fetcher(url, allowed_hosts=SEC_HOSTS, user_agent=user_agent, rate_limiter=limiter)
             request_count += attempts
             filings = payload.get("filings")
             require(isinstance(filings, dict), "SEC submissions response is missing filings")
@@ -183,10 +262,8 @@ def collect_sec_live(
                 require(bool(primary_document), "SEC filing is missing primaryDocument")
                 accession_path = accession.replace("-", "")
                 cik_path = str(int(company["cik"]))
-                source_url = (
-                    f"https://www.sec.gov/Archives/edgar/data/{cik_path}/"
-                    f"{accession_path}/{primary_document}"
-                )
+                filing_root = f"https://www.sec.gov/Archives/edgar/data/{cik_path}/{accession_path}"
+                source_url = f"{filing_root}/{primary_document}"
                 description = str(recent_value(recent, "primaryDocDescription", index)).strip()
                 items = str(recent_value(recent, "items", index)).strip()
                 report_date = str(recent_value(recent, "reportDate", index)).strip()
@@ -207,12 +284,43 @@ def collect_sec_live(
                         max_bytes=MAX_DOCUMENT_BYTES,
                     )
                     request_count += document.request_count
-                    document_fetch_count += 1
-                    document_hashes[accession] = hashlib.sha256(document.body).hexdigest()
-                    excerpt = bounded_document_excerpt(
-                        extract_primary_document_text(document.body, document.content_type)
+                    primary_fetch_count += 1
+                    primary_hashes[accession] = hashlib.sha256(document.body).hexdigest()
+                    primary_excerpt = bounded_document_excerpt(
+                        extract_document_text(document.body, document.content_type), MAX_PRIMARY_EXCERPT_CHARS
                     )
-                    summary_parts.append(f"Verified primary-document excerpt: {excerpt}")
+                    summary_parts.append(f"Verified primary-document excerpt: {primary_excerpt}")
+
+                    index_url = f"{filing_root}/{accession}-index.html"
+                    index_document = document_fetcher(
+                        index_url,
+                        allowed_hosts=SEC_HOSTS,
+                        user_agent=user_agent,
+                        accept="text/html,application/xhtml+xml",
+                        rate_limiter=limiter,
+                        max_bytes=MAX_DOCUMENT_BYTES,
+                    )
+                    request_count += index_document.request_count
+                    selected_exhibits = parse_exhibit_documents(index_document.body, index_document.content_type)
+                    if selected_exhibits:
+                        exhibit_hashes[accession] = {}
+                    for exhibit_type, filename in selected_exhibits:
+                        exhibit_url = f"{filing_root}/{filename}"
+                        exhibit = document_fetcher(
+                            exhibit_url,
+                            allowed_hosts=SEC_HOSTS,
+                            user_agent=user_agent,
+                            accept="text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.1",
+                            rate_limiter=limiter,
+                            max_bytes=MAX_DOCUMENT_BYTES,
+                        )
+                        request_count += exhibit.request_count
+                        exhibit_fetch_count += 1
+                        exhibit_hashes[accession][filename] = hashlib.sha256(exhibit.body).hexdigest()
+                        exhibit_excerpt = bounded_document_excerpt(
+                            extract_document_text(exhibit.body, exhibit.content_type), MAX_EXHIBIT_EXCERPT_CHARS
+                        )
+                        summary_parts.append(f"Verified {exhibit_type} exhibit excerpt ({filename}): {exhibit_excerpt}")
 
                 records.append(
                     build_public_record(
@@ -243,7 +351,11 @@ def collect_sec_live(
         "configured_source_count": len(companies),
         "record_count": len(records),
         "failures": sorted(set(failures)),
-        "full_document_content_fetched": document_fetch_count > 0,
-        "primary_document_fetch_count": document_fetch_count,
-        "primary_document_sha256": dict(sorted(document_hashes.items())),
+        "full_document_content_fetched": primary_fetch_count > 0,
+        "primary_document_fetch_count": primary_fetch_count,
+        "primary_document_sha256": dict(sorted(primary_hashes.items())),
+        "exhibit_document_fetch_count": exhibit_fetch_count,
+        "exhibit_document_sha256": {
+            accession: dict(sorted(values.items())) for accession, values in sorted(exhibit_hashes.items())
+        },
     }
