@@ -19,6 +19,7 @@ MAX_DOCUMENT_BYTES = 1_500_000
 MAX_PRIMARY_EXCERPT_CHARS = 1_200
 MAX_EXHIBIT_EXCERPT_CHARS = 1_600
 MAX_EXHIBITS_PER_FILING = 2
+MAX_PUBLIC_SUMMARY_CHARS = 3_900
 
 
 class _VisibleTextParser(HTMLParser):
@@ -65,8 +66,7 @@ class _FilingIndexParser(HTMLParser):
             self._cell_parts = []
             self._cell_href = None
         elif self._in_cell and lowered == "a":
-            values = dict(attrs)
-            self._cell_href = values.get("href")
+            self._cell_href = dict(attrs).get("href")
 
     def handle_endtag(self, tag: str) -> None:
         lowered = tag.casefold()
@@ -110,6 +110,17 @@ def bounded_document_excerpt(text: str, maximum: int) -> str:
     return clipped.rstrip() + "…"
 
 
+def bounded_public_summary(parts: list[str]) -> str:
+    value = " ".join(parts)
+    if len(value) <= MAX_PUBLIC_SUMMARY_CHARS:
+        return value
+    clipped = value[:MAX_PUBLIC_SUMMARY_CHARS]
+    boundary = clipped.rfind(" ")
+    if boundary >= MAX_PUBLIC_SUMMARY_CHARS // 2:
+        clipped = clipped[:boundary]
+    return clipped.rstrip() + "…"
+
+
 def safe_exhibit_filename(href: str) -> str:
     parsed = urlparse(str(href).strip())
     require(not parsed.scheme and not parsed.netloc, "SEC exhibit link must be relative")
@@ -129,7 +140,10 @@ def parse_exhibit_documents(index_body: bytes, content_type: str) -> list[tuple[
     selected: list[tuple[str, str]] = []
     seen: set[str] = set()
     for cells, hrefs in parser.rows:
-        exhibit_type = next((cell.strip().upper() for cell in cells if cell.strip().upper().startswith(EXHIBIT_TYPE_PREFIX)), "")
+        exhibit_type = next(
+            (cell.strip().upper() for cell in cells if cell.strip().upper().startswith(EXHIBIT_TYPE_PREFIX)),
+            "",
+        )
         if not exhibit_type:
             continue
         href = next((value for value in hrefs if value), None)
@@ -143,6 +157,29 @@ def parse_exhibit_documents(index_body: bytes, content_type: str) -> list[tuple[
         if len(selected) >= MAX_EXHIBITS_PER_FILING:
             break
     return selected
+
+
+def classify_enrichment_error(error: Exception) -> str:
+    message = str(error).casefold()
+    if "exceeds" in message and "bytes" in message:
+        return "response_too_large"
+    match = re.search(r"http\s+(\d{3})", message)
+    if match:
+        return f"http_{match.group(1)}"
+    if "timeout" in message or "transport" in message or "retries" in message:
+        return "transport_error"
+    if "no readable text" in message:
+        return "unreadable_document"
+    if "not html" in message:
+        return "invalid_index_html"
+    if "unsafe" in message or "must be relative" in message or "same-accession" in message:
+        return "unsafe_document_link"
+    return "processing_error"
+
+
+def enrichment_failure(ticker: str, accession: str, stage: str, error: Exception | str) -> str:
+    reason = error if isinstance(error, str) else classify_enrichment_error(error)
+    return f"sec_edgar:{ticker}:{accession}:{stage}:{reason}"
 
 
 def parse_utc(value: str) -> datetime:
@@ -223,6 +260,7 @@ def collect_sec_live(
 
     records: list[dict[str, Any]] = []
     failures: list[str] = []
+    enrichment_failures: list[str] = []
     seen_accessions: set[str] = set()
     request_count = 0
     primary_hashes: dict[str, str] = {}
@@ -234,7 +272,12 @@ def collect_sec_live(
         ticker = company["ticker"]
         url = SEC_SUBMISSIONS_URL.format(cik=company["cik"])
         try:
-            payload, attempts = fetcher(url, allowed_hosts=SEC_HOSTS, user_agent=user_agent, rate_limiter=limiter)
+            payload, attempts = fetcher(
+                url,
+                allowed_hosts=SEC_HOSTS,
+                user_agent=user_agent,
+                rate_limiter=limiter,
+            )
             request_count += attempts
             filings = payload.get("filings")
             require(isinstance(filings, dict), "SEC submissions response is missing filings")
@@ -275,52 +318,79 @@ def collect_sec_live(
                     summary_parts.append(f"Report date: {report_date}.")
 
                 if form in SUBSTANTIVE_FORMS:
-                    document = document_fetcher(
-                        source_url,
-                        allowed_hosts=SEC_HOSTS,
-                        user_agent=user_agent,
-                        accept="text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.1",
-                        rate_limiter=limiter,
-                        max_bytes=MAX_DOCUMENT_BYTES,
-                    )
-                    request_count += document.request_count
-                    primary_fetch_count += 1
-                    primary_hashes[accession] = hashlib.sha256(document.body).hexdigest()
-                    primary_excerpt = bounded_document_excerpt(
-                        extract_document_text(document.body, document.content_type), MAX_PRIMARY_EXCERPT_CHARS
-                    )
-                    summary_parts.append(f"Verified primary-document excerpt: {primary_excerpt}")
-
-                    index_url = f"{filing_root}/{accession}-index.html"
-                    index_document = document_fetcher(
-                        index_url,
-                        allowed_hosts=SEC_HOSTS,
-                        user_agent=user_agent,
-                        accept="text/html,application/xhtml+xml",
-                        rate_limiter=limiter,
-                        max_bytes=MAX_DOCUMENT_BYTES,
-                    )
-                    request_count += index_document.request_count
-                    selected_exhibits = parse_exhibit_documents(index_document.body, index_document.content_type)
-                    if selected_exhibits:
-                        exhibit_hashes[accession] = {}
-                    for exhibit_type, filename in selected_exhibits:
-                        exhibit_url = f"{filing_root}/{filename}"
-                        exhibit = document_fetcher(
-                            exhibit_url,
+                    primary_ok = False
+                    try:
+                        document = document_fetcher(
+                            source_url,
                             allowed_hosts=SEC_HOSTS,
                             user_agent=user_agent,
                             accept="text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.1",
                             rate_limiter=limiter,
                             max_bytes=MAX_DOCUMENT_BYTES,
                         )
-                        request_count += exhibit.request_count
-                        exhibit_fetch_count += 1
-                        exhibit_hashes[accession][filename] = hashlib.sha256(exhibit.body).hexdigest()
-                        exhibit_excerpt = bounded_document_excerpt(
-                            extract_document_text(exhibit.body, exhibit.content_type), MAX_EXHIBIT_EXCERPT_CHARS
+                        request_count += document.request_count
+                        primary_fetch_count += 1
+                        primary_hashes[accession] = hashlib.sha256(document.body).hexdigest()
+                        primary_excerpt = bounded_document_excerpt(
+                            extract_document_text(document.body, document.content_type),
+                            MAX_PRIMARY_EXCERPT_CHARS,
                         )
-                        summary_parts.append(f"Verified {exhibit_type} exhibit excerpt ({filename}): {exhibit_excerpt}")
+                        summary_parts.append(f"Verified primary-document excerpt: {primary_excerpt}")
+                        primary_ok = True
+                    except (CollectorError, KeyError, TypeError, ValueError) as exc:
+                        enrichment_failures.append(enrichment_failure(ticker, accession, "primary_document", exc))
+
+                    if primary_ok:
+                        selected_exhibits: list[tuple[str, str]] = []
+                        try:
+                            index_url = f"{filing_root}/{accession}-index.html"
+                            index_document = document_fetcher(
+                                index_url,
+                                allowed_hosts=SEC_HOSTS,
+                                user_agent=user_agent,
+                                accept="text/html,application/xhtml+xml",
+                                rate_limiter=limiter,
+                                max_bytes=MAX_DOCUMENT_BYTES,
+                            )
+                            request_count += index_document.request_count
+                            selected_exhibits = parse_exhibit_documents(
+                                index_document.body,
+                                index_document.content_type,
+                            )
+                            if not selected_exhibits:
+                                enrichment_failures.append(
+                                    enrichment_failure(ticker, accession, "filing_index", "exhibit_not_found")
+                                )
+                        except (CollectorError, KeyError, TypeError, ValueError) as exc:
+                            enrichment_failures.append(enrichment_failure(ticker, accession, "filing_index", exc))
+
+                        if selected_exhibits:
+                            exhibit_hashes[accession] = {}
+                        for exhibit_type, filename in selected_exhibits:
+                            try:
+                                exhibit_url = f"{filing_root}/{filename}"
+                                exhibit = document_fetcher(
+                                    exhibit_url,
+                                    allowed_hosts=SEC_HOSTS,
+                                    user_agent=user_agent,
+                                    accept="text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.1",
+                                    rate_limiter=limiter,
+                                    max_bytes=MAX_DOCUMENT_BYTES,
+                                )
+                                request_count += exhibit.request_count
+                                exhibit_fetch_count += 1
+                                exhibit_hashes[accession][filename] = hashlib.sha256(exhibit.body).hexdigest()
+                                exhibit_excerpt = bounded_document_excerpt(
+                                    extract_document_text(exhibit.body, exhibit.content_type),
+                                    MAX_EXHIBIT_EXCERPT_CHARS,
+                                )
+                                summary_parts.append(
+                                    f"Verified {exhibit_type} exhibit excerpt ({filename}): {exhibit_excerpt}"
+                                )
+                            except (CollectorError, KeyError, TypeError, ValueError) as exc:
+                                enrichment_failures.append(
+                                    enrichment_failure(ticker, accession, f"exhibit:{filename}", exc)
+                                )
 
                 records.append(
                     build_public_record(
@@ -331,7 +401,7 @@ def collect_sec_live(
                         source_name=f"{company['company_name']} SEC filing",
                         source_url=source_url,
                         headline=headline,
-                        summary=" ".join(summary_parts),
+                        summary=bounded_public_summary(summary_parts),
                         provider="sec_edgar",
                         provider_article_id=accession,
                         source_ticker=ticker,
@@ -351,6 +421,7 @@ def collect_sec_live(
         "configured_source_count": len(companies),
         "record_count": len(records),
         "failures": sorted(set(failures)),
+        "enrichment_failures": sorted(set(enrichment_failures)),
         "full_document_content_fetched": primary_fetch_count > 0,
         "primary_document_fetch_count": primary_fetch_count,
         "primary_document_sha256": dict(sorted(primary_hashes.items())),
