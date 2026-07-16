@@ -1,5 +1,5 @@
 name: PPI automated read-only live primary-source candidate
-run-name: Automated live candidate #${{ github.run_number }}
+run-name: PPI automated read-only live primary-source candidate
 
 on:
   schedule:
