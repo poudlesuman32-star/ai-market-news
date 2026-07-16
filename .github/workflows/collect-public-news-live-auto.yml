@@ -2,8 +2,6 @@ name: PPI automated read-only live primary-source candidate
 run-name: PPI automated read-only live primary-source candidate
 
 on:
-  schedule:
-    - cron: "17 */6 * * 1-5"
   workflow_dispatch:
     inputs:
       sec_user_agent:
