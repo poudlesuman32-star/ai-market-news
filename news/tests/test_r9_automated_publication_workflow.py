@@ -22,13 +22,19 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertIn("assert source['name'] in allowed_workflows", self.workflow)
         self.assertIn("assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']", self.workflow)
 
-    def test_artifact_visibility_retry_is_bounded_and_retained(self) -> None:
+    def test_artifact_api_download_is_exact_bounded_and_retained(self) -> None:
+        self.assertIn('actions/runs/${SOURCE_RUN_ID}/artifacts', self.workflow)
+        self.assertIn('actions/artifacts/${artifact_id}/zip', self.workflow)
+        self.assertIn("artifact.get('name') == os.environ['ARTIFACT_NAME']", self.workflow)
+        self.assertIn("artifact.get('expired') is False", self.workflow)
         self.assertIn('for attempt in 1 2 3 4 5 6', self.workflow)
-        self.assertIn('Candidate artifact not yet downloadable', self.workflow)
+        self.assertIn('Exact candidate artifact not yet retrievable', self.workflow)
         self.assertIn('sleep 10', self.workflow)
+        self.assertIn("'download_method': 'exact_artifact_id_api'", self.workflow)
         self.assertIn("'failure_stage': 'candidate_artifact_download'", self.workflow)
         self.assertIn("'fail_closed': True", self.workflow)
         self.assertIn('download_failure.json', self.workflow)
+        self.assertNotIn('gh run download', self.workflow)
         self.assertNotIn('while true', self.workflow)
 
     def test_frozen_contract_and_mixed_provider_gate_precede_publication(self) -> None:
