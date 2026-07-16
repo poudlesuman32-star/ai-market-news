@@ -1,0 +1,281 @@
+name: PPI R9 explicit publication and private dispatch
+run-name: Explicit PPI publication from candidate ${{ inputs.source_workflow_run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_workflow_run_id:
+        description: Exact successful read-only candidate workflow run ID
+        required: true
+        type: string
+      source_workflow_run_attempt:
+        description: Exact source workflow run attempt
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-r9-explicit-publication
+  cancel-in-progress: false
+
+env:
+  EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
+  EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
+  EXPECTED_SOURCE_WORKFLOW: PPI automated read-only live primary-source candidate
+  AUTONOMY_CONTRACT_ID: PPI-R9-AUTONOMY-002
+  AUTONOMY_CONTRACT_PATH: validation/contracts/PPI-R9-AUTONOMY-002.json
+  AUTONOMY_CONTRACT_SHA256: 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704
+  DATA_BRANCH: public-news-data
+
+jobs:
+  publish-and-dispatch:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      actions: read
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out reviewed public source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download and bind exact successful candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_workflow_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_workflow_run_attempt }}
+        run: |
+          set -euo pipefail
+          case "$SOURCE_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$SOURCE_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
+          mkdir -p source-run downloaded-candidate publication-evidence contract-binding
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run/run.json
+          artifact_name="ppi-readonly-live-candidate-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts" > source-run/artifacts.json
+          export ARTIFACT_NAME="$artifact_name"
+          artifact_id="$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          source = json.loads(Path('source-run/run.json').read_text(encoding='utf-8'))
+          assert str(source['id']) == os.environ['SOURCE_RUN_ID']
+          assert str(source['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
+          assert source['name'] == os.environ['EXPECTED_SOURCE_WORKFLOW']
+          assert source['event'] == 'workflow_dispatch'
+          assert source['status'] == 'completed' and source['conclusion'] == 'success'
+          assert source['head_branch'] == 'main'
+          assert source['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          payload = json.loads(Path('source-run/artifacts.json').read_text(encoding='utf-8'))
+          matches = [
+              artifact for artifact in payload.get('artifacts', [])
+              if artifact.get('name') == os.environ['ARTIFACT_NAME']
+              and artifact.get('expired') is False
+          ]
+          assert len(matches) == 1
+          print(matches[0]['id'])
+          PY
+          )"
+          gh api -H "Accept: application/vnd.github+json" \
+            "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > source-run/candidate.zip
+          unzip -q source-run/candidate.zip -d downloaded-candidate
+          for file in news.jsonl collection_receipt.json news_manifest.preview.json run_report.json independent_validation.json; do
+            test -s "downloaded-candidate/artifacts/${file}"
+          done
+          printf 'SOURCE_RUN_ID=%s\n' "$SOURCE_RUN_ID" >> "$GITHUB_ENV"
+          printf 'SOURCE_RUN_ATTEMPT=%s\n' "$SOURCE_RUN_ATTEMPT" >> "$GITHUB_ENV"
+
+      - name: Revalidate exact candidate and dual-validator agreement
+        env:
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          python -m ai_market_news.enforce_live_candidate_gate \
+            --receipt downloaded-candidate/artifacts/collection_receipt.json \
+            --report downloaded-candidate/artifacts/run_report.json
+          python - <<'PY' >> "$GITHUB_ENV"
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          source = json.loads(Path('source-run/run.json').read_text(encoding='utf-8'))
+          receipt = json.loads(Path('downloaded-candidate/artifacts/collection_receipt.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('downloaded-candidate/artifacts/news_manifest.preview.json').read_text(encoding='utf-8'))
+          report = json.loads(Path('downloaded-candidate/artifacts/run_report.json').read_text(encoding='utf-8'))
+          independent = json.loads(Path('downloaded-candidate/artifacts/independent_validation.json').read_text(encoding='utf-8'))
+          news = Path('downloaded-candidate/artifacts/news.jsonl')
+          digest = hashlib.sha256(news.read_bytes()).hexdigest()
+          assert receipt['dataset_sha256'] == digest
+          assert receipt['source_commit'] == source['head_sha']
+          assert receipt['provider_failures'] == []
+          assert receipt['private_content_excluded'] is True
+          assert receipt['synthetic_content_used'] is False
+          assert receipt['source_content_modified'] is False
+          assert int(receipt['provider_counts'].get('sec_edgar', 0)) > 0
+          assert int(receipt['provider_counts'].get('official_company_source', 0)) > 0
+          assert manifest['file_sha256'] == digest
+          assert report['this_run_qualifies'] is True
+          assert report['qualification_exclusion_reasons'] == []
+          assert independent['candidate_valid'] is True
+          assert independent['failures'] == []
+          assert report['published_to_repository'] is False
+          assert report['external_writes_enabled'] is False
+          print('CANDIDATE_SHA256=' + digest)
+          print('SOURCE_HEAD_SHA=' + source['head_sha'])
+          print('SOURCE_WORKFLOW_NAME=' + source['name'])
+          print('SOURCE_WORKFLOW_EVENT=' + source['event'])
+          PY
+
+      - name: Bind exact frozen autonomy contract
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/contents/${AUTONOMY_CONTRACT_PATH}?ref=main" \
+            --jq .content | tr -d '\n' | base64 --decode > contract-binding/autonomy-contract.json
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          path = Path('contract-binding/autonomy-contract.json')
+          contract = json.loads(path.read_text(encoding='utf-8'))
+          assert contract['contract_id'] == os.environ['AUTONOMY_CONTRACT_ID']
+          assert contract['status'] == 'frozen'
+          assert hashlib.sha256(path.read_bytes()).hexdigest() == os.environ['AUTONOMY_CONTRACT_SHA256']
+          PY
+
+      - name: Write truthful autonomous authorization evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          evidence = {
+              'schema_version': '1.0.0',
+              'authorization_type': 'frozen_contract_explicit_execution',
+              'manual_approval_required': False,
+              'source_repository': os.environ['EXPECTED_PUBLIC_REPOSITORY'],
+              'source_workflow_name': os.environ['SOURCE_WORKFLOW_NAME'],
+              'source_workflow_event': os.environ['SOURCE_WORKFLOW_EVENT'],
+              'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'candidate_sha256': os.environ['CANDIDATE_SHA256'],
+              'contract_id': os.environ['AUTONOMY_CONTRACT_ID'],
+              'contract_sha256': os.environ['AUTONOMY_CONTRACT_SHA256'],
+              'publication_workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'publication_workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'prohibited_actions_enabled': False,
+          }
+          payload = json.dumps(evidence, sort_keys=True, separators=(',', ':')).encode('utf-8')
+          evidence['authorization_request_sha256'] = hashlib.sha256(payload).hexdigest()
+          Path('publication-evidence/publication_authorization.json').write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print('AUTHORIZATION_REQUEST_SHA256=' + evidence['authorization_request_sha256'])
+          PY
+
+      - name: Configure ephemeral GitHub authentication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $auth"
+
+      - name: Publish immutable Commit A B C transaction
+        env:
+          PYTHONPATH: news/src
+          NEWS_FILE: downloaded-candidate/artifacts/news.jsonl
+          COLLECTION_RECEIPT_FILE: downloaded-candidate/artifacts/collection_receipt.json
+        run: bash scripts/publish_public_news_snapshot.sh
+
+      - name: Verify and retain published transaction metadata
+        run: |
+          set -euo pipefail
+          for value in DATA_COMMIT PUBLIC_COMMIT POINTER_COMMIT SNAPSHOT_PATH ARTIFACT_ROOT; do test -n "${!value:-}"; done
+          test "${#DATA_COMMIT}" -eq 40
+          test "${#PUBLIC_COMMIT}" -eq 40
+          test "${#POINTER_COMMIT}" -eq 40
+          test -s "$ARTIFACT_ROOT/latest.json"
+          test -s "$ARTIFACT_ROOT/run_report.json"
+          cp -R "$ARTIFACT_ROOT"/. publication-evidence/
+
+      - name: Dispatch exact transaction to private validator
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          transaction = {
+              'public_repository': os.environ['GITHUB_REPOSITORY'],
+              'public_branch': os.environ['DATA_BRANCH'],
+              'source_workflow_name': os.environ['SOURCE_WORKFLOW_NAME'],
+              'source_workflow_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_workflow_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'source_head_sha': os.environ['SOURCE_HEAD_SHA'],
+              'candidate_sha256': os.environ['CANDIDATE_SHA256'],
+              'authorization_request_sha256': os.environ['AUTHORIZATION_REQUEST_SHA256'],
+              'publication_workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'publication_workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'data_commit': os.environ['DATA_COMMIT'],
+              'public_commit': os.environ['PUBLIC_COMMIT'],
+              'pointer_commit': os.environ['POINTER_COMMIT'],
+              'snapshot_path': os.environ['SNAPSHOT_PATH'],
+              'contract_id': os.environ['AUTONOMY_CONTRACT_ID'],
+              'contract_sha256': os.environ['AUTONOMY_CONTRACT_SHA256'],
+          }
+          transaction_json = json.dumps(transaction, sort_keys=True, separators=(',', ':'))
+          client_payload = {
+              'schema_version': '1.0.0',
+              'transaction_json': transaction_json,
+              'public_repository': transaction['public_repository'],
+              'public_branch': transaction['public_branch'],
+              'publication_workflow_run_id': transaction['publication_workflow_run_id'],
+              'publication_workflow_run_attempt': transaction['publication_workflow_run_attempt'],
+              'data_commit': transaction['data_commit'],
+              'pointer_commit': transaction['pointer_commit'],
+              'snapshot_path': transaction['snapshot_path'],
+              'contract_sha256': transaction['contract_sha256'],
+          }
+          assert len(client_payload) == 10
+          request = {'event_type': 'ppi_public_snapshot_ready', 'client_payload': client_payload}
+          Path('publication-evidence/private_dispatch_request.json').write_text(
+              json.dumps(request, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          gh api --method POST "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" \
+            --input publication-evidence/private_dispatch_request.json
+
+      - name: Upload immutable publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r9-explicit-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: publication-evidence/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Remove ephemeral authentication
+        if: always()
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
