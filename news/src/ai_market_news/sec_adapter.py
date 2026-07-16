@@ -22,6 +22,10 @@ MAX_EXHIBITS_PER_FILING = 2
 MAX_PUBLIC_SUMMARY_CHARS = 3_900
 
 
+class UnsafeExhibitLinkError(CollectorError):
+    pass
+
+
 class _VisibleTextParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -123,12 +127,16 @@ def bounded_public_summary(parts: list[str]) -> str:
 
 def safe_exhibit_filename(href: str) -> str:
     parsed = urlparse(str(href).strip())
-    require(not parsed.scheme and not parsed.netloc, "SEC exhibit link must be relative")
+    if parsed.scheme or parsed.netloc:
+        raise UnsafeExhibitLinkError("SEC exhibit link must be relative")
     path = PurePosixPath(parsed.path)
-    require(len(path.parts) == 1, "SEC exhibit link must reference one same-accession file")
+    if len(path.parts) != 1:
+        raise UnsafeExhibitLinkError("SEC exhibit link must reference one same-accession file")
     filename = path.name
-    require(bool(filename) and filename not in {".", ".."}, "SEC exhibit filename is invalid")
-    require(re.fullmatch(r"[A-Za-z0-9._-]+", filename) is not None, "SEC exhibit filename is unsafe")
+    if not filename or filename in {".", ".."}:
+        raise UnsafeExhibitLinkError("SEC exhibit filename is invalid")
+    if re.fullmatch(r"[A-Za-z0-9._-]+", filename) is None:
+        raise UnsafeExhibitLinkError("SEC exhibit filename is unsafe")
     return filename
 
 
@@ -172,8 +180,6 @@ def classify_enrichment_error(error: Exception) -> str:
         return "unreadable_document"
     if "not html" in message:
         return "invalid_index_html"
-    if "unsafe" in message or "must be relative" in message or "same-accession" in message:
-        return "unsafe_document_link"
     return "processing_error"
 
 
@@ -222,7 +228,6 @@ def validate_config(config: dict[str, Any]) -> tuple[set[str], list[dict[str, st
     require(isinstance(companies_value, list) and companies_value, "SEC config companies must be a non-empty list")
     forms = {str(value).strip().upper() for value in forms_value}
     require(all(forms), "SEC config contains an empty form")
-
     companies: list[dict[str, str]] = []
     seen_tickers: set[str] = set()
     seen_ciks: set[str] = set()
@@ -257,7 +262,6 @@ def collect_sec_live(
     collected_at = parse_utc(collected_at_utc)
     cutoff = collected_at - timedelta(days=lookback_days)
     limiter = RateLimiter(8.0)
-
     records: list[dict[str, Any]] = []
     failures: list[str] = []
     enrichment_failures: list[str] = []
@@ -272,12 +276,7 @@ def collect_sec_live(
         ticker = company["ticker"]
         url = SEC_SUBMISSIONS_URL.format(cik=company["cik"])
         try:
-            payload, attempts = fetcher(
-                url,
-                allowed_hosts=SEC_HOSTS,
-                user_agent=user_agent,
-                rate_limiter=limiter,
-            )
+            payload, attempts = fetcher(url, allowed_hosts=SEC_HOSTS, user_agent=user_agent, rate_limiter=limiter)
             request_count += attempts
             filings = payload.get("filings")
             require(isinstance(filings, dict), "SEC submissions response is missing filings")
@@ -300,7 +299,6 @@ def collect_sec_live(
                     continue
                 require(accession not in seen_accessions, f"duplicate SEC accession number: {accession}")
                 seen_accessions.add(accession)
-
                 primary_document = str(recent_value(recent, "primaryDocument", index)).strip()
                 require(bool(primary_document), "SEC filing is missing primaryDocument")
                 accession_path = accession.replace("-", "")
@@ -332,8 +330,7 @@ def collect_sec_live(
                         primary_fetch_count += 1
                         primary_hashes[accession] = hashlib.sha256(document.body).hexdigest()
                         primary_excerpt = bounded_document_excerpt(
-                            extract_document_text(document.body, document.content_type),
-                            MAX_PRIMARY_EXCERPT_CHARS,
+                            extract_document_text(document.body, document.content_type), MAX_PRIMARY_EXCERPT_CHARS
                         )
                         summary_parts.append(f"Verified primary-document excerpt: {primary_excerpt}")
                         primary_ok = True
@@ -353,14 +350,13 @@ def collect_sec_live(
                                 max_bytes=MAX_DOCUMENT_BYTES,
                             )
                             request_count += index_document.request_count
-                            selected_exhibits = parse_exhibit_documents(
-                                index_document.body,
-                                index_document.content_type,
-                            )
+                            selected_exhibits = parse_exhibit_documents(index_document.body, index_document.content_type)
                             if not selected_exhibits:
                                 enrichment_failures.append(
                                     enrichment_failure(ticker, accession, "filing_index", "exhibit_not_found")
                                 )
+                        except UnsafeExhibitLinkError:
+                            raise
                         except (CollectorError, KeyError, TypeError, ValueError) as exc:
                             enrichment_failures.append(enrichment_failure(ticker, accession, "filing_index", exc))
 
@@ -381,16 +377,13 @@ def collect_sec_live(
                                 exhibit_fetch_count += 1
                                 exhibit_hashes[accession][filename] = hashlib.sha256(exhibit.body).hexdigest()
                                 exhibit_excerpt = bounded_document_excerpt(
-                                    extract_document_text(exhibit.body, exhibit.content_type),
-                                    MAX_EXHIBIT_EXCERPT_CHARS,
+                                    extract_document_text(exhibit.body, exhibit.content_type), MAX_EXHIBIT_EXCERPT_CHARS
                                 )
                                 summary_parts.append(
                                     f"Verified {exhibit_type} exhibit excerpt ({filename}): {exhibit_excerpt}"
                                 )
                             except (CollectorError, KeyError, TypeError, ValueError) as exc:
-                                enrichment_failures.append(
-                                    enrichment_failure(ticker, accession, f"exhibit:{filename}", exc)
-                                )
+                                enrichment_failures.append(enrichment_failure(ticker, accession, f"exhibit:{filename}", exc))
 
                 records.append(
                     build_public_record(
