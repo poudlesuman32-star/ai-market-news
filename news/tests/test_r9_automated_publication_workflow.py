@@ -61,10 +61,30 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
     def test_credentials_are_ephemeral_and_dispatch_is_exact(self) -> None:
         self.assertIn('persist-credentials: false', self.workflow)
         self.assertIn('Remove ephemeral authentication', self.workflow)
-        self.assertIn('event_type=ppi_public_snapshot_ready', self.workflow)
-        self.assertIn('client_payload[source_workflow_name]', self.workflow)
-        self.assertIn('client_payload[pointer_commit]', self.workflow)
-        self.assertIn('client_payload[contract_sha256]', self.workflow)
+        self.assertIn("'event_type': 'ppi_public_snapshot_ready'", self.workflow)
+        self.assertIn("'transaction_json': transaction_json", self.workflow)
+        self.assertIn('assert len(client_payload) == 10', self.workflow)
+        self.assertIn('private_dispatch_request.json', self.workflow)
+        self.assertIn('--input publication-evidence/private_dispatch_request.json', self.workflow)
+        for field in (
+            'source_workflow_name',
+            'source_workflow_run_id',
+            'source_workflow_run_attempt',
+            'source_head_sha',
+            'candidate_sha256',
+            'authorization_request_sha256',
+            'publication_workflow_run_id',
+            'publication_workflow_run_attempt',
+            'data_commit',
+            'public_commit',
+            'pointer_commit',
+            'snapshot_path',
+            'contract_id',
+            'contract_sha256',
+        ):
+            self.assertIn(f"'{field}':", self.workflow)
+        self.assertNotIn('client_payload[source_workflow_name]', self.workflow)
+        self.assertNotIn('client_payload[public_commit]', self.workflow)
 
 
 if __name__ == '__main__':
