@@ -1,0 +1,191 @@
+name: PPI R9 compact private dispatch retry
+run-name: Compact R9 dispatch retry for publication ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - PPI R9 automated publication and private dispatch
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-r9-compact-dispatch-retry-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
+  EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
+  EXPECTED_PUBLICATION_WORKFLOW: PPI R9 automated publication and private dispatch
+  EXPECTED_CONTRACT_ID: PPI-R9-AUTONOMY-002
+  EXPECTED_CONTRACT_SHA256: 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704
+
+jobs:
+  retry-exact-dispatch:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'workflow_run'
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed public source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Fetch exact failed publication evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLICATION_RUN_ID: ${{ github.event.workflow_run.id }}
+          PUBLICATION_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          case "$PUBLICATION_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$PUBLICATION_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
+          mkdir -p publication-source retry-evidence
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}" > publication-source/run.json
+          artifact_name="ppi-r9-automated-publication-${PUBLICATION_RUN_ID}-${PUBLICATION_RUN_ATTEMPT}"
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}/artifacts" > publication-source/artifacts.json
+          export ARTIFACT_NAME="$artifact_name"
+          artifact_id="$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          payload = json.loads(Path('publication-source/artifacts.json').read_text(encoding='utf-8'))
+          matches = [
+              item for item in payload.get('artifacts', [])
+              if item.get('name') == os.environ['ARTIFACT_NAME']
+              and item.get('expired') is False
+          ]
+          if len(matches) == 1:
+              print(matches[0]['id'])
+          PY
+          )"
+          test -n "$artifact_id"
+          gh api -H "Accept: application/vnd.github+json" \
+            "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > publication-source/evidence.zip
+          unzip -q publication-source/evidence.zip -d publication-source/evidence
+          test -s publication-source/evidence/publication_authorization.json
+          test -s publication-source/evidence/latest.json
+          test -s publication-source/evidence/run_report.json
+
+      - name: Materialize exact compact dispatch request
+        env:
+          PUBLICATION_RUN_ID: ${{ github.event.workflow_run.id }}
+          PUBLICATION_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('publication-source/evidence')
+          run = json.loads(Path('publication-source/run.json').read_text(encoding='utf-8'))
+          authorization = json.loads((root / 'publication_authorization.json').read_text(encoding='utf-8'))
+          report = json.loads((root / 'run_report.json').read_text(encoding='utf-8'))
+          latest = json.loads((root / 'latest.json').read_text(encoding='utf-8'))
+
+          def require(condition: bool, message: str) -> None:
+              if not condition:
+                  raise ValueError(message)
+
+          publication_run_id = os.environ['PUBLICATION_RUN_ID']
+          publication_run_attempt = os.environ['PUBLICATION_RUN_ATTEMPT']
+          require(str(run.get('id')) == publication_run_id, 'publication run ID mismatch')
+          require(str(run.get('run_attempt')) == publication_run_attempt, 'publication run attempt mismatch')
+          require(run.get('name') == os.environ['EXPECTED_PUBLICATION_WORKFLOW'], 'publication workflow mismatch')
+          require(run.get('status') == 'completed' and run.get('conclusion') == 'failure', 'retry requires exact failed publication run')
+          require(run.get('head_branch') == 'main', 'publication branch mismatch')
+          require(run.get('head_repository', {}).get('full_name') == os.environ['EXPECTED_PUBLIC_REPOSITORY'], 'publication repository mismatch')
+
+          require(authorization.get('authorization_type') == 'frozen_contract_autonomous_execution', 'authorization type mismatch')
+          require(authorization.get('manual_approval_required') is False, 'manual approval claim mismatch')
+          require(authorization.get('prohibited_actions_enabled') is False, 'prohibited action claim mismatch')
+          require(authorization.get('contract_id') == os.environ['EXPECTED_CONTRACT_ID'], 'contract ID mismatch')
+          require(authorization.get('contract_sha256') == os.environ['EXPECTED_CONTRACT_SHA256'], 'contract hash mismatch')
+          require(str(authorization.get('publication_workflow_run_id')) == publication_run_id, 'authorization publication run mismatch')
+          require(str(authorization.get('publication_workflow_run_attempt')) == publication_run_attempt, 'authorization publication attempt mismatch')
+
+          require(report.get('validation_result') == 'passed', 'publication validation did not pass')
+          require(report.get('published_to_repository') is True, 'publication was not completed')
+          require(report.get('publication_branch') == 'public-news-data', 'public branch mismatch')
+          require(report.get('pointer_commit') == report.get('remote_published_head'), 'remote pointer mismatch')
+          require(latest.get('snapshot_path') == report.get('snapshot_path'), 'latest snapshot mismatch')
+          require(latest.get('public_commit') == report.get('public_commit'), 'latest public commit mismatch')
+
+          transaction = {
+              'public_repository': os.environ['EXPECTED_PUBLIC_REPOSITORY'],
+              'public_branch': report['publication_branch'],
+              'source_workflow_name': authorization['source_workflow_name'],
+              'source_workflow_run_id': str(authorization['source_workflow_run_id']),
+              'source_workflow_run_attempt': str(authorization['source_workflow_run_attempt']),
+              'source_head_sha': authorization['source_head_sha'],
+              'candidate_sha256': authorization['candidate_sha256'],
+              'authorization_request_sha256': authorization['authorization_request_sha256'],
+              'publication_workflow_run_id': publication_run_id,
+              'publication_workflow_run_attempt': publication_run_attempt,
+              'data_commit': report['data_commit'],
+              'public_commit': report['public_commit'],
+              'pointer_commit': report['pointer_commit'],
+              'snapshot_path': report['snapshot_path'],
+              'contract_id': authorization['contract_id'],
+              'contract_sha256': authorization['contract_sha256'],
+          }
+          transaction_json = json.dumps(transaction, sort_keys=True, separators=(',', ':'))
+          client_payload = {
+              'schema_version': '1.0.0',
+              'transaction_json': transaction_json,
+              'public_repository': transaction['public_repository'],
+              'public_branch': transaction['public_branch'],
+              'publication_workflow_run_id': transaction['publication_workflow_run_id'],
+              'publication_workflow_run_attempt': transaction['publication_workflow_run_attempt'],
+              'data_commit': transaction['data_commit'],
+              'pointer_commit': transaction['pointer_commit'],
+              'snapshot_path': transaction['snapshot_path'],
+              'contract_sha256': transaction['contract_sha256'],
+          }
+          require(len(client_payload) == 10, 'dispatch payload must contain exactly ten properties')
+          request = {'event_type': 'ppi_public_snapshot_ready', 'client_payload': client_payload}
+          Path('retry-evidence/dispatch_request.json').write_text(
+              json.dumps(request, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          Path('retry-evidence/retry_binding.json').write_text(
+              json.dumps({
+                  'schema_version': '1.0.0',
+                  'retry_type': 'post_publication_compact_dispatch',
+                  'publication_run_id': publication_run_id,
+                  'publication_run_attempt': publication_run_attempt,
+                  'publication_reused': report.get('publication_reused'),
+                  'pointer_commit': report['pointer_commit'],
+                  'contract_id': authorization['contract_id'],
+                  'contract_sha256': authorization['contract_sha256'],
+                  'fail_closed': True,
+              }, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Dispatch exact compact transaction to private validator
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api --method POST "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" \
+            --input retry-evidence/dispatch_request.json
+
+      - name: Upload immutable retry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r9-compact-dispatch-retry-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}-${{ github.run_id }}
+          path: retry-evidence/
+          retention-days: 90
+          if-no-files-found: error
