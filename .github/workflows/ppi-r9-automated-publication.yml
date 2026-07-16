@@ -71,7 +71,46 @@ jobs:
               exit 1
               ;;
           esac
-          gh run download "$SOURCE_RUN_ID" --repo "$EXPECTED_PUBLIC_REPOSITORY" --name "$artifact_name" --dir downloaded-preview
+
+          downloaded=false
+          for attempt in 1 2 3 4 5 6; do
+            rm -rf downloaded-preview
+            mkdir -p downloaded-preview
+            if gh run download "$SOURCE_RUN_ID" \
+              --repo "$EXPECTED_PUBLIC_REPOSITORY" \
+              --name "$artifact_name" \
+              --dir downloaded-preview; then
+              downloaded=true
+              break
+            fi
+            echo "Candidate artifact not yet downloadable (attempt ${attempt}/6): ${artifact_name}" >&2
+            gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts" \
+              --jq '.artifacts[] | [.name, .expired, .size_in_bytes] | @tsv' || true
+            sleep 10
+          done
+
+          if [[ "$downloaded" != true ]]; then
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          evidence = {
+              'schema_version': '1.0.0',
+              'failure_stage': 'candidate_artifact_download',
+              'source_run_id': os.environ['SOURCE_RUN_ID'],
+              'source_run_attempt': os.environ['SOURCE_RUN_ATTEMPT'],
+              'artifact_name': os.environ.get('artifact_name', ''),
+              'attempts': 6,
+              'fail_closed': True,
+          }
+          Path('publication-evidence/download_failure.json').write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+            echo "Exact candidate artifact remained unavailable after bounded retries: ${artifact_name}" >&2
+            exit 1
+          fi
+
           test -s downloaded-preview/artifacts/news.jsonl
           test -s downloaded-preview/artifacts/collection_receipt.json
           test -s downloaded-preview/artifacts/news_manifest.preview.json
