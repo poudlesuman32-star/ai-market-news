@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .collector_common import CollectorError, build_public_record, load_json_object, require, write_jsonl
-from .sec_adapter import collect_sec_live
+from .sec_adapter_compat import collect_sec_live
 
 
 def collect_sec_fixture(payload: dict[str, Any], *, collected_at_utc: str) -> list[dict[str, Any]]:
