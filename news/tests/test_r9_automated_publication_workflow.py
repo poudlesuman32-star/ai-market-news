@@ -22,6 +22,15 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertIn("assert source['name'] in allowed_workflows", self.workflow)
         self.assertIn("assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']", self.workflow)
 
+    def test_artifact_visibility_retry_is_bounded_and_retained(self) -> None:
+        self.assertIn('for attempt in 1 2 3 4 5 6', self.workflow)
+        self.assertIn('Candidate artifact not yet downloadable', self.workflow)
+        self.assertIn('sleep 10', self.workflow)
+        self.assertIn("'failure_stage': 'candidate_artifact_download'", self.workflow)
+        self.assertIn("'fail_closed': True", self.workflow)
+        self.assertIn('download_failure.json', self.workflow)
+        self.assertNotIn('while true', self.workflow)
+
     def test_frozen_contract_and_mixed_provider_gate_precede_publication(self) -> None:
         contract = self.workflow.index('Bind exact frozen autonomy contract')
         publish = self.workflow.index('Publish immutable Commit A B C transaction')
