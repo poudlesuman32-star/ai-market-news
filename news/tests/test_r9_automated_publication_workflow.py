@@ -7,11 +7,16 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = Path('.github/workflows/ppi-r9-automated-publication.yml').read_text(encoding='utf-8')
 
-    def test_supported_candidate_workflow_run_triggers(self) -> None:
+    def test_supported_candidate_triggers_are_disjoint(self) -> None:
         self.assertIn('name: PPI R9 automated publication and private dispatch', self.workflow)
         self.assertIn('workflow_run:', self.workflow)
-        self.assertIn('- PPI public news live primary-source preview', self.workflow)
-        self.assertIn('- PPI automated read-only live primary-source candidate', self.workflow)
+        self.assertIn('workflow_dispatch:', self.workflow)
+        workflow_run_block = self.workflow.split('workflow_run:', 1)[1].split('workflow_dispatch:', 1)[0]
+        self.assertIn('- PPI public news live primary-source preview', workflow_run_block)
+        self.assertNotIn('- PPI automated read-only live primary-source candidate', workflow_run_block)
+        self.assertIn('source_workflow_run_id:', self.workflow)
+        self.assertIn('source_workflow_run_attempt:', self.workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", self.workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", self.workflow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", self.workflow)
 
@@ -21,6 +26,8 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertIn('Unsupported R9 source workflow', self.workflow)
         self.assertIn("assert source['name'] in allowed_workflows", self.workflow)
         self.assertIn("assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']", self.workflow)
+        self.assertIn("assert source['name'] == 'PPI automated read-only live primary-source candidate'", self.workflow)
+        self.assertIn("assert source['name'] == 'PPI public news live primary-source preview'", self.workflow)
 
     def test_artifact_api_download_is_exact_bounded_and_retained(self) -> None:
         self.assertIn('actions/runs/${SOURCE_RUN_ID}/artifacts', self.workflow)
@@ -45,6 +52,7 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertIn("provider_counts'].get('sec_edgar', 0)", self.workflow)
         self.assertIn("provider_counts'].get('official_company_source', 0)", self.workflow)
         self.assertIn("receipt['provider_failures'] == []", self.workflow)
+        self.assertIn("independent['candidate_valid'] is True", self.workflow)
 
     def test_no_manual_environment_gate_or_prohibited_actions(self) -> None:
         self.assertNotIn('environment: ppi-r9-manual-approval', self.workflow)
