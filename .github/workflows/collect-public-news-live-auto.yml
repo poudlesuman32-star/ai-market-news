@@ -211,7 +211,7 @@ jobs:
         run: |
           set -euo pipefail
           gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-r9-explicit-publication.yml/dispatches" \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-r9-automated-publication.yml/dispatches" \
             -f ref=main \
             -f "inputs[source_workflow_run_id]=${GITHUB_RUN_ID}" \
             -f "inputs[source_workflow_run_attempt]=${GITHUB_RUN_ATTEMPT}"
