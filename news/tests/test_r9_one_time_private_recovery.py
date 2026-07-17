@@ -32,7 +32,7 @@ class OneTimePrivateRecoveryTests(unittest.TestCase):
             self.marker['pointer_commit'],
             'be672de0f77c9ec140b63e437593310bd718643f',
         )
-        self.assertEqual(self.marker['status'], 'pending_exact_recovery')
+        self.assertEqual(self.marker['status'], 'retry_exact_recovery_1')
 
     def test_recovery_runs_only_for_exact_marker_push(self) -> None:
         self.assertIn('push:', self.workflow)
@@ -50,15 +50,34 @@ class OneTimePrivateRecoveryTests(unittest.TestCase):
         self.assertIn("inputs['data_commit'] == os.environ['RECOVERY_DATA_COMMIT']", self.workflow)
         self.assertIn("inputs['pointer_commit'] == os.environ['RECOVERY_POINTER_COMMIT']", self.workflow)
 
-    def test_recovery_is_idempotent_and_dispatches_new_receiver_interface(self) -> None:
+    def test_recovery_is_registry_and_receiver_idempotent(self) -> None:
         self.assertIn('audit/r9_official_run_registry.json?ref=main', self.workflow)
+        self.assertIn('/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/runs?event=workflow_dispatch', self.workflow)
         self.assertIn("'already_registered': registered", self.workflow)
-        self.assertIn("'dispatch_required': not registered", self.workflow)
+        self.assertIn("existing_status in {'queued', 'in_progress', 'waiting', 'pending'}", self.workflow)
+        self.assertIn("existing_conclusion == 'success'", self.workflow)
+        self.assertIn("dispatch_required = not registered and not existing_blocks_retry", self.workflow)
         self.assertIn("if: env.RECOVERY_NEEDED == 'true'", self.workflow)
+
+    def test_recovery_dispatches_and_resolves_new_receiver_interface(self) -> None:
         self.assertIn('ppi-r9-private-receiver.yml', self.workflow)
         self.assertIn('/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches', self.workflow)
         self.assertIn("request = {'ref': 'main', 'inputs': inputs}", self.workflow)
+        self.assertIn('Resolve exact private receiver run', self.workflow)
+        self.assertIn('RESOLVED_RECEIVER_RUN_ID', self.workflow)
+        self.assertIn('receiver_identity.json', self.workflow)
         self.assertNotIn('repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches', self.workflow)
+
+    def test_recovery_reports_only_sanitized_status(self) -> None:
+        self.assertIn('issues: write', self.workflow)
+        self.assertIn('RECOVERY_STATUS_ISSUE: "42"', self.workflow)
+        self.assertIn('Announce exact recovery run', self.workflow)
+        self.assertIn('Report sanitized recovery outcome', self.workflow)
+        self.assertIn('Private evidence exposed: false', self.workflow)
+        self.assertIn('Registry mutated by recovery workflow: false', self.workflow)
+        self.assertIn('R10 enabled: false', self.workflow)
+        self.assertNotIn('receiver_artifact.json', self.workflow)
+        self.assertNotIn('official_run_candidate.json', self.workflow)
 
     def test_recovery_has_no_publication_or_prohibited_authority(self) -> None:
         self.assertIn('actions: read', self.workflow)

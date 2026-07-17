@@ -10,6 +10,7 @@ on:
 permissions:
   actions: read
   contents: read
+  issues: write
 
 concurrency:
   group: ppi-r9-one-time-private-recovery-29549106843-2
@@ -21,6 +22,7 @@ env:
   EXPECTED_PUBLICATION_WORKFLOW_PATH: .github/workflows/ppi-r9-automated-publication.yml
   PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml
   RECOVERY_MARKER: .github/r9-recovery/29549106843-2.json
+  RECOVERY_STATUS_ISSUE: "42"
 
 jobs:
   recover:
@@ -31,6 +33,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Announce exact recovery run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > recovery-start.md <<EOF
+          Exact R9 recovery started.
+
+          - Recovery workflow run: ${GITHUB_RUN_ID}
+          - Recovery attempt: ${GITHUB_RUN_ATTEMPT}
+          - Publication run: 29549106843
+          - Publication attempt: 2
+          - Data commit: e204fbc1eb72f04429786e6bb5ca96f6007c3912
+          - Private evidence exposed: false
+          - R10 enabled: false
+          EOF
+          gh issue comment "$RECOVERY_STATUS_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file recovery-start.md
 
       - name: Validate marker and download exact publication artifact
         env:
@@ -57,7 +77,7 @@ jobs:
           }
           assert set(marker) == expected
           assert marker['schema_version'] == '1.0.0'
-          assert marker['status'] == 'pending_exact_recovery'
+          assert marker['status'] == 'retry_exact_recovery_1'
           assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_id'])
           assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_attempt'])
           assert re.fullmatch(r'[0-9a-f]{64}', marker['publication_artifact_sha256'])
@@ -117,7 +137,7 @@ jobs:
           test -s "$request_path"
           cp "$request_path" recovery-evidence/source_private_dispatch_request.json
 
-      - name: Verify exact compact transaction and registry state
+      - name: Verify transaction registry and existing receiver state
         env:
           GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
         run: |
@@ -125,6 +145,8 @@ jobs:
           test -n "$GH_TOKEN"
           gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/contents/audit/r9_official_run_registry.json?ref=main" \
             --jq .content | tr -d '\n' | base64 --decode > recovery-input/registry.json
+          gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=30" \
+            > recovery-input/receiver-runs.json
           python - <<'PY' >> "$GITHUB_ENV"
           import json
           import os
@@ -161,11 +183,29 @@ jobs:
           assert transaction['publication_workflow_run_attempt'] == os.environ['PUBLICATION_RUN_ATTEMPT']
           assert transaction['data_commit'] == os.environ['RECOVERY_DATA_COMMIT']
           assert transaction['pointer_commit'] == os.environ['RECOVERY_POINTER_COMMIT']
+
           registry = json.loads(Path('recovery-input/registry.json').read_text(encoding='utf-8'))
           registered = any(
               run.get('data_commit') == os.environ['RECOVERY_DATA_COMMIT']
               for run in registry.get('official_runs', [])
           )
+          runs = json.loads(Path('recovery-input/receiver-runs.json').read_text(encoding='utf-8'))
+          matching = [
+              run for run in runs.get('workflow_runs', [])
+              if os.environ['RECOVERY_POINTER_COMMIT'] in str(run.get('display_title', ''))
+          ]
+          matching.sort(key=lambda run: int(run.get('id', 0)), reverse=True)
+          existing = matching[0] if matching else None
+          existing_status = str(existing.get('status', '')) if existing else ''
+          existing_conclusion = str(existing.get('conclusion') or '') if existing else ''
+          existing_blocks_retry = bool(
+              existing
+              and (
+                  existing_status in {'queued', 'in_progress', 'waiting', 'pending'}
+                  or existing_conclusion == 'success'
+              )
+          )
+          dispatch_required = not registered and not existing_blocks_retry
           request = {'ref': 'main', 'inputs': inputs}
           Path('recovery-evidence/private_workflow_dispatch_request.json').write_text(
               json.dumps(request, indent=2, sort_keys=True) + '\n',
@@ -174,15 +214,23 @@ jobs:
           status = {
               'schema_version': '1.0.0',
               'data_commit': os.environ['RECOVERY_DATA_COMMIT'],
+              'pointer_commit': os.environ['RECOVERY_POINTER_COMMIT'],
               'already_registered': registered,
-              'dispatch_required': not registered,
+              'existing_receiver_run_id': str(existing.get('id', '')) if existing else '',
+              'existing_receiver_status': existing_status,
+              'existing_receiver_conclusion': existing_conclusion,
+              'dispatch_required': dispatch_required,
+              'private_evidence_exposed': False,
               'r10_enabled': False,
           }
           Path('recovery-evidence/recovery_status.json').write_text(
               json.dumps(status, indent=2, sort_keys=True) + '\n',
               encoding='utf-8',
           )
-          print('RECOVERY_NEEDED=' + ('false' if registered else 'true'))
+          print('RECOVERY_NEEDED=' + ('true' if dispatch_required else 'false'))
+          print('EXISTING_RECEIVER_RUN_ID=' + status['existing_receiver_run_id'])
+          print('EXISTING_RECEIVER_STATUS=' + existing_status)
+          print('EXISTING_RECEIVER_CONCLUSION=' + existing_conclusion)
           PY
 
       - name: Dispatch exact private receiver workflow
@@ -195,6 +243,74 @@ jobs:
             "repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches" \
             --input recovery-evidence/private_workflow_dispatch_request.json
 
+      - name: Resolve exact private receiver run
+        if: env.RECOVERY_NEEDED == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          resolved=false
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=30" \
+              > recovery-input/receiver-runs-after-dispatch.json
+            receiver_run_id="$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          runs = json.loads(
+              Path('recovery-input/receiver-runs-after-dispatch.json').read_text(encoding='utf-8')
+          )
+          matching = [
+              run for run in runs.get('workflow_runs', [])
+              if os.environ['RECOVERY_POINTER_COMMIT'] in str(run.get('display_title', ''))
+              and str(run.get('id', '')) != os.environ.get('EXISTING_RECEIVER_RUN_ID', '')
+          ]
+          matching.sort(key=lambda run: int(run.get('id', 0)), reverse=True)
+          if matching:
+              print(matching[0]['id'])
+          PY
+            )"
+            if [[ -n "$receiver_run_id" ]]; then
+              echo "RESOLVED_RECEIVER_RUN_ID=$receiver_run_id" >> "$GITHUB_ENV"
+              resolved=true
+              break
+            fi
+            sleep 5
+          done
+          test "$resolved" = true
+
+      - name: Record sanitized receiver identity
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-evidence
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receiver_run_id = (
+              os.environ.get('RESOLVED_RECEIVER_RUN_ID')
+              or os.environ.get('EXISTING_RECEIVER_RUN_ID')
+              or ''
+          )
+          value = {
+              'schema_version': '1.0.0',
+              'receiver_workflow_run_id': receiver_run_id,
+              'existing_receiver_status': os.environ.get('EXISTING_RECEIVER_STATUS', ''),
+              'existing_receiver_conclusion': os.environ.get('EXISTING_RECEIVER_CONCLUSION', ''),
+              'private_evidence_exposed': False,
+              'credentials_exposed': False,
+              'registry_mutation_attempted_by_recovery': False,
+              'r10_enabled': False,
+          }
+          Path('recovery-evidence/receiver_identity.json').write_text(
+              json.dumps(value, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
       - name: Upload recovery evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -203,3 +319,27 @@ jobs:
           path: recovery-evidence/
           retention-days: 90
           if-no-files-found: error
+
+      - name: Report sanitized recovery outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          receiver_run_id="${RESOLVED_RECEIVER_RUN_ID:-${EXISTING_RECEIVER_RUN_ID:-}}"
+          cat > recovery-outcome.md <<EOF
+          Exact R9 recovery finished.
+
+          - Recovery workflow run: ${GITHUB_RUN_ID}
+          - Recovery attempt: ${GITHUB_RUN_ATTEMPT}
+          - Recovery job status: ${JOB_STATUS}
+          - Dispatch required: ${RECOVERY_NEEDED:-unknown}
+          - Private receiver workflow run: ${receiver_run_id:-unresolved}
+          - Existing receiver status: ${EXISTING_RECEIVER_STATUS:-none}
+          - Existing receiver conclusion: ${EXISTING_RECEIVER_CONCLUSION:-none}
+          - Private evidence exposed: false
+          - Registry mutated by recovery workflow: false
+          - R10 enabled: false
+          EOF
+          gh issue comment "$RECOVERY_STATUS_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file recovery-outcome.md

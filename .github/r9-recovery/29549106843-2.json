@@ -6,5 +6,5 @@
   "publication_artifact_sha256": "9c8d84b1e48417dcc57be869564d0b154b9965bcb4c89d78d10a796db4eb00d9",
   "data_commit": "e204fbc1eb72f04429786e6bb5ca96f6007c3912",
   "pointer_commit": "be672de0f77c9ec140b63e437593310bd718643f",
-  "status": "pending_exact_recovery"
+  "status": "retry_exact_recovery_1"
 }
