@@ -88,10 +88,12 @@ def validate_automated_publication_boundary(text: str) -> None:
         "assert source['name'] == 'PPI public news live primary-source preview'",
         "Enforce exact autonomous candidate gate",
         "Publish immutable Commit A B C transaction",
-        "ppi_public_snapshot_ready",
+        "PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml",
         "'transaction_json': transaction_json",
-        "assert len(client_payload) == 10",
-        "private_dispatch_request.json",
+        "assert len(inputs) == 10",
+        "request = {'ref': 'main', 'inputs': inputs}",
+        "private_workflow_dispatch_request.json",
+        "/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches",
         "publication_authorization.json",
         "'manual_approval_required': False",
         "'prohibited_actions_enabled': False",
@@ -108,8 +110,10 @@ def validate_automated_publication_boundary(text: str) -> None:
         raise ScheduleShapeError("automated path regained a manual environment gate")
     if "schedule:" in text:
         raise ScheduleShapeError("publication workflow gained an independent schedule")
-    if "client_payload[source_workflow_name]" in text:
-        raise ScheduleShapeError("publication workflow regained the oversized flat dispatch payload")
+    if "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" in text:
+        raise ScheduleShapeError("publication workflow regained silent repository dispatch")
+    if "'event_type': 'ppi_public_snapshot_ready'" in text:
+        raise ScheduleShapeError("publication workflow regained repository dispatch envelope")
 
 
 class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
@@ -169,6 +173,14 @@ class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
             1,
         )
         with self.assertRaisesRegex(ScheduleShapeError, "duplicate workflow_run publication path"):
+            validate_automated_publication_boundary(changed)
+
+    def test_repository_dispatch_regression_fails_closed(self) -> None:
+        changed = self.automated_publication.replace(
+            '"repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches"',
+            '"repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches"',
+        )
+        with self.assertRaisesRegex(ScheduleShapeError, "silent repository dispatch"):
             validate_automated_publication_boundary(changed)
 
     def test_manual_gate_or_changed_autonomy_hash_fails_closed(self) -> None:
