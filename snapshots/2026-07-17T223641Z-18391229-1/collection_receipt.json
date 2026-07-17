@@ -1,0 +1,39 @@
+{
+  "candidate_only": true,
+  "collection_complete": true,
+  "collection_mode": "live_primary_sources",
+  "dataset_sha256": "2155332d926b2d7b7ca2927d372b2a87c97560ad429dc7a573f34ac805793a92",
+  "event_count": 41,
+  "generated_at_utc": "2026-07-17T22:36:32Z",
+  "input_file": "news.jsonl",
+  "private_content_excluded": true,
+  "provider_count": 2,
+  "provider_counts": {
+    "official_company_source": 27,
+    "sec_edgar": 29
+  },
+  "provider_failures": [],
+  "providers": [
+    "official_company_source",
+    "sec_edgar"
+  ],
+  "record_count": 56,
+  "request_counts": {
+    "finnhub": 0,
+    "official_company_sources": 2,
+    "polygon": 0,
+    "sec": 12
+  },
+  "run_id": "live-candidate-29618380034-1",
+  "schema_version": "1.1.0",
+  "source_commit": "36097378fe37f7e42ee24e6db5e94221703562f5",
+  "source_content_modified": false,
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "synthetic_content_used": false,
+  "tickers": [
+    "AAPL",
+    "MU",
+    "NVDA"
+  ],
+  "workflow_event": "workflow_dispatch"
+}
