@@ -180,7 +180,10 @@ class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
             '"repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches"',
             '"repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches"',
         )
-        with self.assertRaisesRegex(ScheduleShapeError, "silent repository dispatch"):
+        with self.assertRaisesRegex(
+            ScheduleShapeError,
+            "autonomous boundary missing|silent repository dispatch",
+        ):
             validate_automated_publication_boundary(changed)
 
     def test_manual_gate_or_changed_autonomy_hash_fails_closed(self) -> None:
