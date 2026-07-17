@@ -1,12 +1,22 @@
 name: PPI R9 automated publication and private dispatch
-run-name: Automated PPI publication from candidate ${{ github.event.workflow_run.id }}
+run-name: Automated PPI publication from candidate ${{ github.event_name == 'workflow_dispatch' && inputs.source_workflow_run_id || github.event.workflow_run.id }}
 
 on:
   workflow_run:
     workflows:
       - PPI public news live primary-source preview
-      - PPI automated read-only live primary-source candidate
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_workflow_run_id:
+        description: Exact successful read-only candidate workflow run ID
+        required: true
+        type: string
+      source_workflow_run_attempt:
+        description: Exact source workflow run attempt
+        required: true
+        default: "1"
+        type: string
 
 permissions:
   contents: read
@@ -22,13 +32,18 @@ env:
   AUTONOMY_CONTRACT_PATH: validation/contracts/PPI-R9-AUTONOMY-002.json
   AUTONOMY_CONTRACT_SHA256: 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704
   DATA_BRANCH: public-news-data
+  PUBLICATION_TRIGGER: ${{ github.event_name }}
+  SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_workflow_run_id || github.event.workflow_run.id }}
+  SOURCE_RUN_ATTEMPT: ${{ github.event_name == 'workflow_dispatch' && inputs.source_workflow_run_attempt || github.event.workflow_run.run_attempt }}
 
 jobs:
   publish-and-dispatch:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event != 'pull_request'
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request')
     permissions:
       actions: read
       contents: write
@@ -50,8 +65,6 @@ jobs:
       - name: Download exact successful candidate
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
           case "$SOURCE_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
@@ -59,6 +72,27 @@ jobs:
           mkdir -p source-run downloaded-preview publication-evidence contract-binding
           gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run/run.json
           source_workflow_name="$(python -c 'import json; print(json.load(open("source-run/run.json", encoding="utf-8"))["name"])')"
+          export SOURCE_WORKFLOW_NAME="$source_workflow_name"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          source = json.loads(Path('source-run/run.json').read_text(encoding='utf-8'))
+          assert str(source['id']) == os.environ['SOURCE_RUN_ID']
+          assert str(source['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
+          assert source['status'] == 'completed' and source['conclusion'] == 'success'
+          assert source['head_branch'] == 'main'
+          assert source['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          trigger = os.environ['PUBLICATION_TRIGGER']
+          if trigger == 'workflow_dispatch':
+              assert source['name'] == 'PPI automated read-only live primary-source candidate'
+              assert source['event'] == 'workflow_dispatch'
+          else:
+              assert trigger == 'workflow_run'
+              assert source['name'] == 'PPI public news live primary-source preview'
+              assert source['event'] in {'schedule', 'workflow_dispatch'}
+          PY
           case "$source_workflow_name" in
             "PPI public news live primary-source preview")
               artifact_name="ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
@@ -140,15 +174,21 @@ jobs:
             echo "Exact candidate artifact remained unavailable after bounded retries: ${artifact_name}" >&2
             exit 1
           fi
-
-          printf 'SOURCE_WORKFLOW_NAME=%s\n' "$source_workflow_name" >> "$GITHUB_ENV"
+          if [[ "$source_workflow_name" == "PPI automated read-only live primary-source candidate" ]]; then
+            test -s downloaded-preview/artifacts/independent_validation.json
+          fi
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          from pathlib import Path
+          source = json.loads(Path('source-run/run.json').read_text(encoding='utf-8'))
+          print('SOURCE_WORKFLOW_NAME=' + source['name'])
+          print('SOURCE_WORKFLOW_EVENT=' + source['event'])
+          print('SOURCE_HEAD_SHA=' + source['head_sha'])
+          PY
 
       - name: Enforce exact autonomous candidate gate
         env:
           PYTHONPATH: news/src
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           python -m ai_market_news.enforce_live_preview_gate \
@@ -174,7 +214,7 @@ jobs:
           assert str(source['run_attempt']) == os.environ['SOURCE_RUN_ATTEMPT']
           assert source['name'] in allowed_workflows
           assert source['name'] == os.environ['SOURCE_WORKFLOW_NAME']
-          assert source['event'] in {'schedule', 'workflow_dispatch'}
+          assert source['event'] == os.environ['SOURCE_WORKFLOW_EVENT']
           assert source['status'] == 'completed' and source['conclusion'] == 'success'
           assert source['head_branch'] == 'main' and source['head_sha'] == os.environ['SOURCE_HEAD_SHA']
           assert source['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
@@ -193,9 +233,15 @@ jobs:
           assert report['provider_failures'] == []
           assert report['published_to_repository'] is False
           assert report['external_writes_enabled'] is False
+          if source['name'] == 'PPI automated read-only live primary-source candidate':
+              independent = json.loads(
+                  Path('downloaded-preview/artifacts/independent_validation.json').read_text(encoding='utf-8')
+              )
+              assert independent['candidate_valid'] is True
+              assert independent['failures'] == []
+              assert independent['publication_authorized'] is False
+              assert independent['official_r9_count_authorized'] is False
           print('CANDIDATE_SHA256=' + digest)
-          print('SOURCE_HEAD_SHA=' + source['head_sha'])
-          print('SOURCE_WORKFLOW_EVENT=' + source['event'])
           PY
 
       - name: Bind exact frozen autonomy contract
@@ -219,9 +265,6 @@ jobs:
           PY
 
       - name: Write truthful autonomous authorization evidence
-        env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
           python - <<'PY' >> "$GITHUB_ENV"
@@ -283,8 +326,6 @@ jobs:
       - name: Dispatch exact transaction to private validator
         env:
           GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN"
