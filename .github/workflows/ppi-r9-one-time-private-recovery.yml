@@ -42,13 +42,13 @@ jobs:
           cat > recovery-start.md <<EOF
           Exact R9 recovery started.
 
-          - Recovery workflow run: `${GITHUB_RUN_ID}`
-          - Recovery attempt: `${GITHUB_RUN_ATTEMPT}`
-          - Publication run: `29549106843`
-          - Publication attempt: `2`
-          - Data commit: `e204fbc1eb72f04429786e6bb5ca96f6007c3912`
-          - Private evidence exposed: `false`
-          - R10 enabled: `false`
+          - Recovery workflow run: ${GITHUB_RUN_ID}
+          - Recovery attempt: ${GITHUB_RUN_ATTEMPT}
+          - Publication run: 29549106843
+          - Publication attempt: 2
+          - Data commit: e204fbc1eb72f04429786e6bb5ca96f6007c3912
+          - Private evidence exposed: false
+          - R10 enabled: false
           EOF
           gh issue comment "$RECOVERY_STATUS_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file recovery-start.md
 
@@ -331,15 +331,15 @@ jobs:
           cat > recovery-outcome.md <<EOF
           Exact R9 recovery finished.
 
-          - Recovery workflow run: `${GITHUB_RUN_ID}`
-          - Recovery attempt: `${GITHUB_RUN_ATTEMPT}`
-          - Recovery job status: `${JOB_STATUS}`
-          - Dispatch required: `${RECOVERY_NEEDED:-unknown}`
-          - Private receiver workflow run: `${receiver_run_id:-unresolved}`
-          - Existing receiver status: `${EXISTING_RECEIVER_STATUS:-none}`
-          - Existing receiver conclusion: `${EXISTING_RECEIVER_CONCLUSION:-none}`
-          - Private evidence exposed: `false`
-          - Registry mutated by recovery workflow: `false`
-          - R10 enabled: `false`
+          - Recovery workflow run: ${GITHUB_RUN_ID}
+          - Recovery attempt: ${GITHUB_RUN_ATTEMPT}
+          - Recovery job status: ${JOB_STATUS}
+          - Dispatch required: ${RECOVERY_NEEDED:-unknown}
+          - Private receiver workflow run: ${receiver_run_id:-unresolved}
+          - Existing receiver status: ${EXISTING_RECEIVER_STATUS:-none}
+          - Existing receiver conclusion: ${EXISTING_RECEIVER_CONCLUSION:-none}
+          - Private evidence exposed: false
+          - Registry mutated by recovery workflow: false
+          - R10 enabled: false
           EOF
           gh issue comment "$RECOVERY_STATUS_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file recovery-outcome.md
