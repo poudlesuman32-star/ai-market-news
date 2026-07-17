@@ -32,7 +32,23 @@ class OneTimePrivateRecoveryTests(unittest.TestCase):
             self.marker['pointer_commit'],
             'be672de0f77c9ec140b63e437593310bd718643f',
         )
-        self.assertEqual(self.marker['status'], 'retry_exact_recovery_1')
+        self.assertEqual(self.marker['status'], 'retry_exact_recovery_2')
+
+    def test_exact_values_are_available_before_the_download_step(self) -> None:
+        for value in (
+            'PUBLICATION_RUN_ID: "29549106843"',
+            'PUBLICATION_RUN_ATTEMPT: "2"',
+            'PUBLICATION_ARTIFACT_NAME: ppi-r9-automated-publication-29549106843-2',
+            'PUBLICATION_ARTIFACT_SHA256: 9c8d84b1e48417dcc57be869564d0b154b9965bcb4c89d78d10a796db4eb00d9',
+            'RECOVERY_DATA_COMMIT: e204fbc1eb72f04429786e6bb5ca96f6007c3912',
+            'RECOVERY_POINTER_COMMIT: be672de0f77c9ec140b63e437593310bd718643f',
+        ):
+            self.assertIn(value, self.workflow)
+        self.assertIn("assert marker[key] == os.environ[env_name]", self.workflow)
+        download_step = self.workflow.split(
+            '- name: Validate marker and download exact publication artifact', 1
+        )[1].split('- name: Verify transaction registry and existing receiver state', 1)[0]
+        self.assertNotIn('>> "$GITHUB_ENV"', download_step)
 
     def test_recovery_runs_only_for_exact_marker_push(self) -> None:
         self.assertIn('push:', self.workflow)
