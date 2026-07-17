@@ -28,6 +28,7 @@ concurrency:
 env:
   EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
   EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
+  PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml
   AUTONOMY_CONTRACT_ID: PPI-R9-AUTONOMY-002
   AUTONOMY_CONTRACT_PATH: validation/contracts/PPI-R9-AUTONOMY-002.json
   AUTONOMY_CONTRACT_SHA256: 2f29d15d2f4447c2f17327277614c274e051c2259b34af054ee6daa1553ff704
@@ -353,7 +354,7 @@ jobs:
               'contract_sha256': os.environ['AUTONOMY_CONTRACT_SHA256'],
           }
           transaction_json = json.dumps(transaction, sort_keys=True, separators=(',', ':'))
-          client_payload = {
+          inputs = {
               'schema_version': '1.0.0',
               'transaction_json': transaction_json,
               'public_repository': transaction['public_repository'],
@@ -365,7 +366,7 @@ jobs:
               'snapshot_path': transaction['snapshot_path'],
               'contract_sha256': transaction['contract_sha256'],
           }
-          expected_client_keys = {
+          expected_input_keys = {
               'schema_version',
               'transaction_json',
               'public_repository',
@@ -377,19 +378,17 @@ jobs:
               'snapshot_path',
               'contract_sha256',
           }
-          assert set(client_payload) == expected_client_keys
-          assert len(client_payload) == 10
-          request = {
-              'event_type': 'ppi_public_snapshot_ready',
-              'client_payload': client_payload,
-          }
-          Path('publication-evidence/private_dispatch_request.json').write_text(
+          assert set(inputs) == expected_input_keys
+          assert len(inputs) == 10
+          request = {'ref': 'main', 'inputs': inputs}
+          Path('publication-evidence/private_workflow_dispatch_request.json').write_text(
               json.dumps(request, indent=2, sort_keys=True) + '\n',
               encoding='utf-8',
           )
           PY
-          gh api --method POST "repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches" \
-            --input publication-evidence/private_dispatch_request.json
+          gh api --method POST \
+            "repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches" \
+            --input publication-evidence/private_workflow_dispatch_request.json
 
       - name: Upload immutable publication evidence
         if: always()

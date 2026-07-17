@@ -1,0 +1,205 @@
+name: PPI R9 one-time private receiver recovery
+run-name: Recover private receiver for publication 29549106843 attempt 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/r9-recovery/29549106843-2.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ppi-r9-one-time-private-recovery-29549106843-2
+  cancel-in-progress: false
+
+env:
+  EXPECTED_PUBLIC_REPOSITORY: poudlesuman32-star/ai-market-news
+  EXPECTED_PRIVATE_REPOSITORY: musksuman3/ai-signal-engine
+  EXPECTED_PUBLICATION_WORKFLOW_PATH: .github/workflows/ppi-r9-automated-publication.yml
+  PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml
+  RECOVERY_MARKER: .github/r9-recovery/29549106843-2.json
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact recovery declaration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate marker and download exact publication artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-input publication-artifact recovery-evidence
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          marker = json.loads(Path(os.environ['RECOVERY_MARKER']).read_text(encoding='utf-8'))
+          expected = {
+              'schema_version',
+              'publication_workflow_run_id',
+              'publication_workflow_run_attempt',
+              'publication_artifact_name',
+              'publication_artifact_sha256',
+              'data_commit',
+              'pointer_commit',
+              'status',
+          }
+          assert set(marker) == expected
+          assert marker['schema_version'] == '1.0.0'
+          assert marker['status'] == 'pending_exact_recovery'
+          assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_id'])
+          assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_attempt'])
+          assert re.fullmatch(r'[0-9a-f]{64}', marker['publication_artifact_sha256'])
+          assert re.fullmatch(r'[0-9a-f]{40}', marker['data_commit'])
+          assert re.fullmatch(r'[0-9a-f]{40}', marker['pointer_commit'])
+          expected_name = (
+              'ppi-r9-automated-publication-'
+              + marker['publication_workflow_run_id']
+              + '-'
+              + marker['publication_workflow_run_attempt']
+          )
+          assert marker['publication_artifact_name'] == expected_name
+          for key, env_name in (
+              ('publication_workflow_run_id', 'PUBLICATION_RUN_ID'),
+              ('publication_workflow_run_attempt', 'PUBLICATION_RUN_ATTEMPT'),
+              ('publication_artifact_name', 'PUBLICATION_ARTIFACT_NAME'),
+              ('publication_artifact_sha256', 'PUBLICATION_ARTIFACT_SHA256'),
+              ('data_commit', 'RECOVERY_DATA_COMMIT'),
+              ('pointer_commit', 'RECOVERY_POINTER_COMMIT'),
+          ):
+              print(f'{env_name}={marker[key]}')
+          PY
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}" > recovery-input/publication-run.json
+          gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}/artifacts" > recovery-input/artifacts.json
+          artifact_id="$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run = json.loads(Path('recovery-input/publication-run.json').read_text(encoding='utf-8'))
+          assert str(run['id']) == os.environ['PUBLICATION_RUN_ID']
+          assert str(run['run_attempt']) == os.environ['PUBLICATION_RUN_ATTEMPT']
+          assert run['path'] == os.environ['EXPECTED_PUBLICATION_WORKFLOW_PATH']
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['head_branch'] == 'main'
+          assert run['head_repository']['full_name'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          listing = json.loads(Path('recovery-input/artifacts.json').read_text(encoding='utf-8'))
+          matches = [
+              artifact for artifact in listing.get('artifacts', [])
+              if artifact.get('name') == os.environ['PUBLICATION_ARTIFACT_NAME']
+              and artifact.get('expired') is False
+              and artifact.get('digest') == 'sha256:' + os.environ['PUBLICATION_ARTIFACT_SHA256']
+              and str(artifact.get('workflow_run', {}).get('id', os.environ['PUBLICATION_RUN_ID']))
+                  == os.environ['PUBLICATION_RUN_ID']
+          ]
+          assert len(matches) == 1
+          print(matches[0]['id'])
+          PY
+          )"
+          gh api -H "Accept: application/vnd.github+json" \
+            "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > recovery-input/publication-artifact.zip
+          unzip -q recovery-input/publication-artifact.zip -d publication-artifact
+          request_count="$(find publication-artifact -type f -name private_dispatch_request.json | wc -l)"
+          test "$request_count" -eq 1
+          request_path="$(find publication-artifact -type f -name private_dispatch_request.json -print -quit)"
+          test -s "$request_path"
+          cp "$request_path" recovery-evidence/source_private_dispatch_request.json
+
+      - name: Verify exact compact transaction and registry state
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api "repos/${EXPECTED_PRIVATE_REPOSITORY}/contents/audit/r9_official_run_registry.json?ref=main" \
+            --jq .content | tr -d '\n' | base64 --decode > recovery-input/registry.json
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          import os
+          from pathlib import Path
+
+          source = json.loads(
+              Path('recovery-evidence/source_private_dispatch_request.json').read_text(encoding='utf-8')
+          )
+          assert set(source) == {'event_type', 'client_payload'}
+          assert source['event_type'] == 'ppi_public_snapshot_ready'
+          inputs = source['client_payload']
+          expected = {
+              'schema_version',
+              'transaction_json',
+              'public_repository',
+              'public_branch',
+              'publication_workflow_run_id',
+              'publication_workflow_run_attempt',
+              'data_commit',
+              'pointer_commit',
+              'snapshot_path',
+              'contract_sha256',
+          }
+          assert isinstance(inputs, dict) and set(inputs) == expected
+          assert inputs['schema_version'] == '1.0.0'
+          assert inputs['public_repository'] == os.environ['EXPECTED_PUBLIC_REPOSITORY']
+          assert inputs['public_branch'] == 'public-news-data'
+          assert inputs['publication_workflow_run_id'] == os.environ['PUBLICATION_RUN_ID']
+          assert inputs['publication_workflow_run_attempt'] == os.environ['PUBLICATION_RUN_ATTEMPT']
+          assert inputs['data_commit'] == os.environ['RECOVERY_DATA_COMMIT']
+          assert inputs['pointer_commit'] == os.environ['RECOVERY_POINTER_COMMIT']
+          transaction = json.loads(inputs['transaction_json'])
+          assert transaction['publication_workflow_run_id'] == os.environ['PUBLICATION_RUN_ID']
+          assert transaction['publication_workflow_run_attempt'] == os.environ['PUBLICATION_RUN_ATTEMPT']
+          assert transaction['data_commit'] == os.environ['RECOVERY_DATA_COMMIT']
+          assert transaction['pointer_commit'] == os.environ['RECOVERY_POINTER_COMMIT']
+          registry = json.loads(Path('recovery-input/registry.json').read_text(encoding='utf-8'))
+          registered = any(
+              run.get('data_commit') == os.environ['RECOVERY_DATA_COMMIT']
+              for run in registry.get('official_runs', [])
+          )
+          request = {'ref': 'main', 'inputs': inputs}
+          Path('recovery-evidence/private_workflow_dispatch_request.json').write_text(
+              json.dumps(request, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          status = {
+              'schema_version': '1.0.0',
+              'data_commit': os.environ['RECOVERY_DATA_COMMIT'],
+              'already_registered': registered,
+              'dispatch_required': not registered,
+              'r10_enabled': False,
+          }
+          Path('recovery-evidence/recovery_status.json').write_text(
+              json.dumps(status, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          print('RECOVERY_NEEDED=' + ('false' if registered else 'true'))
+          PY
+
+      - name: Dispatch exact private receiver workflow
+        if: env.RECOVERY_NEEDED == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${EXPECTED_PRIVATE_REPOSITORY}/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches" \
+            --input recovery-evidence/private_workflow_dispatch_request.json
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r9-private-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: recovery-evidence/
+          retention-days: 90
+          if-no-files-found: error

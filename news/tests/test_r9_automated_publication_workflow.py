@@ -66,14 +66,18 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
         self.assertNotIn('broker', self.workflow.lower())
         self.assertNotIn('trading', self.workflow.lower())
 
-    def test_credentials_are_ephemeral_and_dispatch_is_exact(self) -> None:
+    def test_credentials_are_ephemeral_and_private_workflow_dispatch_is_exact(self) -> None:
         self.assertIn('persist-credentials: false', self.workflow)
         self.assertIn('Remove ephemeral authentication', self.workflow)
-        self.assertIn("'event_type': 'ppi_public_snapshot_ready'", self.workflow)
+        self.assertIn('PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml', self.workflow)
         self.assertIn("'transaction_json': transaction_json", self.workflow)
-        self.assertIn('assert len(client_payload) == 10', self.workflow)
-        self.assertIn('private_dispatch_request.json', self.workflow)
-        self.assertIn('--input publication-evidence/private_dispatch_request.json', self.workflow)
+        self.assertIn('assert len(inputs) == 10', self.workflow)
+        self.assertIn("request = {'ref': 'main', 'inputs': inputs}", self.workflow)
+        self.assertIn('private_workflow_dispatch_request.json', self.workflow)
+        self.assertIn('/actions/workflows/${PRIVATE_RECEIVER_WORKFLOW_FILE}/dispatches', self.workflow)
+        self.assertIn('--input publication-evidence/private_workflow_dispatch_request.json', self.workflow)
+        self.assertNotIn("'event_type': 'ppi_public_snapshot_ready'", self.workflow)
+        self.assertNotIn('repos/${EXPECTED_PRIVATE_REPOSITORY}/dispatches', self.workflow)
         for field in (
             'source_workflow_name',
             'source_workflow_run_id',
@@ -91,8 +95,6 @@ class AutomatedR9PublicationWorkflowTests(unittest.TestCase):
             'contract_sha256',
         ):
             self.assertIn(f"'{field}':", self.workflow)
-        self.assertNotIn('client_payload[source_workflow_name]', self.workflow)
-        self.assertNotIn('client_payload[public_commit]', self.workflow)
 
 
 if __name__ == '__main__':
