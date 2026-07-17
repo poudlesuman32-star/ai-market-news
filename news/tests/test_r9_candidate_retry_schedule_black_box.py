@@ -71,8 +71,11 @@ def validate_automated_publication_boundary(text: str) -> None:
     required = {
         "name: PPI R9 automated publication and private dispatch",
         "workflow_run:",
+        "workflow_dispatch:",
         "- PPI public news live primary-source preview",
-        "- PPI automated read-only live primary-source candidate",
+        "source_workflow_run_id:",
+        "source_workflow_run_attempt:",
+        "github.event_name == 'workflow_dispatch'",
         "github.event.workflow_run.conclusion == 'success'",
         "github.event.workflow_run.head_branch == 'main'",
         "github.event.workflow_run.event != 'pull_request'",
@@ -81,6 +84,8 @@ def validate_automated_publication_boundary(text: str) -> None:
         "ppi-public-news-live-preview-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}",
         "ppi-readonly-live-candidate-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}",
         "Unsupported R9 source workflow",
+        "assert source['name'] == 'PPI automated read-only live primary-source candidate'",
+        "assert source['name'] == 'PPI public news live primary-source preview'",
         "Enforce exact autonomous candidate gate",
         "Publish immutable Commit A B C transaction",
         "ppi_public_snapshot_ready",
@@ -94,6 +99,9 @@ def validate_automated_publication_boundary(text: str) -> None:
     missing = sorted(value for value in required if value not in text)
     if missing:
         raise ScheduleShapeError(f"autonomous boundary missing: {missing}")
+    workflow_run_block = text.split("workflow_run:", 1)[1].split("workflow_dispatch:", 1)[0]
+    if "PPI automated read-only live primary-source candidate" in workflow_run_block:
+        raise ScheduleShapeError("read-only candidate retained duplicate workflow_run publication path")
     if text.index("Enforce exact autonomous candidate gate") > text.index("Publish immutable Commit A B C transaction"):
         raise ScheduleShapeError("publication precedes candidate validation")
     if "environment: ppi-r9-manual-approval" in text:
@@ -153,6 +161,15 @@ class R9CandidateRetryScheduleBlackBoxTests(unittest.TestCase):
 
     def test_qualifying_candidate_cascades_only_under_frozen_autonomy_contract(self) -> None:
         validate_automated_publication_boundary(self.automated_publication)
+
+    def test_duplicate_readonly_workflow_run_path_fails_closed(self) -> None:
+        changed = self.automated_publication.replace(
+            "      - PPI public news live primary-source preview\n",
+            "      - PPI public news live primary-source preview\n      - PPI automated read-only live primary-source candidate\n",
+            1,
+        )
+        with self.assertRaisesRegex(ScheduleShapeError, "duplicate workflow_run publication path"):
+            validate_automated_publication_boundary(changed)
 
     def test_manual_gate_or_changed_autonomy_hash_fails_closed(self) -> None:
         changed = self.automated_publication.replace(AUTONOMY_CONTRACT_SHA256, "0" * 64)
