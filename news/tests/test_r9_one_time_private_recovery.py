@@ -73,9 +73,9 @@ class OneTimePrivateRecoveryTests(unittest.TestCase):
         self.assertIn('RECOVERY_STATUS_ISSUE: "42"', self.workflow)
         self.assertIn('Announce exact recovery run', self.workflow)
         self.assertIn('Report sanitized recovery outcome', self.workflow)
-        self.assertIn('Private evidence exposed: `false`', self.workflow)
-        self.assertIn('Registry mutated by recovery workflow: `false`', self.workflow)
-        self.assertIn('R10 enabled: `false`', self.workflow)
+        self.assertIn('Private evidence exposed: false', self.workflow)
+        self.assertIn('Registry mutated by recovery workflow: false', self.workflow)
+        self.assertIn('R10 enabled: false', self.workflow)
         self.assertNotIn('receiver_artifact.json', self.workflow)
         self.assertNotIn('official_run_candidate.json', self.workflow)
 
