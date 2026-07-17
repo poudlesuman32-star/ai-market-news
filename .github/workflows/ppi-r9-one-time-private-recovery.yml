@@ -23,6 +23,12 @@ env:
   PRIVATE_RECEIVER_WORKFLOW_FILE: ppi-r9-private-receiver.yml
   RECOVERY_MARKER: .github/r9-recovery/29549106843-2.json
   RECOVERY_STATUS_ISSUE: "42"
+  PUBLICATION_RUN_ID: "29549106843"
+  PUBLICATION_RUN_ATTEMPT: "2"
+  PUBLICATION_ARTIFACT_NAME: ppi-r9-automated-publication-29549106843-2
+  PUBLICATION_ARTIFACT_SHA256: 9c8d84b1e48417dcc57be869564d0b154b9965bcb4c89d78d10a796db4eb00d9
+  RECOVERY_DATA_COMMIT: e204fbc1eb72f04429786e6bb5ca96f6007c3912
+  RECOVERY_POINTER_COMMIT: be672de0f77c9ec140b63e437593310bd718643f
 
 jobs:
   recover:
@@ -44,9 +50,9 @@ jobs:
 
           - Recovery workflow run: ${GITHUB_RUN_ID}
           - Recovery attempt: ${GITHUB_RUN_ATTEMPT}
-          - Publication run: 29549106843
-          - Publication attempt: 2
-          - Data commit: e204fbc1eb72f04429786e6bb5ca96f6007c3912
+          - Publication run: ${PUBLICATION_RUN_ID}
+          - Publication attempt: ${PUBLICATION_RUN_ATTEMPT}
+          - Data commit: ${RECOVERY_DATA_COMMIT}
           - Private evidence exposed: false
           - R10 enabled: false
           EOF
@@ -58,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p recovery-input publication-artifact recovery-evidence
-          python - <<'PY' >> "$GITHUB_ENV"
+          python - <<'PY'
           import json
           import os
           import re
@@ -77,7 +83,7 @@ jobs:
           }
           assert set(marker) == expected
           assert marker['schema_version'] == '1.0.0'
-          assert marker['status'] == 'retry_exact_recovery_1'
+          assert marker['status'] == 'retry_exact_recovery_2'
           assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_id'])
           assert re.fullmatch(r'[1-9][0-9]*', marker['publication_workflow_run_attempt'])
           assert re.fullmatch(r'[0-9a-f]{64}', marker['publication_artifact_sha256'])
@@ -98,7 +104,7 @@ jobs:
               ('data_commit', 'RECOVERY_DATA_COMMIT'),
               ('pointer_commit', 'RECOVERY_POINTER_COMMIT'),
           ):
-              print(f'{env_name}={marker[key]}')
+              assert marker[key] == os.environ[env_name], (key, env_name)
           PY
           gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}" > recovery-input/publication-run.json
           gh api "repos/${EXPECTED_PUBLIC_REPOSITORY}/actions/runs/${PUBLICATION_RUN_ID}/artifacts" > recovery-input/artifacts.json
