@@ -1,0 +1,23 @@
+{
+  "collection_complete": true,
+  "data_commit": "ccb23904dd0a218a2144796c83c69a21b2b6ee21",
+  "earliest_published_at": "2026-06-18T14:59:41Z",
+  "event_count": 41,
+  "latest_published_at": "2026-07-17T18:57:15Z",
+  "news_file_path": "snapshots/2026-07-18T000951Z-22464858-1/news.jsonl",
+  "news_file_sha256": "57c7f1f477eeba048ba63906906209b98051df8440e6bb43c371425a3fa7d3e5",
+  "private_content_excluded": true,
+  "provider_counts": {
+    "official_company_source": 27,
+    "sec_edgar": 29
+  },
+  "receipt_file_path": "snapshots/2026-07-18T000951Z-22464858-1/collection_receipt.json",
+  "receipt_file_sha256": "a43a2942c52c1335b6afbc7b54ce02c58bd8faa33dda013e15a0d225906c6552",
+  "record_count": 56,
+  "schema_version": "1.0.0",
+  "snapshot_path": "snapshots/2026-07-18T000951Z-22464858-1",
+  "source_content_modified": false,
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "synthetic_content_used": false,
+  "ticker_count": 3
+}
