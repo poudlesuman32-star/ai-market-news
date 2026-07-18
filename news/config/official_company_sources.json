@@ -4,27 +4,37 @@
     {
       "ticker": "AAPL",
       "source_name": "Apple Newsroom",
+      "source_kind": "feed",
       "feed_url": "https://www.apple.com/newsroom/rss-feed.rss",
       "allowed_hosts": [
         "apple.com"
       ]
     },
     {
+      "ticker": "MU",
+      "source_name": "Micron Investor Relations",
+      "source_kind": "html_release_index",
+      "index_url": "https://investors.micron.com/latest-news-english",
+      "allowed_hosts": [
+        "micron.com"
+      ]
+    },
+    {
       "ticker": "NVDA",
       "source_name": "NVIDIA Newsroom",
+      "source_kind": "feed",
       "feed_url": "https://nvidianews.nvidia.com/rss.xml",
       "allowed_hosts": [
         "nvidia.com"
       ]
     }
   ],
-  "disabled_sources": [
+  "retired_sources": [
     {
       "ticker": "MU",
-      "source_name": "Micron Investor Relations",
+      "source_name": "Micron Investor Relations RSS",
       "feed_url": "https://investors.micron.com/rss/news-releases.xml?items=25",
-      "reason": "Endpoint exhausted bounded read-timeout retries during reviewed live run 29138091476; MU remains covered by the allowlisted SEC submissions collector.",
-      "re_enable_requires": "A separate reviewed endpoint-health run with zero failures."
+      "reason": "Replaced by the reviewed allowlisted English release index after repeated bounded read timeouts."
     }
   ]
 }
