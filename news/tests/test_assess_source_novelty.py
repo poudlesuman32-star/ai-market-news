@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_market_news.assess_source_novelty import assess_source_novelty
+from ai_market_news.assess_source_novelty import assess_source_novelty, main
+from ai_market_news.collector_common import CollectorError
 
 
 def record(*, source_hash: str, collected_at: str, record_id: str, url: str) -> dict:
@@ -66,6 +67,45 @@ class SourceNoveltyTests(unittest.TestCase):
         self.assertFalse(result["baseline_present"])
         self.assertTrue(result["materially_novel"])
         self.assertEqual(result["new_record_count"], 1)
+
+    def test_report_only_writes_receipt_for_repeated_period_without_authorization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = root / "previous.jsonl"
+            current = root / "current.jsonl"
+            output = root / "period.json"
+            value = record(source_hash="a" * 64, collected_at="2026-07-17T12:01:00Z", record_id="one", url="https://example.com/a")
+            write_jsonl(previous, [value])
+            write_jsonl(current, [{**value, "collected_at_utc": "2026-07-17T13:01:00Z", "record_id": "two"}])
+            status = main(
+                [
+                    "--current",
+                    str(current),
+                    "--previous",
+                    str(previous),
+                    "--output",
+                    str(output),
+                    "--report-only",
+                ]
+            )
+            receipt = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(status, 0)
+        self.assertTrue(receipt["report_only"])
+        self.assertFalse(receipt["materially_novel"])
+        self.assertFalse(receipt["registration_authorized"])
+        self.assertFalse(receipt["publication_authorized"])
+
+    def test_standard_cli_still_rejects_repeated_period(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = root / "previous.jsonl"
+            current = root / "current.jsonl"
+            output = root / "period.json"
+            value = record(source_hash="a" * 64, collected_at="2026-07-17T12:01:00Z", record_id="one", url="https://example.com/a")
+            write_jsonl(previous, [value])
+            write_jsonl(current, [{**value, "collected_at_utc": "2026-07-17T13:01:00Z", "record_id": "two"}])
+            with self.assertRaisesRegex(CollectorError, "adds no materially new source records"):
+                main(["--current", str(current), "--previous", str(previous), "--output", str(output)])
 
 
 if __name__ == "__main__":
