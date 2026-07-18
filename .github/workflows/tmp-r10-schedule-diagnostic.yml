@@ -1,0 +1,39 @@
+name: Temporary R10 schedule diagnostic
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/verify-primary-source-coverage.yml
+      - news/tests/test_r10_source_period_dispatch.py
+      - .github/workflows/tmp-r10-schedule-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run targeted schedule tests
+        env:
+          PYTHONPATH: news/src
+        run: |
+          set +e
+          python -m unittest news.tests.test_r10_source_period_dispatch -v > diagnostic.log 2>&1
+          status=$?
+          cat diagnostic.log
+          exit "$status"
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r10-schedule-diagnostic-${{ github.run_id }}
+          path: diagnostic.log
+          retention-days: 1
+          if-no-files-found: error
