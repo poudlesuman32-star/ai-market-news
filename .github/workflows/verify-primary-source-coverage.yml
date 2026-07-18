@@ -1,0 +1,138 @@
+name: PPI primary-source live coverage verification
+run-name: PPI primary-source live coverage verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      sec_user_agent:
+        description: Optional SEC user agent override; otherwise uses repository variable PPI_SEC_USER_AGENT
+        required: false
+        default: ""
+        type: string
+      lookback_days:
+        description: Number of calendar days to inspect, from 1 through 30
+        required: false
+        default: "30"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-primary-source-live-coverage-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify live official-source and SEC enrichment coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SEC_USER_AGENT: ${{ inputs.sec_user_agent || vars.PPI_SEC_USER_AGENT }}
+      LOOKBACK_DAYS: ${{ inputs.lookback_days || '30' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate configuration
+        run: |
+          set -euo pipefail
+          test -n "$SEC_USER_AGENT" || {
+            echo "Set repository variable PPI_SEC_USER_AGENT to an SEC-compliant organization and contact email." >&2
+            exit 1
+          }
+          case "$SEC_USER_AGENT" in
+            *@*) ;;
+            *) echo "SEC user agent must contain a contact email" >&2; exit 1 ;;
+          esac
+          python - <<'PY'
+          import os
+          value = int(os.environ["LOOKBACK_DAYS"])
+          assert 1 <= value <= 30
+          PY
+
+      - name: Compile verification modules
+        run: |
+          python -m py_compile \
+            news/src/ai_market_news/collector_common.py \
+            news/src/ai_market_news/live_http.py \
+            news/src/ai_market_news/sec_adapter.py \
+            news/src/ai_market_news/sec_adapter_compat.py \
+            news/src/ai_market_news/company_feed_adapter.py \
+            news/src/ai_market_news/company_source_compat.py \
+            news/src/ai_market_news/collect_sec.py \
+            news/src/ai_market_news/collect_company_releases.py \
+            news/src/ai_market_news/verify_live_source_coverage.py
+
+      - name: Run verification regression tests
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m unittest \
+            news.tests.test_company_source_compat \
+            news.tests.test_sec_enrichment_policy \
+            news.tests.test_verify_live_source_coverage -v
+
+      - name: Collect live primary sources
+        env:
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          mkdir -p source-verification/records source-verification/metrics source-verification/report
+          COLLECTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python -m ai_market_news.collect_sec \
+            --mode live \
+            --config news/config/sec_companies.json \
+            --output source-verification/records/sec.jsonl \
+            --metrics-output source-verification/metrics/sec.json \
+            --collected-at "$COLLECTED_AT" \
+            --user-agent "$SEC_USER_AGENT" \
+            --lookback-days "$LOOKBACK_DAYS"
+          python -m ai_market_news.collect_company_releases \
+            --mode live \
+            --config news/config/official_company_sources.json \
+            --output source-verification/records/company.jsonl \
+            --metrics-output source-verification/metrics/company.json \
+            --collected-at "$COLLECTED_AT" \
+            --user-agent "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)" \
+            --lookback-days "$LOOKBACK_DAYS"
+
+      - name: Verify exact source coverage
+        env:
+          PYTHONPATH: news/src
+        run: |
+          python -m ai_market_news.verify_live_source_coverage \
+            --company-config news/config/official_company_sources.json \
+            --sec-config news/config/sec_companies.json \
+            --company-metrics source-verification/metrics/company.json \
+            --sec-metrics source-verification/metrics/sec.json \
+            --company-records source-verification/records/company.jsonl \
+            --sec-records source-verification/records/sec.jsonl \
+            --output source-verification/report/coverage.json
+
+      - name: Retain immutable verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-primary-source-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: source-verification/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Confirm read-only boundary
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/verify-primary-source-coverage.yml').read_text(encoding='utf-8')
+          forbidden = ('contents:' + ' write', 'git ' + 'push', 'repository_' + 'dispatch', 'sche' + 'dule:')
+          for value in forbidden:
+              assert value not in text, value
+          PY
