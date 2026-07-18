@@ -105,11 +105,16 @@ def assess_source_novelty(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Require timestamp-independent material source novelty")
+    parser = argparse.ArgumentParser(description="Assess timestamp-independent material source novelty")
     parser.add_argument("--current", type=Path, required=True)
     parser.add_argument("--previous", type=Path)
     parser.add_argument("--minimum-new-records", type=int, default=1)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Write a source-period receipt without requiring material novelty",
+    )
     args = parser.parse_args(argv)
 
     result = assess_source_novelty(
@@ -117,9 +122,13 @@ def main(argv: list[str] | None = None) -> int:
         previous_path=args.previous,
         minimum_new_records=args.minimum_new_records,
     )
+    result["report_only"] = args.report_only
+    result["registration_authorized"] = False
+    result["publication_authorized"] = False
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    require(result["materially_novel"] is True, "candidate adds no materially new source records")
+    if not args.report_only:
+        require(result["materially_novel"] is True, "candidate adds no materially new source records")
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
