@@ -17,7 +17,6 @@ class LiveSourceInventoryTests(unittest.TestCase):
 
         active_by_ticker = {str(source["ticker"]): source for source in company["sources"]}
         retired = company.get("retired_sources", [])
-        retired_by_ticker = {str(source["ticker"]): source for source in retired}
         sec_tickers = {str(source["ticker"]) for source in sec["companies"]}
 
         self.assertEqual(set(active_by_ticker), {"AAPL", "MU", "NVDA"})
@@ -25,13 +24,19 @@ class LiveSourceInventoryTests(unittest.TestCase):
         self.assertEqual(active_by_ticker["MU"]["source_kind"], "html_release_index")
         self.assertEqual(
             active_by_ticker["MU"]["index_url"],
-            "https://investors.micron.com/latest-news-english",
+            "https://www.micron.com/about/press/news",
         )
         self.assertEqual(active_by_ticker["MU"]["allowed_hosts"], ["micron.com"])
+        self.assertEqual(active_by_ticker["MU"]["source_name"], "Micron Newsroom")
 
-        self.assertIn("MU", retired_by_ticker)
-        self.assertIn("rss/news-releases.xml", retired_by_ticker["MU"]["feed_url"])
-        self.assertIn("Replaced", retired_by_ticker["MU"]["reason"])
+        micron_retired = [source for source in retired if str(source.get("ticker")) == "MU"]
+        self.assertEqual(len(micron_retired), 1)
+        self.assertIn("rss/news-releases.xml", micron_retired[0]["feed_url"])
+        self.assertEqual(
+            micron_retired[0]["index_url"],
+            "https://investors.micron.com/latest-news-english",
+        )
+        self.assertIn("Replaced", micron_retired[0]["reason"])
 
 
 if __name__ == "__main__":
