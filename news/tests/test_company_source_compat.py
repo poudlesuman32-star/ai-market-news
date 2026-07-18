@@ -3,7 +3,8 @@ from __future__ import annotations
 import unittest
 
 from ai_market_news.collector_common import CollectorError
-from ai_market_news.company_source_compat import collect_company_feeds_live, parse_release_index
+from ai_market_news.company_source_compat import parse_release_index
+from ai_market_news.company_source_live_compat import HTML_RELEASE_INDEX_MAX_BYTES, collect_company_feeds_live
 from ai_market_news.live_http import HttpResult
 
 
@@ -40,9 +41,11 @@ class CompanySourceCompatTests(unittest.TestCase):
 
     def test_collects_allowlisted_html_index_without_article_fetches(self) -> None:
         requests: list[str] = []
+        observed_limits: list[int | None] = []
 
-        def fetcher(url: str, **_: object) -> HttpResult:
+        def fetcher(url: str, **kwargs: object) -> HttpResult:
             requests.append(url)
+            observed_limits.append(kwargs.get("max_bytes") if isinstance(kwargs.get("max_bytes"), int) else None)
             return HttpResult(body=INDEX_HTML, final_url=url, request_count=1, content_type="text/html")
 
         config = {
@@ -65,10 +68,12 @@ class CompanySourceCompatTests(unittest.TestCase):
             fetcher=fetcher,
         )
         self.assertEqual(requests, [INDEX_URL])
+        self.assertEqual(observed_limits, [HTML_RELEASE_INDEX_MAX_BYTES])
         self.assertEqual(len(records), 2)
         self.assertTrue(all(record["ticker"] == "MU" for record in records))
         self.assertEqual(metrics["configured_source_count"], 1)
         self.assertEqual(metrics["html_index_pages_fetched"], 1)
+        self.assertEqual(metrics["html_release_index_max_bytes"], HTML_RELEASE_INDEX_MAX_BYTES)
         self.assertEqual(metrics["failures"], [])
         self.assertFalse(metrics["article_pages_fetched"])
 
