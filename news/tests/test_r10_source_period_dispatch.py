@@ -23,7 +23,16 @@ class R10SourcePeriodDispatchTests(unittest.TestCase):
         self.assertNotIn("repository_dispatch", text)
         self.assertNotIn("gh pr create", text)
         self.assertNotIn("gh pr merge", text)
-        self.assertNotIn("schedule:", text)
+
+    def test_weekday_schedule_is_low_frequency_and_uses_bounded_defaults(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('schedule:\n    - cron: "45 23 * * 1-5"', text)
+        self.assertEqual(text.count('cron: "45 23 * * 1-5"'), 1)
+        self.assertIn("github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT", text)
+        self.assertIn("github.event_name == 'schedule' && '30'", text)
+        self.assertIn('if os.environ["GITHUB_EVENT_NAME"] == "schedule":', text)
+        self.assertIn("assert value == 30", text)
+        self.assertIn("cancel-in-progress: false", text)
 
     def test_artifact_is_retained_before_private_dispatch(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
