@@ -1,0 +1,48 @@
+name: Diagnose primary-source coverage tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "news/src/ai_market_news/company_source_compat.py"
+      - "news/src/ai_market_news/sec_adapter_compat.py"
+      - "news/tests/test_company_source_compat.py"
+      - "news/tests/test_sec_enrichment_policy.py"
+      - ".github/workflows/diagnose-primary-source-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run targeted tests and retain output
+        id: tests
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=news/src python -m unittest \
+            news.tests.test_company_source_compat \
+            news.tests.test_sec_adapter_compat \
+            news.tests.test_sec_enrichment_policy -v \
+            > targeted-test-output.txt 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat targeted-test-output.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: targeted-primary-source-test-output
+          path: targeted-test-output.txt
+          retention-days: 1
+          if-no-files-found: error
+      - name: Preserve test conclusion
+        run: test "${{ steps.tests.outputs.status }}" = "0"
