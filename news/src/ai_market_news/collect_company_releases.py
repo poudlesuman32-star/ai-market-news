@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .collector_common import build_public_record, load_json_object, require, write_jsonl
-from .company_feed_adapter import collect_company_feeds_live
+from .company_source_compat import collect_company_feeds_live
 
 
 def collect_company_release_fixture(payload: dict[str, Any], *, collected_at_utc: str) -> list[dict[str, Any]]:
