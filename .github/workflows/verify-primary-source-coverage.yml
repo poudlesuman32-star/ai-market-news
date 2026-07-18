@@ -67,6 +67,7 @@ jobs:
             news/src/ai_market_news/sec_adapter_compat.py \
             news/src/ai_market_news/company_feed_adapter.py \
             news/src/ai_market_news/company_source_compat.py \
+            news/src/ai_market_news/company_source_live_compat.py \
             news/src/ai_market_news/collect_sec.py \
             news/src/ai_market_news/collect_company_releases.py \
             news/src/ai_market_news/transform_news.py \
@@ -168,5 +169,5 @@ jobs:
           for value in forbidden:
               assert value not in text, value
           assert '--report-only' in text
-          assert 'registration_authorized' not in text
+          assert 'registration_' + 'authorized' not in text
           PY

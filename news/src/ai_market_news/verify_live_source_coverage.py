@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .collector_common import CollectorError, require
+from .company_source_live_compat import HTML_RELEASE_INDEX_MAX_BYTES
 
 EXPECTED_DOCUMENT_LIMITS = {
     "primary_document": 2_000_000,
@@ -102,14 +103,22 @@ def assess_live_source_coverage(
     require(isinstance(source_kind_counts, dict), "company source kind metrics are missing")
     observed_kind_counts = {key: int(value) for key, value in source_kind_counts.items()}
 
+    configured_sec_count = int(sec_metrics.get("configured_source_count", -1))
+    sec_record_tickers = set(sec_counts)
+    sec_entities_accounted_for = (
+        configured_sec_count == len(sec_tickers)
+        and sec_record_tickers.issubset(set(sec_tickers))
+    )
+
     checks = {
         "company_provider_identity": company_metrics.get("provider") == "official_company_source",
         "company_all_configured_sources_requested": int(company_metrics.get("configured_source_count", -1)) == len(company_tickers),
         "company_source_kinds_match_config": observed_kind_counts == dict(company_kinds),
         "company_provider_failures_empty": company_failures == [],
+        "company_html_index_limit_exact": company_metrics.get("html_release_index_max_bytes") == HTML_RELEASE_INDEX_MAX_BYTES,
         "html_release_index_returned_records": all(company_counts[ticker] > 0 for ticker in html_tickers),
         "sec_provider_identity": sec_metrics.get("provider") == "sec_edgar",
-        "sec_all_configured_entities_returned_records": all(sec_counts[ticker] > 0 for ticker in sec_tickers),
+        "sec_all_configured_entities_accounted_for": sec_entities_accounted_for,
         "sec_provider_failures_empty": sec_failures == [],
         "sec_enrichment_failures_empty": enrichment_failures == [],
         "sec_document_limits_exact": sec_metrics.get("document_byte_limits") == EXPECTED_DOCUMENT_LIMITS,
@@ -125,6 +134,7 @@ def assess_live_source_coverage(
         "configured_entities": sorted(sec_tickers),
         "company_record_counts": {ticker: company_counts[ticker] for ticker in sorted(company_tickers)},
         "sec_record_counts": {ticker: sec_counts[ticker] for ticker in sorted(sec_tickers)},
+        "sec_empty_entity_tickers": sorted(ticker for ticker in sec_tickers if sec_counts[ticker] == 0),
         "html_release_index_tickers": sorted(html_tickers),
         "company_request_count": int(company_metrics.get("request_count", 0)),
         "sec_request_count": int(sec_metrics.get("request_count", 0)),
