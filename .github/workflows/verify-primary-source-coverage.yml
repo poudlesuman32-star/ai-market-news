@@ -159,15 +159,39 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Dispatch exact successful run to private source-period validator
+        env:
+          GH_TOKEN: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh api --method POST \
+            "repos/musksuman3/ai-signal-engine/actions/workflows/ppi-r10-source-period-validation.yml/dispatches" \
+            -f ref=main \
+            -f "inputs[public_workflow_run_id]=${GITHUB_RUN_ID}" \
+            -f "inputs[public_workflow_run_attempt]=${GITHUB_RUN_ATTEMPT}" \
+            -f "inputs[public_head_sha]=${GITHUB_SHA}"
+
       - name: Confirm read-only boundary
         if: always()
         run: |
           python - <<'PY'
           from pathlib import Path
           text = Path('.github/workflows/verify-primary-source-coverage.yml').read_text(encoding='utf-8')
-          forbidden = ('contents:' + ' write', 'git ' + 'push', 'repository_' + 'dispatch', 'sche' + 'dule:')
+          forbidden = (
+              'contents:' + ' write',
+              'pull-requests:' + ' write',
+              'git ' + 'push',
+              'repository_' + 'dispatch',
+              'sche' + 'dule:',
+              'gh pr ' + 'create',
+              'gh pr ' + 'merge',
+          )
           for value in forbidden:
               assert value not in text, value
+          assert 'permissions:\n  contents: read' in text
           assert '--report-only' in text
           assert 'registration_' + 'authorized' not in text
+          assert 'ppi-r10-source-period-validation.yml/dispatches' in text
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in text
           PY
