@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from ai_market_news.collect_company_releases import resolve_live_user_agent
 from ai_market_news.collector_common import CollectorError
 from ai_market_news.company_source_compat import parse_release_index
 from ai_market_news.company_source_live_compat import HTML_RELEASE_INDEX_MAX_BYTES, collect_company_feeds_live
@@ -108,6 +109,24 @@ class CompanySourceCompatTests(unittest.TestCase):
         self.assertEqual(metrics["html_release_index_max_bytes"], HTML_RELEASE_INDEX_MAX_BYTES)
         self.assertEqual(metrics["failures"], [])
         self.assertFalse(metrics["article_pages_fetched"])
+
+    def test_live_user_agent_prefers_contact_bearing_environment_value(self) -> None:
+        self.assertEqual(
+            resolve_live_user_agent(
+                "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)",
+                environment_value="PPI Research contact@example.com",
+            ),
+            "PPI Research contact@example.com",
+        )
+
+    def test_live_user_agent_preserves_explicit_contact_value(self) -> None:
+        self.assertEqual(
+            resolve_live_user_agent(
+                "Explicit Research explicit@example.com",
+                environment_value="PPI Research contact@example.com",
+            ),
+            "Explicit Research explicit@example.com",
+        )
 
     def test_rejects_unsafe_html_index_host(self) -> None:
         config = {
