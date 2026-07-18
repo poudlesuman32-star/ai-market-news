@@ -2,6 +2,8 @@ name: PPI primary-source live coverage verification
 run-name: PPI primary-source live coverage verification
 
 on:
+  schedule:
+    - cron: "45 23 * * 1-5"
   workflow_dispatch:
     inputs:
       sec_user_agent:
@@ -28,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SEC_USER_AGENT: ${{ inputs.sec_user_agent || vars.PPI_SEC_USER_AGENT }}
-      LOOKBACK_DAYS: ${{ inputs.lookback_days || '30' }}
+      SEC_USER_AGENT: ${{ github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT || inputs.sec_user_agent || vars.PPI_SEC_USER_AGENT }}
+      LOOKBACK_DAYS: ${{ github.event_name == 'schedule' && '30' || inputs.lookback_days || '30' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -56,6 +58,8 @@ jobs:
           import os
           value = int(os.environ["LOOKBACK_DAYS"])
           assert 1 <= value <= 30
+          if os.environ["GITHUB_EVENT_NAME"] == "schedule":
+              assert value == 30
           PY
 
       - name: Compile verification modules
@@ -82,7 +86,8 @@ jobs:
             news.tests.test_company_source_compat \
             news.tests.test_sec_enrichment_policy \
             news.tests.test_assess_source_novelty \
-            news.tests.test_verify_live_source_coverage -v
+            news.tests.test_verify_live_source_coverage \
+            news.tests.test_r10_source_period_dispatch -v
 
       - name: Collect live primary sources
         env:
@@ -183,13 +188,16 @@ jobs:
               'pull-requests:' + ' write',
               'git ' + 'push',
               'repository_' + 'dispatch',
-              'sche' + 'dule:',
               'gh pr ' + 'create',
               'gh pr ' + 'merge',
           )
           for value in forbidden:
               assert value not in text, value
+          cron = '45 23 * * ' + '1-5'
+          assert f'schedule:\n    - cron: "{cron}"' in text
+          assert text.count(f'cron: "{cron}"') == 1
           assert 'permissions:\n  contents: read' in text
+          assert "github.event_name == 'schedule'" in text
           assert '--report-only' in text
           assert 'registration_' + 'authorized' not in text
           assert 'ppi-r10-source-period-validation.yml/dispatches' in text
