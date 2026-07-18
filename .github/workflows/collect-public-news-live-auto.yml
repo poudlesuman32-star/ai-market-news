@@ -36,6 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -72,6 +73,7 @@ jobs:
             news/src/ai_market_news/tag_catalysts.py \
             news/src/ai_market_news/tag_infrastructure_layers.py \
             news/src/ai_market_news/transform_news.py \
+            news/src/ai_market_news/assess_source_novelty.py \
             news/src/ai_market_news/build_preview_artifacts.py \
             news/src/ai_market_news/build_live_candidate_artifacts.py \
             news/src/ai_market_news/enforce_live_candidate_gate.py \
@@ -115,6 +117,29 @@ jobs:
             --input live-candidate/input/sec.jsonl \
             --input live-candidate/input/company.jsonl \
             --output live-candidate/artifacts/news.jsonl
+
+      - name: Require materially new source content
+        env:
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin public-news-data:refs/remotes/origin/public-news-data
+          git show refs/remotes/origin/public-news-data:latest.json > live-candidate/metrics/latest.json
+          SNAPSHOT_PATH="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          latest = json.loads(Path('live-candidate/metrics/latest.json').read_text(encoding='utf-8'))
+          path = latest.get('snapshot_path')
+          assert isinstance(path, str) and path.startswith('snapshots/')
+          print(path)
+          PY
+          )"
+          git show "refs/remotes/origin/public-news-data:${SNAPSHOT_PATH}/news.jsonl" > live-candidate/metrics/previous-news.jsonl
+          python -m ai_market_news.assess_source_novelty \
+            --current live-candidate/artifacts/news.jsonl \
+            --previous live-candidate/metrics/previous-news.jsonl \
+            --minimum-new-records 1 \
+            --output live-candidate/metrics/source_novelty.json
 
       - name: Load provider metrics
         run: |
@@ -193,6 +218,7 @@ jobs:
 
           report = json.loads(Path("live-candidate/artifacts/run_report.json").read_text(encoding="utf-8"))
           independent = json.loads(Path("live-candidate/artifacts/independent_validation.json").read_text(encoding="utf-8"))
+          novelty = json.loads(Path("live-candidate/metrics/source_novelty.json").read_text(encoding="utf-8"))
           assert report["this_run_qualifies"] is True
           assert report["qualification_exclusion_reasons"] == []
           assert all(report["live_primary_countability_checks"].values())
@@ -200,6 +226,10 @@ jobs:
           assert independent["failures"] == []
           assert independent["publication_authorized"] is False
           assert independent["official_r9_count_authorized"] is False
+          assert novelty["baseline_present"] is True
+          assert novelty["materially_novel"] is True
+          assert novelty["new_record_count"] >= novelty["minimum_new_records"] >= 1
+          assert isinstance(novelty["source_content_sha256"], str) and len(novelty["source_content_sha256"]) == 64
           assert report["published_to_repository"] is False
           assert report["contents_write_permission_authorized"] is False
           assert report["external_writes_enabled"] is False
