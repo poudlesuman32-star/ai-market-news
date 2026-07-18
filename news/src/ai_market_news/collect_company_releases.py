@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,14 @@ def collect_company_release_fixture(payload: dict[str, Any], *, collected_at_utc
     return records
 
 
+def resolve_live_user_agent(explicit_value: str, *, environment_value: str | None = None) -> str:
+    explicit = str(explicit_value).strip()
+    environment = str(environment_value if environment_value is not None else os.environ.get("SEC_USER_AGENT", "")).strip()
+    if "@" not in explicit and "@" in environment:
+        return environment
+    return explicit
+
+
 def write_metrics(path: Path | None, value: dict[str, Any]) -> None:
     if path is None:
         return
@@ -84,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         records, metrics = collect_company_feeds_live(
             load_json_object(args.config),
             collected_at_utc=args.collected_at,
-            user_agent=args.user_agent,
+            user_agent=resolve_live_user_agent(args.user_agent),
             lookback_days=args.lookback_days,
         )
 

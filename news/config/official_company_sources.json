@@ -12,9 +12,9 @@
     },
     {
       "ticker": "MU",
-      "source_name": "Micron Investor Relations",
+      "source_name": "Micron Newsroom",
       "source_kind": "html_release_index",
-      "index_url": "https://investors.micron.com/latest-news-english",
+      "index_url": "https://www.micron.com/about/press/news",
       "allowed_hosts": [
         "micron.com"
       ]
@@ -32,9 +32,10 @@
   "retired_sources": [
     {
       "ticker": "MU",
-      "source_name": "Micron Investor Relations RSS",
+      "source_name": "Micron Investor Relations endpoints",
       "feed_url": "https://investors.micron.com/rss/news-releases.xml?items=25",
-      "reason": "Replaced by the reviewed allowlisted English release index after repeated bounded read timeouts."
+      "index_url": "https://investors.micron.com/latest-news-english",
+      "reason": "Replaced by Micron's official corporate newsroom after both Investor Relations endpoints failed bounded collection from GitHub-hosted runners."
     }
   ]
 }
