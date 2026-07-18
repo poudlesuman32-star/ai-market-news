@@ -193,9 +193,10 @@ jobs:
           )
           for value in forbidden:
               assert value not in text, value
+          cron = '45 23 * * ' + '1-5'
+          assert f'schedule:\n    - cron: "{cron}"' in text
+          assert text.count(f'cron: "{cron}"') == 1
           assert 'permissions:\n  contents: read' in text
-          assert 'schedule:\n    - cron: "45 23 * * 1-5"' in text
-          assert text.count('cron: "45 23 * * 1-5"') == 1
           assert "github.event_name == 'schedule'" in text
           assert '--report-only' in text
           assert 'registration_' + 'authorized' not in text
