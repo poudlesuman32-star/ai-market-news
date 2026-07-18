@@ -69,6 +69,8 @@ jobs:
             news/src/ai_market_news/company_source_compat.py \
             news/src/ai_market_news/collect_sec.py \
             news/src/ai_market_news/collect_company_releases.py \
+            news/src/ai_market_news/transform_news.py \
+            news/src/ai_market_news/assess_source_novelty.py \
             news/src/ai_market_news/verify_live_source_coverage.py
 
       - name: Run verification regression tests
@@ -78,6 +80,7 @@ jobs:
           python -m unittest \
             news.tests.test_company_source_compat \
             news.tests.test_sec_enrichment_policy \
+            news.tests.test_assess_source_novelty \
             news.tests.test_verify_live_source_coverage -v
 
       - name: Collect live primary sources
@@ -103,6 +106,35 @@ jobs:
             --collected-at "$COLLECTED_AT" \
             --user-agent "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)" \
             --lookback-days "$LOOKBACK_DAYS"
+
+      - name: Build timestamp-independent source-period receipt
+        env:
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          python -m ai_market_news.transform_news \
+            --input source-verification/records/sec.jsonl \
+            --input source-verification/records/company.jsonl \
+            --output source-verification/records/news.jsonl
+          git fetch --no-tags origin public-news-data:refs/remotes/origin/public-news-data
+          git show refs/remotes/origin/public-news-data:latest.json > source-verification/metrics/latest.json
+          SNAPSHOT_PATH="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          latest = json.loads(Path('source-verification/metrics/latest.json').read_text(encoding='utf-8'))
+          path = latest.get('snapshot_path')
+          assert isinstance(path, str) and path.startswith('snapshots/')
+          print(path)
+          PY
+          )"
+          git show "refs/remotes/origin/public-news-data:${SNAPSHOT_PATH}/news.jsonl" \
+            > source-verification/metrics/previous-news.jsonl
+          python -m ai_market_news.assess_source_novelty \
+            --current source-verification/records/news.jsonl \
+            --previous source-verification/metrics/previous-news.jsonl \
+            --minimum-new-records 1 \
+            --output source-verification/report/source-period.json \
+            --report-only
 
       - name: Verify exact source coverage
         env:
@@ -135,4 +167,6 @@ jobs:
           forbidden = ('contents:' + ' write', 'git ' + 'push', 'repository_' + 'dispatch', 'sche' + 'dule:')
           for value in forbidden:
               assert value not in text, value
+          assert '--report-only' in text
+          assert 'registration_authorized' not in text
           PY
