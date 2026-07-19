@@ -1,0 +1,66 @@
+name: PPI R10 source-period command
+run-name: Dispatch R10 source-period collection from issue command
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: ppi-r10-source-period-command
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 55 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.body == '/ppi-r10-source-period-collect' &&
+      github.event.comment.user.login == 'poudlesuman32-star'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch authoritative current-main verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run verify-primary-source-coverage.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+
+      - name: Retain dispatch receipt
+        run: |
+          mkdir -p runtime
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          value = {
+              "schema_version": "1.0.0",
+              "command": "/ppi-r10-source-period-collect",
+              "issue_number": 55,
+              "requested_by": "poudlesuman32-star",
+              "target_repository": os.environ["GITHUB_REPOSITORY"],
+              "target_workflow": "verify-primary-source-coverage.yml",
+              "target_ref": "main",
+              "publication_authorized": False,
+              "repository_mutation_authorized": False,
+              "trading_authorized": False,
+          }
+          Path("runtime/r10-source-period-command.json").write_text(
+              json.dumps(value, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload dispatch receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r10-source-period-command-${{ github.run_id }}
+          path: runtime/r10-source-period-command.json
+          retention-days: 30
+          if-no-files-found: error
