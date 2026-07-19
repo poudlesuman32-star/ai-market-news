@@ -3,7 +3,7 @@ run-name: PPI primary-source live coverage verification
 
 on:
   schedule:
-    - cron: "45 23 * * 1-5"
+    - cron: "15 1,7,13,19 * * 1-5"
   workflow_dispatch:
     inputs:
       sec_user_agent:
@@ -193,7 +193,7 @@ jobs:
           )
           for value in forbidden:
               assert value not in text, value
-          cron = '45 23 * * ' + '1-5'
+          cron = '15 1,7,13,19 * * ' + '1-5'
           assert f'schedule:\n    - cron: "{cron}"' in text
           assert text.count(f'cron: "{cron}"') == 1
           assert 'permissions:\n  contents: read' in text
