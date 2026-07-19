@@ -1,0 +1,1 @@
+{"schema_version":"1.0.0","command":"collect_and_validate_source_period","requested_by":"poudlesuman32-star","target_workflow":"verify-primary-source-coverage.yml","target_ref":"main","publication_authorized":false,"repository_mutation_authorized":false,"trading_authorized":false}
