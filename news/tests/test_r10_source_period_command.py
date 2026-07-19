@@ -16,6 +16,14 @@ class R10SourcePeriodCommandTests(unittest.TestCase):
         self.assertIn("github.event.comment.body == '/ppi-r10-source-period-collect'", text)
         self.assertIn("github.event.comment.user.login == 'poudlesuman32-star'", text)
 
+    def test_reviewed_main_push_bootstraps_current_workflow(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("push:\n    branches: [main]", text)
+        self.assertIn(".github/workflows/ppi-r10-source-period-command.yml", text)
+        self.assertIn("automation_requests/r10-source-period/*.json", text)
+        self.assertIn("github.event_name == 'push'", text)
+        self.assertIn("github.ref == 'refs/heads/main'", text)
+
     def test_dispatches_current_main_workflow_only(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("gh workflow run verify-primary-source-coverage.yml", text)
