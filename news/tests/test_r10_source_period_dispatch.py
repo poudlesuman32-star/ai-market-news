@@ -24,10 +24,10 @@ class R10SourcePeriodDispatchTests(unittest.TestCase):
         self.assertNotIn("gh pr create", text)
         self.assertNotIn("gh pr merge", text)
 
-    def test_weekday_schedule_is_low_frequency_and_uses_bounded_defaults(self) -> None:
+    def test_weekday_schedule_uses_approved_four_slot_cadence_and_bounded_defaults(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn('schedule:\n    - cron: "45 23 * * 1-5"', text)
-        self.assertEqual(text.count('cron: "45 23 * * 1-5"'), 1)
+        self.assertIn('schedule:\n    - cron: "15 1,7,13,19 * * 1-5"', text)
+        self.assertEqual(text.count('cron: "15 1,7,13,19 * * 1-5"'), 1)
         self.assertIn("github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT", text)
         self.assertIn("github.event_name == 'schedule' && '30'", text)
         self.assertIn('if os.environ["GITHUB_EVENT_NAME"] == "schedule":', text)
