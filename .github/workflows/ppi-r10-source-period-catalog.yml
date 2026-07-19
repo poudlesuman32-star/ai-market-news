@@ -1,0 +1,217 @@
+name: PPI R10 source-period candidate catalog
+run-name: Catalog genuinely novel R10 source-period candidates
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'automation_requests/r10-source-period-catalog/*.json'
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ppi-r10-source-period-candidate-catalog
+  cancel-in-progress: false
+
+env:
+  BASELINE_RUN_ID: '29648125982'
+  BASELINE_RUN_ATTEMPT: '1'
+  BASELINE_ARTIFACT_NAME: ppi-primary-source-coverage-29648125982-1
+  PUBLIC_WORKFLOW: verify-primary-source-coverage.yml
+
+jobs:
+  catalog:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'poudlesuman32-star' &&
+      startsWith(github.event.pull_request.head.ref, 'automation/request-r10-source-period-catalog-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Validate exact one-file catalog request without checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${REQUEST_PR}/files?per_page=100" > runtime/request-files.json
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          files = json.loads(Path('runtime/request-files.json').read_text(encoding='utf-8'))
+          assert isinstance(files, list) and len(files) == 1, files
+          item = files[0]
+          path = str(item['filename'])
+          assert item['status'] == 'added', item
+          assert re.fullmatch(r'automation_requests/r10-source-period-catalog/request-[0-9]{8}-[0-9]{4}\.json', path), path
+          raw = subprocess.check_output(
+              ['gh', 'api', f"repos/{os.environ['GITHUB_REPOSITORY']}/contents/{path}?ref={os.environ['REQUEST_HEAD_SHA']}", '--jq', '.content'],
+              text=True,
+          )
+          value = json.loads(base64.b64decode(''.join(raw.splitlines())).decode('utf-8'))
+          assert value == {
+              'schema_version': '1.0.0',
+              'command': 'catalog_recent_source_period_candidates',
+              'requested_by': 'poudlesuman32-star',
+              'baseline_run_id': '29648125982',
+              'required_candidates': 2,
+              'publication_authorized': False,
+              'registration_authorized': False,
+              'later_stage_changes_enabled': False,
+          }, value
+          PY
+
+      - name: Check out authoritative main only
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile and test catalog algorithm
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            news/scripts/catalog_r10_source_period_candidates.py \
+            news/tests/test_r10_source_period_candidate_catalog.py
+          python -m unittest news.tests.test_r10_source_period_candidate_catalog -v
+
+      - name: Fetch exact baseline and recent successful artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime/baseline runtime/artifacts
+          gh run download "$BASELINE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$BASELINE_ARTIFACT_NAME" \
+            --dir runtime/baseline
+          test -s runtime/baseline/records/news.jsonl
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${PUBLIC_WORKFLOW}/runs?branch=main&status=success&per_page=100" \
+            > runtime/workflow-runs.json
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          baseline = int(os.environ['BASELINE_RUN_ID'])
+          data = json.loads(Path('runtime/workflow-runs.json').read_text(encoding='utf-8'))
+          runs = [
+              value for value in data.get('workflow_runs', [])
+              if int(value.get('id', 0)) > baseline
+              and value.get('status') == 'completed'
+              and value.get('conclusion') == 'success'
+              and value.get('head_branch') == 'main'
+              and value.get('event') in {'workflow_dispatch', 'schedule'}
+          ]
+          runs = sorted(runs, key=lambda value: (value.get('created_at', ''), int(value['id'])))[:40]
+          manifest = []
+          diagnostics = []
+          for run in runs:
+              run_id = int(run['id'])
+              attempt = int(run['run_attempt'])
+              expected_name = f'ppi-primary-source-coverage-{run_id}-{attempt}'
+              artifact_data = json.loads(
+                  subprocess.check_output(
+                      ['gh', 'api', f'repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100'],
+                      text=True,
+                  )
+              )
+              matches = [
+                  item for item in artifact_data.get('artifacts', [])
+                  if item.get('name') == expected_name and not item.get('expired')
+              ]
+              if len(matches) != 1:
+                  diagnostics.append({'run_id': run_id, 'status': 'artifact_unavailable', 'match_count': len(matches)})
+                  continue
+              digest = str(matches[0].get('digest', ''))
+              if not digest.startswith('sha256:') or len(digest) != 71:
+                  diagnostics.append({'run_id': run_id, 'status': 'artifact_digest_invalid'})
+                  continue
+              target = Path('runtime/artifacts') / str(run_id)
+              target.mkdir(parents=True, exist_ok=True)
+              completed = subprocess.run(
+                  ['gh', 'run', 'download', str(run_id), '--repo', repository, '--name', expected_name, '--dir', str(target)],
+                  text=True,
+                  capture_output=True,
+              )
+              records = target / 'records/news.jsonl'
+              if completed.returncode != 0 or not records.is_file():
+                  diagnostics.append({'run_id': run_id, 'status': 'artifact_download_failed', 'stderr': completed.stderr[-500:]})
+                  continue
+              manifest.append(
+                  {
+                      'run_id': run_id,
+                      'run_attempt': attempt,
+                      'created_at': run['created_at'],
+                      'head_sha': str(run['head_sha']).lower(),
+                      'artifact_name': expected_name,
+                      'artifact_sha256': digest.removeprefix('sha256:'),
+                      'records_path': str(records),
+                  }
+              )
+              diagnostics.append({'run_id': run_id, 'status': 'materialized'})
+          Path('runtime/runs-manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          Path('runtime/materialization-diagnostics.json').write_text(json.dumps(diagnostics, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+
+      - name: Catalog a legitimate period-4 and period-5 chain
+        run: |
+          set -euo pipefail
+          python news/scripts/catalog_r10_source_period_candidates.py \
+            --baseline-records runtime/baseline/records/news.jsonl \
+            --runs-manifest runtime/runs-manifest.json \
+            --required-candidates 2 \
+            --output runtime/r10-source-period-catalog.json
+
+      - name: Confirm read-only safety boundaries
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/ppi-r10-source-period-catalog.yml').read_text(encoding='utf-8')
+          for value in (
+              'actions:' + ' write',
+              'contents:' + ' write',
+              'pull-requests:' + ' write',
+              'git ' + 'push',
+              'gh pr ' + 'create',
+              'gh pr ' + 'merge',
+              'repository_' + 'dispatch',
+          ):
+              assert value not in text, value
+          assert 'ref: main' in text
+          assert 'actions: read' in text
+          assert 'contents: read' in text
+          assert 'pull-requests: read' in text
+          PY
+
+      - name: Retain candidate catalog
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-r10-source-period-catalog-${{ github.run_id }}
+          path: |
+            runtime/r10-source-period-catalog.json
+            runtime/runs-manifest.json
+            runtime/materialization-diagnostics.json
+          retention-days: 30
+          if-no-files-found: warn
