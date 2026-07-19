@@ -15,14 +15,18 @@ class R10SourcePeriodCommandTests(unittest.TestCase):
         self.assertIn("github.event.issue.pull_request == null", text)
         self.assertIn("github.event.comment.body == '/ppi-r10-source-period-collect'", text)
         self.assertIn("github.event.comment.user.login == 'poudlesuman32-star'", text)
+        self.assertIn("github.event.pull_request.user.login == 'poudlesuman32-star'", text)
+        self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", text)
 
-    def test_reviewed_main_push_bootstraps_current_workflow(self) -> None:
+    def test_reviewed_pull_request_validates_one_exact_request_without_checkout(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("push:\n    branches: [main]", text)
-        self.assertIn(".github/workflows/ppi-r10-source-period-command.yml", text)
+        self.assertIn("pull_request:\n    branches: [main]", text)
         self.assertIn("automation_requests/r10-source-period/*.json", text)
-        self.assertIn("github.event_name == 'push'", text)
-        self.assertIn("github.ref == 'refs/heads/main'", text)
+        self.assertIn("startsWith(github.event.pull_request.head.ref, 'automation/request-r10-source-period-')", text)
+        self.assertIn("pulls/${REQUEST_PR}/files", text)
+        self.assertIn("assert len(files) == 1", text)
+        self.assertIn("collect_and_validate_source_period", text)
+        self.assertNotIn("actions/checkout", text)
 
     def test_dispatches_current_main_workflow_only(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -31,6 +35,7 @@ class R10SourcePeriodCommandTests(unittest.TestCase):
         self.assertIn("--ref main", text)
         self.assertIn("actions: write", text)
         self.assertIn("contents: read", text)
+        self.assertIn("pull-requests: read", text)
         self.assertNotIn("contents: write", text)
         self.assertNotIn("pull-requests: write", text)
         self.assertNotIn("git push", text)

@@ -4,15 +4,16 @@ run-name: Dispatch R10 source-period collection command
 on:
   issue_comment:
     types: [created]
-  push:
+  pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize]
     paths:
-      - '.github/workflows/ppi-r10-source-period-command.yml'
       - 'automation_requests/r10-source-period/*.json'
 
 permissions:
   actions: write
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ppi-r10-source-period-command
@@ -21,15 +22,58 @@ concurrency:
 jobs:
   dispatch:
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.number == 55 &&
        github.event.issue.pull_request == null &&
        github.event.comment.body == '/ppi-r10-source-period-collect' &&
-       github.event.comment.user.login == 'poudlesuman32-star')
+       github.event.comment.user.login == 'poudlesuman32-star') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login == 'poudlesuman32-star' &&
+       startsWith(github.event.pull_request.head.ref, 'automation/request-r10-source-period-'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    env:
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
+      - name: Validate exact one-file pull-request command
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${REQUEST_PR}/files?per_page=100" > runtime/request-files.json
+          python - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+
+          pages = json.loads(Path('runtime/request-files.json').read_text(encoding='utf-8'))
+          files = pages if isinstance(pages, list) else []
+          assert len(files) == 1, files
+          item = files[0]
+          path = str(item['filename'])
+          assert item['status'] == 'added', item
+          assert re.fullmatch(r'automation_requests/r10-source-period/request-[0-9]{8}-[0-9]{4}\.json', path), path
+          raw = subprocess.check_output(
+              ['gh', 'api', f"repos/{os.environ['GITHUB_REPOSITORY']}/contents/{path}?ref={os.environ['REQUEST_HEAD_SHA']}", '--jq', '.content'],
+              text=True,
+          )
+          import base64
+          request = json.loads(base64.b64decode(''.join(raw.splitlines())).decode('utf-8'))
+          assert request == {
+              'schema_version': '1.0.0',
+              'command': 'collect_and_validate_source_period',
+              'requested_by': 'poudlesuman32-star',
+              'target_workflow': 'verify-primary-source-coverage.yml',
+              'target_ref': 'main',
+              'publication_authorized': False,
+              'repository_mutation_authorized': False,
+              'trading_authorized': False,
+          }, request
+          PY
+
       - name: Dispatch authoritative current-main verification
         env:
           GH_TOKEN: ${{ github.token }}
