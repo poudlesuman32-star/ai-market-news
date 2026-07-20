@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -69,6 +70,28 @@ def parse_substantive_exhibit_documents(index_body: bytes, content_type: str) ->
     return selected
 
 
+def prospective_form_activations(config: dict[str, Any]) -> dict[str, datetime]:
+    values = config.get("prospective_forms", [])
+    require(isinstance(values, list), "SEC prospective_forms must be a list")
+    base_values = config.get("forms", [])
+    require(isinstance(base_values, list), "SEC config forms must be a list")
+    base_forms = {str(value).strip().upper() for value in base_values}
+    result: dict[str, datetime] = {}
+    for index, value in enumerate(values):
+        require(isinstance(value, dict), f"prospective_forms[{index}] must be an object")
+        form = str(value.get("form", "")).strip().upper()
+        activated_text = str(value.get("activated_at_utc", "")).strip()
+        require(bool(form), f"prospective_forms[{index}].form is required")
+        require(activated_text.endswith("Z"), f"prospective_forms[{index}].activated_at_utc must be UTC")
+        activated = sec_adapter.parse_utc(activated_text)
+        canonical = activated.strftime("%Y-%m-%dT%H:%M:%SZ")
+        require(activated_text == canonical, f"prospective_forms[{index}].activated_at_utc must be canonical")
+        require(form not in base_forms, f"prospective SEC form overlaps rolling form: {form}")
+        require(form not in result, f"duplicate prospective SEC form: {form}")
+        result[form] = activated
+    return result
+
+
 def _reclassify_enrichment_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
     failures: list[str] = []
     skips = list(metrics.get("enrichment_skips", []))
@@ -100,6 +123,7 @@ def collect_sec_live(
     document_fetcher: Callable[..., HttpResult] = fetch_bytes,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     selected_exhibit_filenames: set[str] = set()
+    activations = prospective_form_activations(config)
 
     def tracked_exhibit_parser(body: bytes, content_type: str) -> list[tuple[str, str]]:
         selected = parse_substantive_exhibit_documents(body, content_type)
@@ -124,13 +148,18 @@ def collect_sec_live(
             )
         return result
 
+    expanded_config = dict(config)
+    if activations:
+        base_forms = {str(value).strip().upper() for value in config.get("forms", [])}
+        expanded_config["forms"] = sorted(base_forms | set(activations))
+
     original_parser = sec_adapter.parse_exhibit_documents
     original_maximum = sec_adapter.MAX_DOCUMENT_BYTES
     try:
         sec_adapter.parse_exhibit_documents = tracked_exhibit_parser
         sec_adapter.MAX_DOCUMENT_BYTES = PRIMARY_DOCUMENT_MAX_BYTES
         records, metrics = sec_adapter.collect_sec_live(
-            config,
+            expanded_config,
             collected_at_utc=collected_at_utc,
             user_agent=user_agent,
             lookback_days=lookback_days,
@@ -140,4 +169,30 @@ def collect_sec_live(
     finally:
         sec_adapter.parse_exhibit_documents = original_parser
         sec_adapter.MAX_DOCUMENT_BYTES = original_maximum
-    return records, _reclassify_enrichment_metrics(metrics)
+
+    reclassified = _reclassify_enrichment_metrics(metrics)
+    if not activations:
+        return records, reclassified
+
+    filtered: list[dict[str, Any]] = []
+    pre_activation_count = 0
+    prospective_count = 0
+    for record in records:
+        form = str(record.get("filing_type", "")).strip().upper()
+        activated = activations.get(form)
+        if activated is not None:
+            if sec_adapter.parse_utc(str(record.get("published_at_utc", ""))) < activated:
+                pre_activation_count += 1
+                continue
+            prospective_count += 1
+        filtered.append(record)
+
+    return filtered, {
+        **reclassified,
+        "record_count": len(filtered),
+        "prospective_form_activation_utc": {
+            form: activated.strftime("%Y-%m-%dT%H:%M:%SZ") for form, activated in sorted(activations.items())
+        },
+        "prospective_record_count": prospective_count,
+        "prospective_pre_activation_filtered_count": pre_activation_count,
+    }
