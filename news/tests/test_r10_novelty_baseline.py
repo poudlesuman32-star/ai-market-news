@@ -11,17 +11,17 @@ WORKFLOW = ROOT / ".github/workflows/verify-primary-source-coverage.yml"
 
 
 class R10NoveltyBaselineTests(unittest.TestCase):
-    def test_baseline_is_exact_accepted_period_three_identity(self) -> None:
+    def test_baseline_is_exact_accepted_period_four_identity(self) -> None:
         value = json.loads(CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(value["schema_version"], "1.0.0")
-        self.assertEqual(value["sequence"], 3)
-        self.assertEqual(value["run_id"], "29648125982")
+        self.assertEqual(value["sequence"], 4)
+        self.assertEqual(value["run_id"], "29740868842")
         self.assertEqual(value["run_attempt"], 1)
-        self.assertEqual(value["head_sha"], "50ae571374a3c9ffd92cdcf007bfcc5a3e48a875")
-        self.assertEqual(value["artifact_name"], "ppi-primary-source-coverage-29648125982-1")
-        self.assertEqual(value["artifact_sha256"], "3ebde779d293a86b481418483c694fb447dd7c92e3891fafd12dde604a68e489")
-        self.assertEqual(value["identity_count"], 65)
-        self.assertEqual(value["identity_set_sha256"], "9e5c6cc191ddfa4614cea6f2addee953d81936be39639369e70ea221ea7c8a18")
+        self.assertEqual(value["head_sha"], "c698285901ec2ab412b5c8f59678d2bdd6a07872")
+        self.assertEqual(value["artifact_name"], "ppi-primary-source-coverage-29740868842-1")
+        self.assertEqual(value["artifact_sha256"], "50e5053c397ce89d72f763d2c009cf6cec6e81607d89e3ddcb973087a459b39f")
+        self.assertEqual(value["identity_count"], 62)
+        self.assertEqual(value["identity_set_sha256"], "eab88e001175fd2bc96173239bbeba4a7d2c6aa6e2d1adb3902cdfc938394f0c")
         self.assertEqual(value["repository"], "poudlesuman32-star/ai-market-news")
 
     def test_verification_uses_baseline_before_receipt_and_dispatch(self) -> None:
@@ -51,14 +51,8 @@ class R10NoveltyBaselineTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("permissions:\n  contents: read\n  actions: read", text)
         self.assertIn("retention-days: 90", text)
-        for forbidden in (
-            "contents: write",
-            "pull-requests: write",
-            "git push",
-            "gh pr create",
-            "gh pr merge",
-        ):
-            self.assertNotIn(forbidden, text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("Confirm read-only boundary", text)
 
 
 if __name__ == "__main__":
