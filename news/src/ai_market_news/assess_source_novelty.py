@@ -58,9 +58,76 @@ def identity_key(record: dict[str, Any]) -> str:
     return json.dumps(stable_identity(record), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def records_by_identity(records: list[dict[str, Any]], *, label: str) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    for record in records:
+        key = identity_key(record)
+        require(key not in result, f"{label} source records contain duplicate stable identities")
+        result[key] = record
+    return result
+
+
 def content_fingerprint(keys: set[str]) -> str:
     payload = ("\n".join(sorted(keys)) + "\n").encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def identity_breakdown(
+    records: dict[str, dict[str, Any]],
+    keys: set[str],
+) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str, str, str | None], dict[str, Any]] = {}
+    for key in sorted(keys):
+        record = records[key]
+        provider = str(record.get("provider", "")).strip()
+        ticker = str(record.get("ticker", "")).strip().upper()
+        source_type = str(record.get("source_type", "")).strip()
+        raw_filing_type = record.get("filing_type")
+        filing_type = str(raw_filing_type).strip() if raw_filing_type is not None else None
+        published_at = str(record.get("published_at_utc", "")).strip()
+        require(bool(provider and ticker and source_type and published_at), "source record breakdown fields missing")
+        group_key = (provider, ticker, source_type, filing_type)
+        group = groups.setdefault(
+            group_key,
+            {
+                "provider": provider,
+                "ticker": ticker,
+                "source_type": source_type,
+                "filing_type": filing_type,
+                "record_count": 0,
+                "latest_published_at_utc": published_at,
+            },
+        )
+        group["record_count"] += 1
+        if published_at > group["latest_published_at_utc"]:
+            group["latest_published_at_utc"] = published_at
+    return sorted(
+        groups.values(),
+        key=lambda value: (
+            value["provider"],
+            value["ticker"],
+            value["source_type"],
+            value["filing_type"] or "",
+        ),
+    )
+
+
+def novelty_disposition(
+    *,
+    baseline_present: bool,
+    new_count: int,
+    removed_count: int,
+    minimum_new_records: int,
+) -> str:
+    if not baseline_present:
+        return "baseline_established"
+    if new_count >= minimum_new_records:
+        return "novel_stable_identities"
+    if new_count > 0:
+        return "insufficient_new_stable_identities"
+    if removed_count > 0:
+        return "removal_only"
+    return "duplicate_identity_set"
 
 
 def assess_source_novelty(
@@ -70,17 +137,16 @@ def assess_source_novelty(
     minimum_new_records: int = 1,
 ) -> dict[str, Any]:
     require(minimum_new_records > 0, "minimum_new_records must be positive")
-    current_records = read_jsonl(current_path)
-    current_keys = {identity_key(record) for record in current_records}
-    require(len(current_keys) == len(current_records), "current source records contain duplicate stable identities")
+    current_records = records_by_identity(read_jsonl(current_path), label="current")
+    current_keys = set(current_records)
 
     if previous_path is None:
+        previous_records: dict[str, dict[str, Any]] = {}
         previous_keys: set[str] = set()
         baseline_present = False
     else:
-        previous_records = read_jsonl(previous_path)
-        previous_keys = {identity_key(record) for record in previous_records}
-        require(len(previous_keys) == len(previous_records), "previous source records contain duplicate stable identities")
+        previous_records = records_by_identity(read_jsonl(previous_path), label="previous")
+        previous_keys = set(previous_records)
         baseline_present = True
 
     new_keys = current_keys.difference(previous_keys)
@@ -89,7 +155,7 @@ def assess_source_novelty(
     materially_novel = not baseline_present or len(new_keys) >= minimum_new_records
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "identity_fields": list(IDENTITY_FIELDS),
         "baseline_present": baseline_present,
         "current_record_count": len(current_keys),
@@ -98,6 +164,16 @@ def assess_source_novelty(
         "removed_record_count": len(removed_keys),
         "unchanged_record_count": len(unchanged_keys),
         "minimum_new_records": minimum_new_records,
+        "novelty_disposition": novelty_disposition(
+            baseline_present=baseline_present,
+            new_count=len(new_keys),
+            removed_count=len(removed_keys),
+            minimum_new_records=minimum_new_records,
+        ),
+        "current_identity_breakdown": identity_breakdown(current_records, current_keys),
+        "new_identity_breakdown": identity_breakdown(current_records, new_keys),
+        "removed_identity_breakdown": identity_breakdown(previous_records, removed_keys),
+        "unchanged_identity_breakdown": identity_breakdown(current_records, unchanged_keys),
         "source_content_sha256": content_fingerprint(current_keys),
         "previous_source_content_sha256": content_fingerprint(previous_keys) if baseline_present else None,
         "materially_novel": materially_novel,
