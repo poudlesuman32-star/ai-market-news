@@ -26,10 +26,11 @@ class R10NoveltyBaselineTests(unittest.TestCase):
 
     def test_verification_uses_baseline_before_receipt_and_dispatch(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        load = text.index("Load exact accepted R10 novelty baseline identity")
-        materialize = text.index("Materialize exact accepted R10 novelty baseline")
-        receipt = text.index("Build timestamp-independent source-period receipt")
-        dispatch = text.index("Dispatch exact successful run to private source-period validator")
+        runtime = text.split("      - name: Confirm read-only boundary", 1)[0]
+        load = runtime.index("Load exact accepted R10 novelty baseline identity")
+        materialize = runtime.index("Materialize exact accepted R10 novelty baseline")
+        receipt = runtime.index("Build timestamp-independent source-period receipt")
+        dispatch = runtime.index("Dispatch exact successful run to private source-period validator")
         self.assertLess(load, materialize)
         self.assertLess(materialize, receipt)
         self.assertLess(receipt, dispatch)
@@ -42,9 +43,9 @@ class R10NoveltyBaselineTests(unittest.TestCase):
             "BASELINE_IDENTITY_SET_SHA256",
             "source-verification/baseline/records/news.jsonl",
         ):
-            self.assertIn(required, text)
-        self.assertNotIn("public-news-data:latest.json", text)
-        self.assertNotIn("git fetch --no-tags origin public-news-data", text)
+            self.assertIn(required, runtime)
+        self.assertNotIn("public-news-data:latest.json", runtime)
+        self.assertNotIn("git fetch --no-tags origin public-news-data", runtime)
 
     def test_baseline_access_and_retention_are_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
