@@ -27,6 +27,17 @@
       "allowed_hosts": [
         "nvidia.com"
       ]
+    },
+    {
+      "ticker": "NVDA",
+      "source_name": "NVIDIA Blog",
+      "source_kind": "feed",
+      "feed_url": "https://feeds.feedburner.com/nvidiablog",
+      "allowed_hosts": [
+        "feedburner.com",
+        "nvidia.com"
+      ],
+      "activation_at_utc": "2026-07-20T17:50:00Z"
     }
   ],
   "retired_sources": [
