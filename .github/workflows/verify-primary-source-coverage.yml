@@ -132,13 +132,9 @@ jobs:
             --user-agent "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)" \
             --lookback-days "$LOOKBACK_DAYS"
 
-      - name: Materialize exact accepted R10 novelty baseline
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: news/src
+      - name: Load exact accepted R10 novelty baseline identity
         run: |
           set -euo pipefail
-          mkdir -p source-verification/baseline source-verification/metrics
           python - <<'PY' >> "$GITHUB_ENV"
           import json
           import os
@@ -156,6 +152,14 @@ jobs:
           ):
               print(f"BASELINE_{key.upper()}={value[key]}")
           PY
+
+      - name: Materialize exact accepted R10 novelty baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          mkdir -p source-verification/baseline source-verification/metrics
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_RUN_ID}" \
             > source-verification/metrics/baseline-run.json
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_RUN_ID}/artifacts?per_page=100" \
@@ -185,7 +189,6 @@ jobs:
             --dir source-verification/baseline
           test -s source-verification/baseline/records/news.jsonl
           python - <<'PY'
-          import json
           import os
           from pathlib import Path
           from ai_market_news.assess_source_novelty import content_fingerprint, identity_key, read_jsonl
