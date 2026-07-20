@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ppi-primary-source-live-coverage-verification
@@ -32,6 +33,7 @@ jobs:
     env:
       SEC_USER_AGENT: ${{ github.event_name == 'schedule' && vars.PPI_SEC_USER_AGENT || inputs.sec_user_agent || vars.PPI_SEC_USER_AGENT }}
       LOOKBACK_DAYS: ${{ github.event_name == 'schedule' && '30' || inputs.lookback_days || '30' }}
+      R10_NOVELTY_BASELINE_CONFIG: news/config/r10_novelty_baseline.json
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -55,11 +57,27 @@ jobs:
             *) echo "SEC user agent must contain a contact email" >&2; exit 1 ;;
           esac
           python - <<'PY'
+          import json
           import os
+          import re
+          from pathlib import Path
+
           value = int(os.environ["LOOKBACK_DAYS"])
           assert 1 <= value <= 30
           if os.environ["GITHUB_EVENT_NAME"] == "schedule":
               assert value == 30
+
+          baseline = json.loads(Path(os.environ["R10_NOVELTY_BASELINE_CONFIG"]).read_text(encoding="utf-8"))
+          assert baseline["schema_version"] == "1.0.0"
+          assert isinstance(baseline["sequence"], int) and baseline["sequence"] > 0
+          assert re.fullmatch(r"[1-9][0-9]*", baseline["run_id"])
+          assert isinstance(baseline["run_attempt"], int) and baseline["run_attempt"] > 0
+          assert re.fullmatch(r"[0-9a-f]{40}", baseline["head_sha"])
+          assert baseline["artifact_name"] == f"ppi-primary-source-coverage-{baseline['run_id']}-{baseline['run_attempt']}"
+          assert re.fullmatch(r"[0-9a-f]{64}", baseline["artifact_sha256"])
+          assert isinstance(baseline["identity_count"], int) and baseline["identity_count"] > 0
+          assert re.fullmatch(r"[0-9a-f]{64}", baseline["identity_set_sha256"])
+          assert baseline["repository"] == os.environ["GITHUB_REPOSITORY"]
           PY
 
       - name: Compile verification modules
@@ -87,7 +105,8 @@ jobs:
             news.tests.test_sec_enrichment_policy \
             news.tests.test_assess_source_novelty \
             news.tests.test_verify_live_source_coverage \
-            news.tests.test_r10_source_period_dispatch -v
+            news.tests.test_r10_source_period_dispatch \
+            news.tests.test_r10_novelty_baseline -v
 
       - name: Collect live primary sources
         env:
@@ -113,6 +132,73 @@ jobs:
             --user-agent "PPI ai-market-news (+https://github.com/poudlesuman32-star/ai-market-news)" \
             --lookback-days "$LOOKBACK_DAYS"
 
+      - name: Load exact accepted R10 novelty baseline identity
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          import os
+          from pathlib import Path
+
+          value = json.loads(Path(os.environ["R10_NOVELTY_BASELINE_CONFIG"]).read_text(encoding="utf-8"))
+          for key in (
+              "run_id",
+              "run_attempt",
+              "head_sha",
+              "artifact_name",
+              "artifact_sha256",
+              "identity_count",
+              "identity_set_sha256",
+          ):
+              print(f"BASELINE_{key.upper()}={value[key]}")
+          PY
+
+      - name: Materialize exact accepted R10 novelty baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: news/src
+        run: |
+          set -euo pipefail
+          mkdir -p source-verification/baseline source-verification/metrics
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_RUN_ID}" \
+            > source-verification/metrics/baseline-run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_RUN_ID}/artifacts?per_page=100" \
+            > source-verification/metrics/baseline-artifacts.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run = json.loads(Path("source-verification/metrics/baseline-run.json").read_text(encoding="utf-8"))
+          artifacts = json.loads(Path("source-verification/metrics/baseline-artifacts.json").read_text(encoding="utf-8"))["artifacts"]
+          assert str(run["id"]) == os.environ["BASELINE_RUN_ID"]
+          assert run["path"] == ".github/workflows/verify-primary-source-coverage.yml"
+          assert run["head_branch"] == "main"
+          assert run["head_sha"] == os.environ["BASELINE_HEAD_SHA"]
+          assert run["status"] == "completed" and run["conclusion"] == "success"
+          matches = [
+              item for item in artifacts
+              if item.get("name") == os.environ["BASELINE_ARTIFACT_NAME"] and not item.get("expired")
+          ]
+          assert len(matches) == 1, matches
+          assert matches[0].get("digest") == "sha256:" + os.environ["BASELINE_ARTIFACT_SHA256"]
+          PY
+          gh run download "$BASELINE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$BASELINE_ARTIFACT_NAME" \
+            --dir source-verification/baseline
+          test -s source-verification/baseline/records/news.jsonl
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from ai_market_news.assess_source_novelty import content_fingerprint, identity_key, read_jsonl
+
+          records = read_jsonl(Path("source-verification/baseline/records/news.jsonl"))
+          keys = {identity_key(record) for record in records}
+          assert len(keys) == len(records) == int(os.environ["BASELINE_IDENTITY_COUNT"])
+          assert content_fingerprint(keys) == os.environ["BASELINE_IDENTITY_SET_SHA256"]
+          PY
+
       - name: Build timestamp-independent source-period receipt
         env:
           PYTHONPATH: news/src
@@ -122,25 +208,33 @@ jobs:
             --input source-verification/records/sec.jsonl \
             --input source-verification/records/company.jsonl \
             --output source-verification/records/news.jsonl
-          git fetch --no-tags origin public-news-data:refs/remotes/origin/public-news-data
-          git show refs/remotes/origin/public-news-data:latest.json > source-verification/metrics/latest.json
-          SNAPSHOT_PATH="$(python - <<'PY'
-          import json
-          from pathlib import Path
-          latest = json.loads(Path('source-verification/metrics/latest.json').read_text(encoding='utf-8'))
-          path = latest.get('snapshot_path')
-          assert isinstance(path, str) and path.startswith('snapshots/')
-          print(path)
-          PY
-          )"
-          git show "refs/remotes/origin/public-news-data:${SNAPSHOT_PATH}/news.jsonl" \
-            > source-verification/metrics/previous-news.jsonl
           python -m ai_market_news.assess_source_novelty \
             --current source-verification/records/news.jsonl \
-            --previous source-verification/metrics/previous-news.jsonl \
+            --previous source-verification/baseline/records/news.jsonl \
             --minimum-new-records 1 \
             --output source-verification/report/source-period.json \
             --report-only
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config = json.loads(Path(os.environ["R10_NOVELTY_BASELINE_CONFIG"]).read_text(encoding="utf-8"))
+          report_path = Path("source-verification/report/source-period.json")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          assert report["previous_source_content_sha256"] == config["identity_set_sha256"]
+          report["baseline"] = {
+              "sequence": config["sequence"],
+              "run_id": config["run_id"],
+              "run_attempt": config["run_attempt"],
+              "head_sha": config["head_sha"],
+              "artifact_name": config["artifact_name"],
+              "artifact_sha256": config["artifact_sha256"],
+              "identity_count": config["identity_count"],
+              "identity_set_sha256": config["identity_set_sha256"],
+          }
+          report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
 
       - name: Verify exact source coverage
         env:
@@ -161,7 +255,7 @@ jobs:
         with:
           name: ppi-primary-source-coverage-${{ github.run_id }}-${{ github.run_attempt }}
           path: source-verification/
-          retention-days: 30
+          retention-days: 90
           if-no-files-found: error
 
       - name: Dispatch exact successful run to private source-period validator
@@ -183,6 +277,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           text = Path('.github/workflows/verify-primary-source-coverage.yml').read_text(encoding='utf-8')
+          runtime = text.split('      - name: Confirm read-only boundary', 1)[0]
           forbidden = (
               'contents:' + ' write',
               'pull-requests:' + ' write',
@@ -192,14 +287,17 @@ jobs:
               'gh pr ' + 'merge',
           )
           for value in forbidden:
-              assert value not in text, value
+              assert value not in runtime, value
           cron = '15 1,7,13,19 * * ' + '1-5'
-          assert f'schedule:\n    - cron: "{cron}"' in text
-          assert text.count(f'cron: "{cron}"') == 1
-          assert 'permissions:\n  contents: read' in text
-          assert "github.event_name == 'schedule'" in text
-          assert '--report-only' in text
-          assert 'registration_' + 'authorized' not in text
-          assert 'ppi-r10-source-period-validation.yml/dispatches' in text
-          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in text
+          assert f'schedule:\n    - cron: "{cron}"' in runtime
+          assert runtime.count(f'cron: "{cron}"') == 1
+          assert 'permissions:\n  contents: read\n  actions: read' in runtime
+          assert "github.event_name == 'schedule'" in runtime
+          assert '--report-only' in runtime
+          assert 'registration_' + 'authorized' not in runtime
+          assert 'ppi-r10-source-period-validation.yml/dispatches' in runtime
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in runtime
+          assert 'r10_novelty_baseline.json' in runtime
+          assert 'gh run download "$BASELINE_RUN_ID"' in runtime
+          assert ('public-news-data:' + 'latest.json') not in runtime
           PY
