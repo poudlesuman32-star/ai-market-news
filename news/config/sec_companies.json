@@ -7,6 +7,52 @@
     "10-Q",
     "6-K"
   ],
+  "prospective_forms": [
+    {
+      "form": "3",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "5",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "11-K",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "144",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "DEF 14A",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "S-8",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "SC 13D",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "SC 13D/A",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "SC 13G",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "SC 13G/A",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    },
+    {
+      "form": "SD",
+      "activated_at_utc": "2026-07-20T13:40:00Z"
+    }
+  ],
   "companies": [
     {
       "ticker": "AAPL",
