@@ -1,0 +1,117 @@
+name: PPI primary-source schedule watchdog
+run-name: Check primary-source verification schedule coverage
+
+on:
+  schedule:
+    - cron: "0 2,8,14,20 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ppi-primary-source-schedule-watchdog
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: news/src
+  TARGET_WORKFLOW: verify-primary-source-coverage.yml
+
+jobs:
+  check-and-recover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out authoritative main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile and test watchdog planner
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            news/src/ai_market_news/primary_source_watchdog.py \
+            news/tests/test_primary_source_watchdog.py
+          python -m unittest news.tests.test_primary_source_watchdog -v
+
+      - name: Fetch exact target workflow history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p watchdog
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?branch=main&per_page=100" \
+            > watchdog/workflow-runs.json
+
+      - name: Evaluate latest expected slot
+        id: plan
+        run: |
+          set -euo pipefail
+          NOW_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python -m ai_market_news.primary_source_watchdog \
+            --history watchdog/workflow-runs.json \
+            --now "$NOW_UTC" \
+            --output watchdog/receipt.json
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          value = json.loads(Path('watchdog/receipt.json').read_text(encoding='utf-8'))
+          print('dispatch_required=' + ('true' if value['dispatch_required'] else 'false'))
+          PY
+
+      - name: Dispatch exact read-only verification
+        if: steps.plan.outputs.dispatch_required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run "$TARGET_WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref main
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('watchdog/receipt.json')
+          value = json.loads(path.read_text(encoding='utf-8'))
+          value['dispatch_submitted'] = True
+          path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+
+      - name: Confirm bounded authority
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/verify-primary-source-coverage-watchdog.yml').read_text(encoding='utf-8')
+          forbidden = (
+              'contents:' + ' write',
+              'pull-requests:' + ' write',
+              'id-token:' + ' write',
+              'git ' + 'push',
+              'repository_' + 'dispatch',
+              'gh ' + 'pr',
+          )
+          for value in forbidden:
+              assert value not in text, value
+          assert 'actions: write' in text
+          assert 'contents: read' in text
+          assert 'verify-primary-source-coverage.yml' in text
+          assert '--ref main' in text
+          PY
+
+      - name: Retain watchdog receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-primary-source-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: watchdog/receipt.json
+          retention-days: 90
+          if-no-files-found: warn
