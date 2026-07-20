@@ -64,7 +64,19 @@ jobs:
       - name: Run public news tests
         env:
           PYTHONPATH: news/src
-        run: python -m unittest discover -s news/tests -p "test_*.py" -v
+        run: |
+          set -o pipefail
+          python -m unittest discover -s news/tests -p "test_*.py" -v \
+            2>&1 | tee public-news-tests.txt
+
+      - name: Retain public test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-news-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-news-tests.txt
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Verify publication black-box independence
         run: |
