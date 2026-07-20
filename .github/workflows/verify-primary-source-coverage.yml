@@ -277,6 +277,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           text = Path('.github/workflows/verify-primary-source-coverage.yml').read_text(encoding='utf-8')
+          runtime = text.split('      - name: Confirm read-only boundary', 1)[0]
           forbidden = (
               'contents:' + ' write',
               'pull-requests:' + ' write',
@@ -286,17 +287,17 @@ jobs:
               'gh pr ' + 'merge',
           )
           for value in forbidden:
-              assert value not in text, value
+              assert value not in runtime, value
           cron = '15 1,7,13,19 * * ' + '1-5'
-          assert f'schedule:\n    - cron: "{cron}"' in text
-          assert text.count(f'cron: "{cron}"') == 1
-          assert 'permissions:\n  contents: read\n  actions: read' in text
-          assert "github.event_name == 'schedule'" in text
-          assert '--report-only' in text
-          assert 'registration_' + 'authorized' not in text
-          assert 'ppi-r10-source-period-validation.yml/dispatches' in text
-          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in text
-          assert 'r10_novelty_baseline.json' in text
-          assert 'gh run download "$BASELINE_RUN_ID"' in text
-          assert 'public-news-data:latest.json' not in text
+          assert f'schedule:\n    - cron: "{cron}"' in runtime
+          assert runtime.count(f'cron: "{cron}"') == 1
+          assert 'permissions:\n  contents: read\n  actions: read' in runtime
+          assert "github.event_name == 'schedule'" in runtime
+          assert '--report-only' in runtime
+          assert 'registration_' + 'authorized' not in runtime
+          assert 'ppi-r10-source-period-validation.yml/dispatches' in runtime
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in runtime
+          assert 'r10_novelty_baseline.json' in runtime
+          assert 'gh run download "$BASELINE_RUN_ID"' in runtime
+          assert ('public-news-data:' + 'latest.json') not in runtime
           PY
