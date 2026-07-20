@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "sequence": 3,
+  "run_id": "29648125982",
+  "run_attempt": 1,
+  "artifact_name": "ppi-primary-source-coverage-29648125982-1",
+  "artifact_sha256": "3ebde779d293a86b481418483c694fb447dd7c92e3891fafd12dde604a68e489",
+  "identity_set_sha256": "9e5c6cc191ddfa4614cea6f2addee953d81936be39639369e70ea221ea7c8a18",
+  "repository": "poudlesuman32-star/ai-market-news"
+}
