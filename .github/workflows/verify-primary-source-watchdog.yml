@@ -1,0 +1,96 @@
+name: PPI primary-source verification watchdog
+run-name: Check primary-source verification schedule
+
+on:
+  schedule:
+    - cron: "45 1,7,13,19 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: ppi-primary-source-verification-watchdog
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out authoritative main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Decide whether recovery dispatch is required
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/verify-primary-source-coverage.yml/runs?branch=main&per_page=20" > /tmp/runs.json
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          value = json.loads(Path('/tmp/runs.json').read_text(encoding='utf-8'))
+          runs = value.get('workflow_runs', [])
+          now = datetime.now(timezone.utc)
+          slot = now.replace(minute=15, second=0, microsecond=0)
+          if now.hour not in {1, 7, 13, 19}:
+              print('dispatch_required=false')
+              print('reason=outside_recovery_window')
+              raise SystemExit(0)
+          earliest = slot - timedelta(minutes=5)
+          matching = []
+          for run in runs:
+              try:
+                  created = datetime.fromisoformat(str(run['created_at']).replace('Z', '+00:00'))
+              except (KeyError, TypeError, ValueError):
+                  continue
+              if run.get('head_branch') == 'main' and run.get('event') in {'schedule', 'workflow_dispatch'} and created >= earliest:
+                  matching.append(run)
+          if matching:
+              print('dispatch_required=false')
+              print('reason=slot_already_observed')
+          else:
+              print('dispatch_required=true')
+              print('reason=missing_slot_run')
+          PY
+
+      - name: Dispatch existing read-only verification
+        if: steps.plan.outputs.dispatch_required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run verify-primary-source-coverage.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: Confirm bounded authority
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/verify-primary-source-watchdog.yml').read_text(encoding='utf-8')
+          forbidden = (
+              'contents:' + ' write',
+              'pull-requests:' + ' write',
+              'repository_' + 'dispatch',
+              'git ' + 'push',
+              'gh pr ' + 'create',
+              'gh pr ' + 'merge',
+              'production_' + 'scoring_enabled: true',
+              'automatic_' + 'trading_enabled: true',
+          )
+          for value in forbidden:
+              assert value not in text, value
+          assert 'actions: write' in text
+          assert 'contents: read' in text
+          assert 'verify-primary-source-coverage.yml' in text
+          assert 'gh workflow run' in text
+          PY
