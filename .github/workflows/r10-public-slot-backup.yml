@@ -1,0 +1,133 @@
+name: PPI R10 public verification slot backup
+run-name: Back up R10 public verification schedule slot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/r10-public-slot-backup.yml'
+  schedule:
+    - cron: '30 1,7,13,19 * * 1-5'
+    - cron: '45 1,7,13,19 * * 1-5'
+    - cron: '0 2,8,14,20 * * 1-5'
+
+permissions: {}
+
+env:
+  TARGET_WORKFLOW: verify-primary-source-coverage.yml
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Validate backup controller boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/r10-public-slot-backup.yml').read_text(encoding='utf-8')
+          for cron in (
+              '30 1,7,13,19 * * 1-5',
+              '45 1,7,13,19 * * 1-5',
+              '0 2,8,14,20 * * 1-5',
+          ):
+              assert text.count(f"cron: '{cron}'") == 1, cron
+          for forbidden in (
+              'contents:' + ' write', 'pull-requests:' + ' write', 'git ' + 'push',
+              'gh pr ' + 'create', 'gh pr ' + 'merge', 'repository_' + 'dispatch',
+          ):
+              assert forbidden not in text, forbidden
+          assert text.count('actions: write') == 1
+          assert 'verify-primary-source-coverage.yml' in text
+          assert "github.event_name == 'schedule'" in text
+          PY
+
+  dispatch-if-uncovered:
+    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve whether canonical public slot is already covered
+        id: slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > runtime/backup-run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?branch=main&per_page=100" > runtime/target-runs.json
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          def parse(value):
+              return datetime.fromisoformat(value.replace('Z', '+00:00')).astimezone(timezone.utc)
+
+          current = json.loads(Path('runtime/backup-run.json').read_text(encoding='utf-8'))
+          runs = json.loads(Path('runtime/target-runs.json').read_text(encoding='utf-8'))['workflow_runs']
+          now = parse(current['created_at'])
+          expected = None
+          for offset in range(9):
+              day = (now - timedelta(days=offset)).date()
+              if day.weekday() >= 5:
+                  continue
+              for hour in reversed((1, 7, 13, 19)):
+                  candidate = datetime(day.year, day.month, day.day, hour, 15, tzinfo=timezone.utc)
+                  if candidate <= now:
+                      expected = candidate
+                      break
+              if expected is not None:
+                  break
+          assert expected is not None
+          active = []
+          for run in runs:
+              created = parse(run['created_at'])
+              actor = (run.get('actor') or {}).get('login', '')
+              trusted_event = run.get('event') == 'schedule' or (
+                  run.get('event') == 'workflow_dispatch' and actor == 'github-actions[bot]'
+              )
+              healthy_state = run.get('status') in {'queued', 'in_progress'} or (
+                  run.get('status') == 'completed' and run.get('conclusion') == 'success'
+              )
+              if trusted_event and healthy_state and expected <= created <= now:
+                  active.append(run)
+          print('dispatch_required=' + ('false' if active else 'true'))
+          print('canonical_slot=' + expected.strftime('%Y-%m-%dT%H:%M:%SZ'))
+          print('coverage_run_id=' + (str(max(active, key=lambda item: item['created_at'])['id']) if active else 'none'))
+          PY
+
+      - name: Dispatch existing read-only public verifier
+        if: steps.slot.outputs.dispatch_required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run "$TARGET_WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: Confirm backup controller boundary
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/r10-public-slot-backup.yml').read_text(encoding='utf-8')
+          for forbidden in (
+              'contents:' + ' write', 'pull-requests:' + ' write', 'git ' + 'push',
+              'gh pr ' + 'create', 'gh pr ' + 'merge', 'repository_' + 'dispatch',
+          ):
+              assert forbidden not in text, forbidden
+          assert text.count('actions: write') == 1
+          assert 'verify-primary-source-coverage.yml' in text
+          assert "github.event_name == 'schedule'" in text
+          PY
