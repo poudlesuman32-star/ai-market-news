@@ -45,7 +45,8 @@ jobs:
               'gh pr ' + 'create', 'gh pr ' + 'merge', 'repository_' + 'dispatch',
           ):
               assert forbidden not in text, forbidden
-          assert text.count('actions: write') == 1
+          actions_write = 'actions:' + ' write'
+          assert text.count(actions_write) == 1
           assert 'verify-primary-source-coverage.yml' in text
           assert "github.event_name == 'schedule'" in text
           PY
@@ -127,7 +128,8 @@ jobs:
               'gh pr ' + 'create', 'gh pr ' + 'merge', 'repository_' + 'dispatch',
           ):
               assert forbidden not in text, forbidden
-          assert text.count('actions: write') == 1
+          actions_write = 'actions:' + ' write'
+          assert text.count(actions_write) == 1
           assert 'verify-primary-source-coverage.yml' in text
           assert "github.event_name == 'schedule'" in text
           PY
