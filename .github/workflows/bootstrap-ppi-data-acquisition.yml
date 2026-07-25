@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PPI_CROSS_REPOSITORY_AUTOMATION: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+      PPI_CROSS_REPOSITORY_AUTOMATION: ${{ secrets.RAW_TOKEN }}
       TARGET_REPOSITORY: ${{ inputs.target_repository }}
     steps:
       - name: Check out reviewed bootstrap code
@@ -56,6 +56,9 @@ jobs:
           assert '\n  workflow_dispatch:\n' in source_workflow
           assert '\n  schedule:\n' not in source_workflow
           assert '\n  repository_dispatch:\n' not in source_workflow
+          expected_secret_binding = 'PPI_CROSS_REPOSITORY_AUTOMATION: $' + '{{ secrets.RAW_TOKEN }}'
+          assert expected_secret_binding in source_workflow
+          assert 'secrets.PPI_CROSS_REPOSITORY_AUTOMATION' not in source_workflow
           assert 'spoudel2010-ux/ppi-data-acquisition' in script
           assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
           assert '\n  workflow_dispatch:\n' in target_workflow
