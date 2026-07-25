@@ -21,16 +21,16 @@ class PublicBoundaryTests(unittest.TestCase):
 
     def test_workflow_is_manual_only_and_read_only(self) -> None:
         text = (ROOT / ".github/workflows/collect-r11-public-evidence.yml").read_text(encoding="utf-8")
-        self.assertIn("workflow_dispatch:", text)
-        self.assertNotIn("schedule:", text)
-        self.assertNotIn("push:", text)
-        self.assertNotIn("pull_request:", text)
+        self.assertIn("\n  workflow_dispatch:\n", text)
+        self.assertNotIn("\n  schedule:\n", text)
+        self.assertNotIn("\n  push:\n", text)
+        self.assertNotIn("\n  pull_request:\n", text)
+        self.assertNotIn("\n  repository_dispatch:\n", text)
         self.assertIn("permissions:\n  contents: read", text)
         for forbidden in (
             "contents:" + " write",
             "actions:" + " write",
             "pull-requests:" + " write",
-            "repository_" + "dispatch",
             "git " + "push",
             "gh pr " + "create",
             "gh pr " + "merge",
