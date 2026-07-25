@@ -1,43 +1,53 @@
 {
-  "schema_version": "1.0.0",
-  "scheduler_id": "PPI-PUBLIC-MIGRATION-SCHEDULER-001",
+  "schema_version": "2.0.0",
+  "scheduler_id": "PPI-MIGRATION-AUTOPILOT-001",
   "enabled": true,
-  "phase": "gate-0-public-readiness",
-  "active_task_id": "T01",
-  "cron_utc": "15 14 * * 1-5",
+  "mode": "idempotent_reconciliation",
+  "cron_utc": "23 * * * *",
   "repositories": {
     "source": {"name": "poudlesuman32-star/ai-market-news", "id": 1290414659},
     "acquisition": {
       "name": "spoudel2010-ux/ppi-data-acquisition",
       "id": 1312286476,
       "pull_request": 1,
-      "branch": "agent/bootstrap-r11-public-acquisition"
+      "branch": "agent/bootstrap-r11-public-acquisition",
+      "workflow": "collect-r11-public-evidence.yml"
     },
-    "private": {"name": "musksuman3/ai-signal-engine", "id": 1290626648}
+    "private": {
+      "name": "musksuman3/ai-signal-engine",
+      "id": 1290626648,
+      "workflow": "ppi-r11-private-final-analysis.yml"
+    }
   },
   "authority": {
-    "private_dispatch": false,
-    "private_schedule": false,
-    "provider_collection": false,
-    "automatic_merge": false,
+    "bootstrap_sync": true,
+    "target_secret_sync": true,
+    "target_pr_merge_after_machine_gates": true,
+    "public_collection_dispatch": true,
+    "private_final_analysis_dispatch": true,
     "registry_mutation": false,
     "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
     "trading": false,
-    "r12": false,
-    "authorized_actions": []
+    "mmm_raw_data": false,
+    "r12": false
   },
-  "tasks": [
-    {"id": "T01", "gate": 0, "name": "Public architecture and bootstrap readiness", "status": "active"},
-    {"id": "T02", "gate": 1, "name": "Freeze provider licensing dispositions", "status": "blocked"},
-    {"id": "T03", "gate": 1, "name": "Freeze R1 contracts and collector release", "status": "blocked"},
-    {"id": "T04", "gate": 2, "name": "Add category-specific public validation", "status": "blocked"},
-    {"id": "T05", "gate": 2, "name": "Add sharding, bounded retries, and resume", "status": "blocked"},
-    {"id": "T06", "gate": 2, "name": "Separate success/failure artifacts and enforce 50 paths", "status": "blocked"},
-    {"id": "T07", "gate": 2, "name": "Protect secrets, pin actions, and add attestations", "status": "blocked"},
-    {"id": "T08", "gate": 3, "name": "Freeze the public-to-private handoff", "status": "blocked"},
-    {"id": "T09", "gate": 4, "name": "Build the no-network private artifact consumer", "status": "blocked"},
-    {"id": "T10", "gate": 5, "name": "Run the controlled batch-3 pilot", "status": "blocked"},
-    {"id": "T11", "gate": 6, "name": "Retire private acquisition and rotate bootstrap token", "status": "blocked"}
+  "gates": [
+    {"id": "T01", "name": "Synchronize and verify public acquisition bootstrap"},
+    {"id": "T02", "name": "Freeze provider licensing and non-public payload handoff"},
+    {"id": "T03", "name": "Freeze R1 contracts and collector release"},
+    {"id": "T04", "name": "Enforce category-specific public validation"},
+    {"id": "T05", "name": "Enforce bounded retries, resume, and retry ceilings"},
+    {"id": "T06", "name": "Separate public receipt artifacts from private evidence packages"},
+    {"id": "T07", "name": "Protect secrets, pin Actions, and generate attestations"},
+    {"id": "T08", "name": "Create a private release handoff and exact trust gate"},
+    {"id": "T09", "name": "Run network-disabled private final analysis"},
+    {"id": "T10", "name": "Run the controlled batch-3 pilot automatically"},
+    {"id": "T11", "name": "Retire private acquisition and rotate bootstrap credentials"}
   ],
-  "next_manual_action": "Run the current main-branch Bootstrap PPI public acquisition repository workflow once, then review target pull request 1."
+  "fail_closed": true,
+  "automatic_task_advancement": true,
+  "human_dispatch_required": false
 }
