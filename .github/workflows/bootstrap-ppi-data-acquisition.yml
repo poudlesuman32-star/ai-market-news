@@ -53,14 +53,14 @@ jobs:
           contract = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
           scope = json.loads(Path('bootstrap/ppi-data-acquisition/config/r11_batch_003.json').read_text(encoding='utf-8'))
 
-          assert 'workflow_dispatch:' in source_workflow
-          assert 'schedule:' not in source_workflow
-          assert 'repository_dispatch' not in source_workflow
+          assert '\n  workflow_dispatch:\n' in source_workflow
+          assert '\n  schedule:\n' not in source_workflow
+          assert '\n  repository_dispatch:\n' not in source_workflow
           assert 'spoudel2010-ux/ppi-data-acquisition' in script
           assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
-          assert 'workflow_dispatch:' in target_workflow
-          assert 'schedule:' not in target_workflow
-          assert 'repository_dispatch' not in target_workflow
+          assert '\n  workflow_dispatch:\n' in target_workflow
+          assert '\n  schedule:\n' not in target_workflow
+          assert '\n  repository_dispatch:\n' not in target_workflow
           assert scope['contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
           assert scope['batch_sequence'] == 3
           assert scope['expected_bundle_count'] == 48
