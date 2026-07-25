@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "scheduler_id": "PPI-PUBLIC-MIGRATION-SCHEDULER-001",
+  "enabled": true,
+  "phase": "gate-0-public-readiness",
+  "active_task_id": "T01",
+  "cron_utc": "15 14 * * 1-5",
+  "repositories": {
+    "source": {"name": "poudlesuman32-star/ai-market-news", "id": 1290414659},
+    "acquisition": {
+      "name": "spoudel2010-ux/ppi-data-acquisition",
+      "id": 1312286476,
+      "pull_request": 1,
+      "branch": "agent/bootstrap-r11-public-acquisition"
+    },
+    "private": {"name": "musksuman3/ai-signal-engine", "id": 1290626648}
+  },
+  "authority": {
+    "private_dispatch": false,
+    "private_schedule": false,
+    "provider_collection": false,
+    "automatic_merge": false,
+    "registry_mutation": false,
+    "production": false,
+    "trading": false,
+    "r12": false,
+    "authorized_actions": []
+  },
+  "tasks": [
+    {"id": "T01", "gate": 0, "name": "Public architecture and bootstrap readiness", "status": "active"},
+    {"id": "T02", "gate": 1, "name": "Freeze provider licensing dispositions", "status": "blocked"},
+    {"id": "T03", "gate": 1, "name": "Freeze R1 contracts and collector release", "status": "blocked"},
+    {"id": "T04", "gate": 2, "name": "Add category-specific public validation", "status": "blocked"},
+    {"id": "T05", "gate": 2, "name": "Add sharding, bounded retries, and resume", "status": "blocked"},
+    {"id": "T06", "gate": 2, "name": "Separate success/failure artifacts and enforce 50 paths", "status": "blocked"},
+    {"id": "T07", "gate": 2, "name": "Protect secrets, pin actions, and add attestations", "status": "blocked"},
+    {"id": "T08", "gate": 3, "name": "Freeze the public-to-private handoff", "status": "blocked"},
+    {"id": "T09", "gate": 4, "name": "Build the no-network private artifact consumer", "status": "blocked"},
+    {"id": "T10", "gate": 5, "name": "Run the controlled batch-3 pilot", "status": "blocked"},
+    {"id": "T11", "gate": 6, "name": "Retire private acquisition and rotate bootstrap token", "status": "blocked"}
+  ],
+  "next_manual_action": "Run the current main-branch Bootstrap PPI public acquisition repository workflow once, then review target pull request 1."
+}
