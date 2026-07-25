@@ -1,0 +1,64 @@
+name: Bootstrap PPI public acquisition repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repository:
+        description: Exact public acquisition repository
+        required: true
+        default: spoudel2010-ux/ppi-data-acquisition
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-ppi-public-acquisition
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PPI_CROSS_REPOSITORY_AUTOMATION: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+      TARGET_REPOSITORY: ${{ inputs.target_repository }}
+    steps:
+      - name: Check out reviewed bootstrap code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate protected cross-repository configuration
+        run: |
+          set -euo pipefail
+          test "$TARGET_REPOSITORY" = "spoudel2010-ux/ppi-data-acquisition"
+          test -n "$PPI_CROSS_REPOSITORY_AUTOMATION"
+          test "${#PPI_CROSS_REPOSITORY_AUTOMATION}" -ge 20
+
+      - name: Create reviewed target bootstrap draft PR
+        run: |
+          set -euo pipefail
+          python scripts/bootstrap_ppi_data_acquisition.py
+
+      - name: Confirm manual-only source boundary
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
+          script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
+          assert 'workflow_dispatch:' in workflow
+          assert 'schedule:' not in workflow
+          assert 'repository_dispatch' not in workflow
+          assert 'musksuman3/ai-signal-engine' not in workflow
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in workflow
+          assert 'spoudel2010-ux/ppi-data-acquisition' in workflow
+          assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
+          assert 'private_dispatch_enabled": False' in script
+          assert 'registry_mutation_authorized": False' in script
+          assert 'broker_or_trading_authorized": False' in script
+          PY
