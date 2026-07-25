@@ -1,35 +1,52 @@
-# PPI Public Migration Scheduler
+# PPI Migration Autopilot
 
-The scheduler converts the validated Version 1.2 migration plan into small, reviewable tasks without granting a scheduled workflow implementation authority.
-
-## Initial operation
-
-- Only one task is active: `T01`, public architecture and bootstrap readiness.
-- All later tasks remain blocked.
-- Advancing the queue requires a reviewed pull request that updates `config/ppi_public_migration_schedule.json`.
-- The workflow is read-only and produces a readiness report artifact.
-- It cannot collect provider data, use secrets, write another repository, dispatch private Actions, merge pull requests, mutate the registry, or grant production/trading/R12 authority.
+The autopilot converts the validated Version 1.2 architecture into an idempotent, fail-closed reconciliation loop. It runs without human dispatch and performs only the next machine-verifiable action.
 
 ## Schedule
 
-The workflow runs on weekdays at `14:15 UTC`, approximately `08:15` or `09:15` in `America/Chicago` depending on daylight saving time. It can also be run manually from `main`.
+The workflow runs every hour at minute `23` and may also be dispatched manually for diagnostics. Normal operation requires no manual run, task advancement, pull-request merge, or public collection dispatch.
+
+## Autonomous actions
+
+The autopilot may:
+
+- verify the exact source, acquisition, and private repository names and numeric IDs;
+- verify that `RAW_TOKEN` has write access to the acquisition and private repositories;
+- rerun the reviewed acquisition bootstrap idempotently;
+- synchronize `PPI_PRIVATE_HANDOFF_TOKEN` into the acquisition repository;
+- synchronize provider credentials when they are configured in `ai-market-news`;
+- keep target PR #1 current;
+- mark and merge target PR #1 only after all machine-verifiable hardening gates pass;
+- dispatch one bounded public collection when no active or recent successful run exists;
+- dispatch the private final-analysis workflow only after it exists and an eligible public success run is available.
+
+## Fail-closed rules
+
+The autopilot stops and reports a blocked reason when:
+
+- a repository name, ID, visibility, archive state, or permission drifts;
+- required secrets are absent or cannot be synchronized;
+- target PR #1 lacks the hardened licensing, contract, validation, handoff, action-pinning, success/failure, or exact-package controls;
+- the public retry ceiling is reached;
+- the private final-analysis workflow is not installed;
+- any expected workflow, branch, contract, or release identity is missing.
+
+A blocked run exits without production, publication, registry, broker, order, trading, MMM/raw-data, or R12 authority.
 
 ## Task sequence
 
-| Task | Gate | Description | Initial status |
-|---|---:|---|---|
-| `T01` | 0 | Public architecture and bootstrap readiness | Active |
-| `T02` | 1 | Freeze provider licensing dispositions | Blocked |
-| `T03` | 1 | Freeze R1 contracts and collector release | Blocked |
-| `T04` | 2 | Add category-specific public validation | Blocked |
-| `T05` | 2 | Add sharding, bounded retries, and resume | Blocked |
-| `T06` | 2 | Separate success/failure artifacts and enforce 50 paths | Blocked |
-| `T07` | 2 | Protect secrets, pin Actions, and add attestations | Blocked |
-| `T08` | 3 | Freeze the public-to-private handoff | Blocked |
-| `T09` | 4 | Build the no-network private artifact consumer | Blocked |
-| `T10` | 5 | Run the controlled batch-3 pilot | Blocked |
-| `T11` | 6 | Retire private acquisition and rotate the bootstrap token | Blocked |
+| Task | Description | Advancement rule |
+|---|---|---|
+| `T01` | Synchronize and verify public acquisition bootstrap | Derived from repository and PR state |
+| `T02` | Freeze provider licensing and non-public payload handoff | Required files and markers must exist |
+| `T03` | Freeze R1 contracts and collector release | Exact contract identities and hashes |
+| `T04` | Enforce category-specific public validation | Validator files and tests must pass |
+| `T05` | Enforce bounded retries, resume, and retry ceilings | Collector and workflow controls must pass |
+| `T06` | Separate public receipts from private evidence packages | Success/failure identities and 50-path rule |
+| `T07` | Protect secrets, pin Actions, and add attestations | SHA pins and protected secret flow |
+| `T08` | Create private release handoff and trust gate | No raw MarketData payload is published publicly |
+| `T09` | Run network-disabled private final analysis | No provider credentials or external network |
+| `T10` | Run the controlled batch-3 pilot | Fresh 12-ticker success and countability |
+| `T11` | Retire private acquisition and rotate credentials | Legacy paths and secrets removed |
 
-`T01` passes only after the local Version 1.2 boundary is intact, target repository identity is verified, target pull request 1 remains open and draft, and its branch contains the hardened README.
-
-The scheduler reports the next manual action but never performs or advances it automatically.
+The queue is not advanced by editing a status field. Each hourly run derives the next safe action from authoritative GitHub state, making repeated runs deterministic and idempotent.
