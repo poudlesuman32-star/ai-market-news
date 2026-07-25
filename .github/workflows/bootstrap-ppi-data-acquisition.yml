@@ -1,0 +1,80 @@
+name: Bootstrap PPI public acquisition repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repository:
+        description: Exact public acquisition repository
+        required: true
+        default: spoudel2010-ux/ppi-data-acquisition
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-ppi-public-acquisition
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PPI_CROSS_REPOSITORY_AUTOMATION: ${{ secrets.PPI_CROSS_REPOSITORY_AUTOMATION }}
+      TARGET_REPOSITORY: ${{ inputs.target_repository }}
+    steps:
+      - name: Check out reviewed bootstrap code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate protected cross-repository configuration
+        run: |
+          set -euo pipefail
+          test "$TARGET_REPOSITORY" = "spoudel2010-ux/ppi-data-acquisition"
+          test -n "$PPI_CROSS_REPOSITORY_AUTOMATION"
+          test "${#PPI_CROSS_REPOSITORY_AUTOMATION}" -ge 20
+
+      - name: Validate source and generated target boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/bootstrap_ppi_data_acquisition.py
+          python -m py_compile bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py
+          python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source_workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
+          target_workflow = Path('bootstrap/ppi-data-acquisition/.github/workflows/collect-r11-public-evidence.yml').read_text(encoding='utf-8')
+          script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
+          contract = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
+          scope = json.loads(Path('bootstrap/ppi-data-acquisition/config/r11_batch_003.json').read_text(encoding='utf-8'))
+
+          assert '\n  workflow_dispatch:\n' in source_workflow
+          assert '\n  schedule:\n' not in source_workflow
+          assert '\n  repository_dispatch:\n' not in source_workflow
+          assert 'spoudel2010-ux/ppi-data-acquisition' in script
+          assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
+          assert '\n  workflow_dispatch:\n' in target_workflow
+          assert '\n  schedule:\n' not in target_workflow
+          assert '\n  repository_dispatch:\n' not in target_workflow
+          assert scope['contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
+          assert scope['batch_sequence'] == 3
+          assert scope['expected_bundle_count'] == 48
+          assert scope['new_candidate_tickers'] == ['QCOM', 'MRVL', 'GFS', 'TXN']
+          assert scope['authorized_actions'] == []
+          assert contract['status'] == 'frozen_public_collection_scope'
+          assert contract['private_dispatch_enabled'] is False
+          assert contract['private_calculation_authorized'] is False
+          assert contract['registry_mutation_authorized'] is False
+          assert contract['broker_or_trading_authorized'] is False
+          assert contract['authorized_actions'] == []
+          PY
+
+      - name: Create reviewed target bootstrap draft PR
+        run: |
+          set -euo pipefail
+          python scripts/bootstrap_ppi_data_acquisition.py
