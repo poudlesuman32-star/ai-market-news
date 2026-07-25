@@ -63,6 +63,29 @@ def api(
     return status, parsed
 
 
+def authenticated_login(*, token: str) -> str:
+    _, payload = api("GET", "/user", token=token)
+    require(isinstance(payload, dict), "Unexpected authenticated-user response")
+    login = payload.get("login")
+    require(isinstance(login, str) and login, "RAW_TOKEN did not resolve to a GitHub login")
+    return login
+
+
+def require_target_write_permission(repository: str, login: str, *, token: str) -> str:
+    _, payload = api(
+        "GET",
+        f"/repos/{repository}/collaborators/{quote(login, safe='')}/permission",
+        token=token,
+    )
+    require(isinstance(payload, dict), "Unexpected repository-permission response")
+    permission = payload.get("permission")
+    require(
+        permission in {"admin", "maintain", "write"},
+        f"RAW_TOKEN user {login} lacks write permission on {repository}: {permission!r}",
+    )
+    return str(permission)
+
+
 def get_ref_sha(repository: str, branch: str, *, token: str) -> str | None:
     status, payload = api(
         "GET",
@@ -88,6 +111,8 @@ def ensure_repository_initialized(repository: str, *, token: str) -> str:
         "# PPI Data Acquisition\n\n"
         "Initialized by a reviewed manual-only cross-repository workflow.\n"
     )
+    # The target repository is empty, so no branch reference exists yet.
+    # Omitting the branch lets GitHub create the first commit on its default branch.
     api(
         "PUT",
         f"/repos/{repository}/contents/README.md",
@@ -95,7 +120,6 @@ def ensure_repository_initialized(repository: str, *, token: str) -> str:
         payload={
             "message": "Initialize public acquisition repository",
             "content": base64.b64encode(placeholder.encode("utf-8")).decode("ascii"),
-            "branch": DEFAULT_BASE,
         },
         allowed_statuses=(201,),
     )
@@ -233,6 +257,9 @@ def main() -> int:
     require(metadata.get("visibility") == "public", "Target repository must remain public")
     require(metadata.get("archived") is False, "Target repository is archived")
 
+    login = authenticated_login(token=token)
+    permission = require_target_write_permission(repository, login, token=token)
+
     base_sha = ensure_repository_initialized(repository, token=token)
     ensure_branch(repository, BOOTSTRAP_BRANCH, base_sha, token=token)
     files = target_files()
@@ -243,6 +270,8 @@ def main() -> int:
     result = {
         "status": "bootstrap_pr_ready",
         "repository": repository,
+        "token_login": login,
+        "target_permission": permission,
         "branch": BOOTSTRAP_BRANCH,
         "file_count": len(files),
         "pull_request": pr_url,
@@ -252,6 +281,8 @@ def main() -> int:
     if summary_path:
         with open(summary_path, "a", encoding="utf-8") as summary:
             summary.write("## PPI public acquisition bootstrap\n\n")
+            summary.write(f"Token login: `{login}`\n")
+            summary.write(f"Target permission: `{permission}`\n")
             summary.write(f"Draft PR: {pr_url}\n")
             summary.write(f"Files: {len(files)}\n")
     return 0
