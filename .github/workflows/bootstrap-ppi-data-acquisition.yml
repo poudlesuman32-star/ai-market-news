@@ -37,28 +37,44 @@ jobs:
           test -n "$PPI_CROSS_REPOSITORY_AUTOMATION"
           test "${#PPI_CROSS_REPOSITORY_AUTOMATION}" -ge 20
 
+      - name: Validate source and generated target boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/bootstrap_ppi_data_acquisition.py
+          python -m py_compile bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py
+          python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source_workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
+          target_workflow = Path('bootstrap/ppi-data-acquisition/.github/workflows/collect-r11-public-evidence.yml').read_text(encoding='utf-8')
+          script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
+          contract = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
+          scope = json.loads(Path('bootstrap/ppi-data-acquisition/config/r11_batch_003.json').read_text(encoding='utf-8'))
+
+          assert 'workflow_dispatch:' in source_workflow
+          assert 'schedule:' not in source_workflow
+          assert 'repository_dispatch' not in source_workflow
+          assert 'spoudel2010-ux/ppi-data-acquisition' in script
+          assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
+          assert 'workflow_dispatch:' in target_workflow
+          assert 'schedule:' not in target_workflow
+          assert 'repository_dispatch' not in target_workflow
+          assert scope['contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
+          assert scope['batch_sequence'] == 3
+          assert scope['expected_bundle_count'] == 48
+          assert scope['new_candidate_tickers'] == ['QCOM', 'MRVL', 'GFS', 'TXN']
+          assert scope['authorized_actions'] == []
+          assert contract['status'] == 'frozen_public_collection_scope'
+          assert contract['private_dispatch_enabled'] is False
+          assert contract['private_calculation_authorized'] is False
+          assert contract['registry_mutation_authorized'] is False
+          assert contract['broker_or_trading_authorized'] is False
+          assert contract['authorized_actions'] == []
+          PY
+
       - name: Create reviewed target bootstrap draft PR
         run: |
           set -euo pipefail
           python scripts/bootstrap_ppi_data_acquisition.py
-
-      - name: Confirm manual-only source boundary
-        if: always()
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
-          script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
-          assert 'workflow_dispatch:' in workflow
-          assert 'schedule:' not in workflow
-          assert 'repository_dispatch' not in workflow
-          assert 'musksuman3/ai-signal-engine' not in workflow
-          assert 'PPI_CROSS_REPOSITORY_AUTOMATION' in workflow
-          assert 'spoudel2010-ux/ppi-data-acquisition' in workflow
-          assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
-          assert 'private_dispatch_enabled": False' in script
-          assert 'registry_mutation_authorized": False' in script
-          assert 'broker_or_trading_authorized": False' in script
-          PY
