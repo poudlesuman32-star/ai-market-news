@@ -43,6 +43,13 @@ jobs:
           python -m py_compile scripts/bootstrap_ppi_data_acquisition.py
           python -m py_compile bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py
           python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
+
+          # Tests and py_compile create binary bytecode beneath the template tree.
+          # Remove it before the bootstrap script reads the reviewed UTF-8 template files.
+          find bootstrap/ppi-data-acquisition -type f -name '*.pyc' -delete
+          find bootstrap/ppi-data-acquisition -type d -name '__pycache__' -empty -delete
+          test -z "$(find bootstrap/ppi-data-acquisition -type f -name '*.pyc' -print -quit)"
+
           python - <<'PY'
           import json
           from pathlib import Path
