@@ -1,0 +1,123 @@
+{
+  "active_task": {
+    "completion_conditions": [
+      "Canonical architecture document is Version 1.2 and implementation remains blocked.",
+      "Bootstrap template README contains the hardened acquisition boundary.",
+      "Bootstrap workflow remains manual-only and targets only ppi-data-acquisition.",
+      "Target pull request 1 remains open and draft.",
+      "Target pull request branch contains the hardened README before merge."
+    ],
+    "executor": "read_only_public_scheduler",
+    "gate": 0,
+    "id": "T01",
+    "name": "Public architecture and bootstrap readiness",
+    "next_manual_action": "Run the current main-branch Bootstrap PPI public acquisition repository workflow once, then review target pull request 1."
+  },
+  "active_task_id": "T01",
+  "authority": {
+    "authorized_actions": [],
+    "automatic_merge_authorized": false,
+    "private_dispatch_authorized": false,
+    "private_schedule_authorized": false,
+    "production_authorized": false,
+    "provider_collection_authorized_by_this_scheduler": false,
+    "r12_authorized": false,
+    "registry_mutation_authorized": false,
+    "trading_authorized": false
+  },
+  "enabled": true,
+  "phase": "gate-0-public-readiness",
+  "repositories": {
+    "acquisition": {
+      "bootstrap_branch": "agent/bootstrap-r11-public-acquisition",
+      "bootstrap_pr": 1,
+      "id": 1312286476,
+      "name": "spoudel2010-ux/ppi-data-acquisition",
+      "visibility": "public"
+    },
+    "private": {
+      "id": 1290626648,
+      "name": "musksuman3/ai-signal-engine",
+      "visibility": "private"
+    },
+    "source": {
+      "id": 1290414659,
+      "name": "poudlesuman32-star/ai-market-news",
+      "visibility": "public"
+    }
+  },
+  "schedule": {
+    "cron_utc": "15 14 * * 1-5",
+    "description": "Weekdays at 14:15 UTC, approximately 8:15 or 9:15 America/Chicago depending on daylight saving time"
+  },
+  "scheduler_id": "PPI-PUBLIC-MIGRATION-SCHEDULER-001",
+  "schema_version": "1.0.0",
+  "task_queue": [
+    {
+      "gate": 0,
+      "id": "T01",
+      "name": "Public architecture and bootstrap readiness",
+      "status": "active"
+    },
+    {
+      "gate": 1,
+      "id": "T02",
+      "name": "Freeze provider licensing dispositions",
+      "status": "blocked"
+    },
+    {
+      "gate": 1,
+      "id": "T03",
+      "name": "Freeze R1 contract lineage and collector release identity",
+      "status": "blocked"
+    },
+    {
+      "gate": 2,
+      "id": "T04",
+      "name": "Add category-specific public schemas and validators",
+      "status": "blocked"
+    },
+    {
+      "gate": 2,
+      "id": "T05",
+      "name": "Add sharding, bounded retries, and resumable public collection",
+      "status": "blocked"
+    },
+    {
+      "gate": 2,
+      "id": "T06",
+      "name": "Separate success and failure artifacts and enforce 50 paths",
+      "status": "blocked"
+    },
+    {
+      "gate": 2,
+      "id": "T07",
+      "name": "Protect provider secrets, pin actions, and add attestations",
+      "status": "blocked"
+    },
+    {
+      "gate": 3,
+      "id": "T08",
+      "name": "Freeze public-to-private handoff and freshness contract",
+      "status": "blocked"
+    },
+    {
+      "gate": 4,
+      "id": "T09",
+      "name": "Build no-network private artifact consumer",
+      "status": "blocked"
+    },
+    {
+      "gate": 5,
+      "id": "T10",
+      "name": "Run controlled batch-3 pilot and measure private minutes",
+      "status": "blocked"
+    },
+    {
+      "gate": 6,
+      "id": "T11",
+      "name": "Retire private acquisition and rotate bootstrap token",
+      "status": "blocked"
+    }
+  ]
+}
