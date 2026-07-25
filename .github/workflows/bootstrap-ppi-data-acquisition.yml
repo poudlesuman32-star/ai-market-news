@@ -57,8 +57,9 @@ jobs:
           assert '\n  schedule:\n' not in source_workflow
           assert '\n  repository_dispatch:\n' not in source_workflow
           expected_secret_binding = 'PPI_CROSS_REPOSITORY_AUTOMATION: $' + '{{ secrets.RAW_TOKEN }}'
+          old_secret_reference = 'secrets.PPI_CROSS_' + 'REPOSITORY_AUTOMATION'
           assert expected_secret_binding in source_workflow
-          assert 'secrets.PPI_CROSS_REPOSITORY_AUTOMATION' not in source_workflow
+          assert old_secret_reference not in source_workflow
           assert 'spoudel2010-ux/ppi-data-acquisition' in script
           assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
           assert '\n  workflow_dispatch:\n' in target_workflow
