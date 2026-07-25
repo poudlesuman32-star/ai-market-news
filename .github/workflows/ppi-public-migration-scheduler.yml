@@ -1,0 +1,59 @@
+name: PPI public migration scheduler
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 14 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-public-migration-scheduler
+  cancel-in-progress: false
+
+jobs:
+  gate-0-readiness:
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OUTPUT_ROOT: runtime/ppi-public-migration-readiness
+    steps:
+      - name: Check out approved main branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate scheduler boundary
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/build_ppi_public_migration_readiness.py
+          python -m unittest tests.test_ppi_public_migration_scheduler -v
+
+      - name: Build one-task readiness report
+        run: |
+          set -euo pipefail
+          python scripts/build_ppi_public_migration_readiness.py \
+            --config config/ppi_public_migration_schedule.json \
+            --output-root "$OUTPUT_ROOT"
+
+      - name: Publish report summary
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -s "$OUTPUT_ROOT/readiness.md" ]; then
+            cat "$OUTPUT_ROOT/readiness.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## PPI public migration scheduler\n\nReadiness report was not created.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain scheduler report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ppi-public-migration-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: runtime/ppi-public-migration-readiness/
+          retention-days: 14
+          if-no-files-found: error
