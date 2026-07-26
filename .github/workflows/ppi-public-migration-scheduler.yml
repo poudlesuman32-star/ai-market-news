@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/ppi-public-migration-scheduler.yml
       - scripts/ppi_migration_autopilot.py
+      - scripts/ppi_migration_autopilot_v2.py
       - scripts/publish_ppi_autopilot_status.py
       - scripts/bootstrap_ppi_data_acquisition.py
       - bootstrap/ppi-data-acquisition/**
@@ -47,13 +48,14 @@ jobs:
             scripts/bootstrap_ppi_data_acquisition.py \
             scripts/build_ppi_public_migration_readiness.py \
             scripts/ppi_migration_autopilot.py \
+            scripts/ppi_migration_autopilot_v2.py \
             scripts/publish_ppi_autopilot_status.py
           python -m unittest tests.test_ppi_public_migration_scheduler -v
 
       - name: Reconcile the next safe migration action
         run: |
           set -euo pipefail
-          python scripts/ppi_migration_autopilot.py \
+          python scripts/ppi_migration_autopilot_v2.py \
             --output-root "$OUTPUT_ROOT"
 
       - name: Build fail-safe status when reconciliation stopped early
