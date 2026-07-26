@@ -115,7 +115,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("v2.target_gate = target_gate_r2", text)
         self.assertIn("v2.base.latest_successful_public_run = latest_successful_current_public_run", text)
 
-    def test_r2_bootstrap_has_exact_fifteen_file_allowlist(self) -> None:
+    def test_r2_bootstrap_has_exact_fifteen_file_allowlist_and_noop_path(self) -> None:
         source = BOOTSTRAP_R2.read_text(encoding="utf-8")
         tree = ast.parse(source)
         assignment = next(
@@ -131,6 +131,12 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("contracts/PPI-PUBLIC-COLLECTOR-003-R2.json", paths)
         self.assertIn("src/collect_raw_provider_evidence_r2.py", paths)
         self.assertIn("src/fetch_yfinance_expectations.py", paths)
+        self.assertIn("git_blob_sha", source)
+        self.assertIn("branch_matches_desired", source)
+        self.assertIn("base_matches_desired", source)
+        self.assertIn("target_already_current", source)
+        self.assertIn("if final_branch_sha == final_base_sha", source)
+        self.assertIn("continue", source)
 
     def test_stale_target_branch_cleaner_is_exact_and_fail_closed(self) -> None:
         text = PREPARE.read_text(encoding="utf-8")
