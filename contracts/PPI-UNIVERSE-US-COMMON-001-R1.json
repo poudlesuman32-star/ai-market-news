@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-UNIVERSE-US-COMMON-001-R1",
+  "status": "draft_foundation",
+  "implementation_phase": "source_inventory_contract_and_schema_validation_only",
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "source_repository_id": 1290414659,
+  "acquisition_repository": "spoudel2010-ux/ppi-data-acquisition",
+  "acquisition_repository_id": 1312286476,
+  "private_repository": "musksuman3/ai-signal-engine",
+  "private_repository_id": 1290626648,
+  "governing_rule": "Public systems discover, collect, validate, screen and prove what was fetched. Private systems curate, calculate, score and decide what counts.",
+  "universe_scope": {
+    "eligible_exchanges": [
+      "NYSE",
+      "NASDAQ",
+      "NYSE_AMERICAN"
+    ],
+    "included_asset_types": [
+      "common_stock"
+    ],
+    "separately_contracted_asset_types": [
+      "adr"
+    ],
+    "excluded_asset_types": [
+      "etf",
+      "mutual_fund",
+      "preferred_share",
+      "warrant",
+      "right",
+      "unit",
+      "test_symbol",
+      "otc_security",
+      "delisted_security",
+      "non_equity"
+    ]
+  },
+  "identity_layers": {
+    "primary": "instrument_id",
+    "security_level_external": "figi",
+    "issuer_level_external": "cik",
+    "time_bounded_alias": "ticker"
+  },
+  "lifecycle_states": [
+    "universe_member",
+    "eligible",
+    "screened",
+    "deep_evidence_queued",
+    "collecting",
+    "evidence_ready",
+    "private_pending",
+    "accepted",
+    "rejected",
+    "deferred",
+    "inactive"
+  ],
+  "applicability_states": [
+    "available",
+    "valid_empty",
+    "not_applicable",
+    "insufficient_history",
+    "temporarily_unavailable",
+    "provider_failure",
+    "invalid_payload"
+  ],
+  "frozen_batch3": {
+    "tickers": [
+      "AAPL",
+      "MU",
+      "NVDA",
+      "AMD",
+      "AVGO",
+      "INTC",
+      "TSM",
+      "ARM",
+      "QCOM",
+      "MRVL",
+      "GFS",
+      "TXN"
+    ],
+    "categories": [
+      "expectation_history",
+      "independent_recognition",
+      "market_time_series",
+      "specialized_contract_data"
+    ],
+    "bundle_count": 48,
+    "path_count": 50,
+    "pinned_files": [
+      {
+        "path": "bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json",
+        "git_blob_sha1": "83bac3aaf2cd89956b403e35ca80e8000c8a8cd3"
+      },
+      {
+        "path": "bootstrap/ppi-data-acquisition/contracts/PPI-PUBLIC-COLLECTOR-003-R2.json",
+        "git_blob_sha1": "d03a9398b80e4eee4b5cfcbd065e237d3dfa218f"
+      },
+      {
+        "path": "bootstrap/ppi-data-acquisition/config/r11_batch_003.json",
+        "git_blob_sha1": "c1077b23b75d4296467eb242d356c8cdd4a6f399"
+      }
+    ]
+  },
+  "foundation_scheduler": {
+    "workflow_path": ".github/workflows/ppi-public-universe-foundation.yml",
+    "schedule": "17 6 * * 1",
+    "remote_fetch_authorized": false,
+    "provider_credentials_authorized": false,
+    "private_repository_access_authorized": false,
+    "safe_readiness_artifact_only": true
+  },
+  "private_minimum_task": [
+    "verify_exact_package",
+    "safe_extract",
+    "verify_hashes_provenance_and_freshness",
+    "final_semantic_curation",
+    "load_prior_checkpoint",
+    "private_calculations",
+    "final_scoring",
+    "countability",
+    "final_report",
+    "incremental_checkpoint",
+    "controlled_registry_result"
+  ],
+  "authority": {
+    "provider_execution": false,
+    "deep_evidence_collection": false,
+    "private_dispatch": false,
+    "billing_budget_mutation": false,
+    "registry_mutation": false,
+    "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
+    "trading": false,
+    "mmm_raw_data": false,
+    "r12": false
+  },
+  "authorized_actions": []
+}
