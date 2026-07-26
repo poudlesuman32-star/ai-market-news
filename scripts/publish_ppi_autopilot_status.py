@@ -100,6 +100,37 @@ def render(report: dict[str, Any], *, token: str) -> str:
     else:
         lines.append("- None.")
 
+    diagnostics = report.get("private_queue_diagnostics")
+    if isinstance(diagnostics, dict):
+        lines.extend([
+            "",
+            "## Private queue diagnostics",
+            "",
+            f"- Private run: `{clean_text(diagnostics.get('private_run_id'), token=token)}`",
+            f"- Run status: `{clean_text(diagnostics.get('private_run_status'), token=token)}`",
+            f"- Run conclusion: `{clean_text(diagnostics.get('private_run_conclusion'), token=token)}`",
+            f"- Allocated jobs: `{clean_text(diagnostics.get('allocated_job_count', 'unknown'), token=token)}`",
+            f"- Queue age minutes: `{clean_text(diagnostics.get('queue_age_minutes', 'unknown'), token=token)}`",
+        ])
+        minutes = diagnostics.get("actions_minutes")
+        if isinstance(minutes, dict):
+            lines.extend([
+                f"- Actions minutes used: `{clean_text(minutes.get('total_minutes_used'), token=token)}`",
+                f"- Actions minutes included: `{clean_text(minutes.get('included_minutes'), token=token)}`",
+                f"- Remaining included minutes: `{clean_text(minutes.get('remaining_included_minutes'), token=token)}`",
+            ])
+        usage = diagnostics.get("actions_usage_summary")
+        if isinstance(usage, dict):
+            lines.extend([
+                f"- Actions gross minutes: `{clean_text(usage.get('gross_minutes'), token=token)}`",
+                f"- Actions discounted minutes: `{clean_text(usage.get('discount_minutes'), token=token)}`",
+                f"- Actions net minutes: `{clean_text(usage.get('net_minutes'), token=token)}`",
+            ])
+        if diagnostics.get("legacy_actions_billing_probe"):
+            lines.append(f"- Legacy billing probe: `{clean_text(diagnostics.get('legacy_actions_billing_probe'), token=token)}`")
+        if diagnostics.get("actions_usage_summary_probe"):
+            lines.append(f"- Usage-summary probe: `{clean_text(diagnostics.get('actions_usage_summary_probe'), token=token)}`")
+
     lines.extend([
         "",
         "## Safety boundary",
