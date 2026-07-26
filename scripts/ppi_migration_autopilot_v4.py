@@ -58,6 +58,19 @@ def cancel_private_run(token: str, run_id: int) -> tuple[bool, str]:
         errors.append(f"GitHub Actions REST failed: {exc}")
 
     try:
+        status, _ = v3.v2.base.api(
+            "POST",
+            f"/repos/{v3.v2.base.PRIVATE_REPOSITORY}/actions/runs/{run_id}/force-cancel",
+            token=token,
+            allowed_statuses=(202, 409),
+        )
+        if status == 202:
+            return True, "force-cancelled through GitHub Actions REST"
+        errors.append("GitHub Actions force-cancel returned 409")
+    except Exception as exc:
+        errors.append(f"GitHub Actions force-cancel failed: {exc}")
+
+    try:
         v3.v2.base.run_command(
             ["gh", "run", "cancel", str(run_id), "--repo", v3.v2.base.PRIVATE_REPOSITORY],
             env={"GH_TOKEN": token},
