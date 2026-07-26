@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/ppi_public_universe_foundation.schema.json",
+  "title": "PPI public universe foundation schema bundle",
+  "type": "object",
+  "$defs": {
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "universe_member",
+        "eligible",
+        "screened",
+        "deep_evidence_queued",
+        "collecting",
+        "evidence_ready",
+        "private_pending",
+        "accepted",
+        "rejected",
+        "deferred",
+        "inactive"
+      ]
+    },
+    "applicability_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "valid_empty",
+        "not_applicable",
+        "insufficient_history",
+        "temporarily_unavailable",
+        "provider_failure",
+        "invalid_payload"
+      ]
+    },
+    "symbol_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "effective_from",
+        "effective_to"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effective_from": {
+          "type": "string",
+          "format": "date"
+        },
+        "effective_to": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        }
+      }
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument_id",
+        "current_symbol",
+        "exchange",
+        "asset_type",
+        "status",
+        "cik",
+        "figi",
+        "first_seen_at",
+        "last_confirmed_at",
+        "symbol_history",
+        "source_id",
+        "source_timestamp"
+      ],
+      "properties": {
+        "instrument_id": {
+          "type": "string",
+          "pattern": "^ppi-us-equity-[0-9]{6,}$"
+        },
+        "current_symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exchange": {
+          "type": "string",
+          "enum": [
+            "NYSE",
+            "NASDAQ",
+            "NYSE_AMERICAN"
+          ]
+        },
+        "asset_type": {
+          "type": "string",
+          "enum": [
+            "common_stock",
+            "adr"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/lifecycle_state"
+        },
+        "cik": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]{10}$"
+        },
+        "figi": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 12,
+          "maxLength": 12
+        },
+        "first_seen_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_confirmed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "symbol_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/symbol_history_entry"
+          }
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "universe_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "event_type",
+        "instrument_id",
+        "effective_at",
+        "source_id",
+        "source_hash"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "instrument_added",
+            "symbol_changed",
+            "exchange_changed",
+            "instrument_inactivated",
+            "instrument_reactivated"
+          ]
+        },
+        "instrument_id": {
+          "type": "string"
+        },
+        "effective_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "source_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "snapshot_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_id",
+        "snapshot_id",
+        "generated_at",
+        "instrument_count",
+        "event_ledger_position",
+        "previous_snapshot_sha256",
+        "snapshot_sha256",
+        "manifest_sha256"
+      ],
+      "properties": {
+        "contract_id": {
+          "const": "PPI-UNIVERSE-US-COMMON-001-R1"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "instrument_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_ledger_position": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "previous_snapshot_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}
