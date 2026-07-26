@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-PUBLIC-COLLECTOR-003-R1",
+  "status": "frozen",
+  "repository": "spoudel2010-ux/ppi-data-acquisition",
+  "repository_id": 1312286476,
+  "collector_path": "src/collect_raw_provider_evidence.py",
+  "collector_sha256": "3717584c2baac7051fcd542304f4e177de577b1d0ab02a321249e060ac42ea7e",
+  "handoff_path": "src/publish_private_handoff.py",
+  "handoff_sha256": "291af03be80d601aa4a86b873617dbc1c1e97632ee7348c8fced9a904aa685eb",
+  "workflow_path": ".github/workflows/collect-r11-public-evidence.yml",
+  "workflow_sha256": "c82b2c7a441bd0b67109d450fd1da57b70b061e0b1347f773a0adf82638f5904",
+  "scope_path": "config/r11_batch_003.json",
+  "scope_sha256": "5a53df168a6f1d3109e18293bb4bb09d9b7625daea7379118c3d840dc52cf681",
+  "licensing_path": "config/provider_licensing_dispositions.json",
+  "licensing_sha256": "bdf73c87fdc47e72f8f525559d19979c393626c8a460b6c61d47a1432a3b2a3a",
+  "provider_operations": [
+    "alpha_vantage:EARNINGS_ESTIMATES",
+    "alpha_vantage:NEWS_SENTIMENT",
+    "marketdata:daily_candles",
+    "marketdata:option_chain"
+  ],
+  "benchmark": "QQQ",
+  "expected_provider_request_count": 49,
+  "expected_bundle_count": 48,
+  "expected_path_count": 50,
+  "public_raw_artifact_uploaded": false,
+  "private_release_handoff": true,
+  "authorized_actions": []
+}
