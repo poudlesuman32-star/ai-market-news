@@ -4,12 +4,15 @@
   "enabled": true,
   "mode": "idempotent_reconciliation",
   "cron_utc": "23 * * * *",
+  "active_public_acquisition_contract": "PPI-R11-PUBLIC-ACQUISITION-003-R2",
+  "active_public_collector_release": "PPI-PUBLIC-COLLECTOR-003-R2",
+  "private_analytical_contract": "PPI-R11-BATCH-EVIDENCE-003-R1",
   "repositories": {
     "source": {"name": "poudlesuman32-star/ai-market-news", "id": 1290414659},
     "acquisition": {
       "name": "spoudel2010-ux/ppi-data-acquisition",
       "id": 1312286476,
-      "pull_request": 1,
+      "pull_request_selection": "dynamic_current_bootstrap_branch",
       "branch": "agent/bootstrap-r11-public-acquisition",
       "workflow": "collect-r11-public-evidence.yml"
     },
@@ -37,11 +40,11 @@
   "gates": [
     {"id": "T01", "name": "Synchronize and verify public acquisition bootstrap"},
     {"id": "T02", "name": "Freeze provider licensing and non-public payload handoff"},
-    {"id": "T03", "name": "Freeze R1 contracts and collector release"},
+    {"id": "T03", "name": "Preserve R1 and activate the quota-aware R2 public revision"},
     {"id": "T04", "name": "Enforce category-specific public validation"},
-    {"id": "T05", "name": "Enforce bounded retries, resume, and retry ceilings"},
+    {"id": "T05", "name": "Enforce bounded retries, pacing, and per-revision retry ceilings"},
     {"id": "T06", "name": "Separate public receipt artifacts from private evidence packages"},
-    {"id": "T07", "name": "Protect secrets, pin Actions, and generate attestations"},
+    {"id": "T07", "name": "Protect secrets and pin Actions"},
     {"id": "T08", "name": "Create a private release handoff and exact trust gate"},
     {"id": "T09", "name": "Run network-disabled private final analysis"},
     {"id": "T10", "name": "Run the controlled batch-3 pilot automatically"},
