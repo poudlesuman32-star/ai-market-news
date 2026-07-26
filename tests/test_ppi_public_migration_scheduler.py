@@ -12,6 +12,7 @@ AUTOPILOT = ROOT / "scripts/ppi_migration_autopilot.py"
 AUTOPILOT_V2 = ROOT / "scripts/ppi_migration_autopilot_v2.py"
 AUTOPILOT_V3 = ROOT / "scripts/ppi_migration_autopilot_v3.py"
 BOOTSTRAP_R2 = ROOT / "scripts/bootstrap_ppi_data_acquisition_r2.py"
+PRIVATE_DIAGNOSTIC = ROOT / "scripts/enrich_ppi_private_queue_diagnostics.py"
 PREPARE = ROOT / "scripts/prepare_ppi_target_update_branch.py"
 STATUS_PUBLISHER = ROOT / "scripts/publish_ppi_autopilot_status.py"
 
@@ -49,7 +50,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         ):
             self.assertFalse(authority[key], key)
 
-    def test_workflow_runs_r2_controller_and_sha_pinned_actions(self) -> None:
+    def test_workflow_runs_r2_controller_diagnostics_and_sha_pinned_actions(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '23 * * * *'", text)
         self.assertIn("permissions:\n  contents: read", text)
@@ -58,6 +59,8 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("secrets.PPI_MARKETDATA_TOKEN", text)
         self.assertIn("scripts/bootstrap_ppi_data_acquisition_r2.py", text)
         self.assertIn("scripts/ppi_migration_autopilot_v3.py", text)
+        self.assertIn("scripts/enrich_ppi_private_queue_diagnostics.py", text)
+        self.assertIn("Enrich private queue and Actions usage diagnostics", text)
         self.assertIn("scripts/prepare_ppi_target_update_branch.py", text)
         self.assertIn("Prepare exact post-squash target update branch", text)
         self.assertIn("scripts/publish_ppi_autopilot_status.py", text)
@@ -144,6 +147,23 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("if final_branch_sha == final_base_sha", source)
         self.assertIn("continue", source)
 
+    def test_private_queue_diagnostic_is_public_only_and_fail_closed(self) -> None:
+        text = PRIVATE_DIAGNOSTIC.read_text(encoding="utf-8")
+        self.assertIn('PRIVATE_REPOSITORY = "musksuman3/ai-signal-engine"', text)
+        self.assertIn("PRIVATE_REPOSITORY_ID = 1290626648", text)
+        self.assertIn("EXPECTED_INCLUDED_PRIVATE_MINUTES = 2000", text)
+        self.assertIn("/actions/runs/{run_id}/jobs?filter=latest", text)
+        self.assertIn("settings/billing/actions", text)
+        self.assertIn("settings/billing/usage/summary", text)
+        self.assertIn('version="2026-03-10"', text)
+        self.assertIn("remains queued with no allocated job", text)
+        self.assertIn("Private Actions included minutes are exhausted", text)
+        self.assertIn('"registry_mutation"', text)
+        self.assertNotIn("dispatches", text)
+        self.assertNotIn("raw_provider_payload", text)
+        self.assertNotIn("PPI_ALPHA_VANTAGE_API_KEY", text)
+        self.assertNotIn("PPI_MARKETDATA_TOKEN", text)
+
     def test_stale_target_branch_cleaner_is_exact_and_fail_closed(self) -> None:
         text = PREPARE.read_text(encoding="utf-8")
         self.assertIn("TARGET_REPOSITORY_ID = 1312286476", text)
@@ -155,7 +175,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('payload={"sha": main_sha, "force": True}', text)
         self.assertIn("open_target_update_has_content_changes", text)
 
-    def test_status_issue_is_sanitized_and_dangerous_authority_fails_closed(self) -> None:
+    def test_status_issue_is_sanitized_and_displays_queue_diagnostics(self) -> None:
         text = STATUS_PUBLISHER.read_text(encoding="utf-8")
         self.assertIn('SOURCE_REPOSITORY = "poudlesuman32-star/ai-market-news"', text)
         self.assertIn("SOURCE_REPOSITORY_ID = 1290414659", text)
@@ -164,6 +184,9 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('"github_pat_"', text)
         self.assertIn('"Bearer "', text)
         self.assertIn("dangerous authority unexpectedly enabled", text)
+        self.assertIn("## Private queue diagnostics", text)
+        self.assertIn("Allocated jobs", text)
+        self.assertIn("Actions minutes included", text)
         self.assertNotIn("raw_provider_payload", text)
         self.assertNotIn("private score", text.lower())
 
