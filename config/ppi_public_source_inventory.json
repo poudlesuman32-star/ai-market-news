@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0.0",
+  "inventory_id": "PPI-PUBLIC-SOURCE-INVENTORY-001-R1",
+  "status": "foundation",
+  "repository": "poudlesuman32-star/ai-market-news",
+  "repository_id": 1290414659,
+  "private_source_dependency": false,
+  "sources": [
+    {
+      "source_id": "sec_company_tickers_exchange",
+      "operations": [
+        "listing_universe",
+        "issuer_identifier_seed"
+      ],
+      "cost_class": "free",
+      "access_model": "bulk",
+      "rate_limit": "SEC fair-access policy; no remote fetch is performed by the foundation scheduler",
+      "public_runner_allowed": true,
+      "requires_secret": false,
+      "requires_private_secret": false,
+      "raw_publication_allowed": true,
+      "derived_metrics_allowed": true,
+      "private_handoff_required": false,
+      "licensing_status": "approved_for_public_universe_seed",
+      "approved": true
+    },
+    {
+      "source_id": "openfigi_mapping",
+      "operations": [
+        "security_identifier_mapping"
+      ],
+      "cost_class": "free",
+      "access_model": "batched",
+      "rate_limit": "rate-limited; cache successful mappings and use a public-repository secret only when a key is configured",
+      "public_runner_allowed": true,
+      "requires_secret": false,
+      "requires_private_secret": false,
+      "raw_publication_allowed": false,
+      "derived_metrics_allowed": true,
+      "private_handoff_required": false,
+      "licensing_status": "approved_for_identifier_mapping",
+      "approved": true
+    },
+    {
+      "source_id": "nasdaq_symbol_directory",
+      "operations": [
+        "active_listing_cross_check",
+        "symbol_change_cross_check"
+      ],
+      "cost_class": "free",
+      "access_model": "bulk",
+      "rate_limit": "unknown",
+      "public_runner_allowed": true,
+      "requires_secret": false,
+      "requires_private_secret": false,
+      "raw_publication_allowed": false,
+      "derived_metrics_allowed": false,
+      "private_handoff_required": false,
+      "licensing_status": "pending_terms_review",
+      "approved": false
+    },
+    {
+      "source_id": "public_screening_provider",
+      "operations": [
+        "lightweight_screening"
+      ],
+      "cost_class": "unresolved",
+      "access_model": "unresolved",
+      "rate_limit": "unresolved",
+      "public_runner_allowed": true,
+      "requires_secret": false,
+      "requires_private_secret": false,
+      "raw_publication_allowed": false,
+      "derived_metrics_allowed": false,
+      "private_handoff_required": false,
+      "licensing_status": "blocked_pending_provider_and_terms_review",
+      "approved": false
+    }
+  ],
+  "authority": {
+    "remote_fetch": false,
+    "provider_execution": false,
+    "deep_evidence_collection": false,
+    "private_dispatch": false,
+    "billing_budget_mutation": false,
+    "registry_mutation": false,
+    "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
+    "trading": false,
+    "mmm_raw_data": false,
+    "r12": false
+  },
+  "authorized_actions": []
+}
