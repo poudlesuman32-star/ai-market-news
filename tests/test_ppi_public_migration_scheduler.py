@@ -103,7 +103,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('"trading": False', text)
         self.assertIn('"r12": False', text)
 
-    def test_v3_uses_exact_r2_gate_and_current_sha_success_only(self) -> None:
+    def test_v3_uses_exact_r2_gate_current_sha_success_and_private_run_visibility(self) -> None:
         text = AUTOPILOT_V3.read_text(encoding="utf-8")
         self.assertIn("bootstrap_ppi_data_acquisition_r2.py", text)
         self.assertIn("target_gate_r2", text)
@@ -112,8 +112,14 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("latest_successful_current_public_run", text)
         self.assertIn('run.get("head_sha"', text)
         self.assertIn("main_sha", text)
+        self.assertIn("private_run_for_public", text)
+        self.assertIn("dispatch_private_with_visibility", text)
+        self.assertIn("ORIGINAL_PRIVATE_DISPATCH", text)
+        self.assertIn("time.sleep(5)", text)
+        self.assertIn("private workflow run is not visible after 30 seconds", text)
         self.assertIn("v2.target_gate = target_gate_r2", text)
         self.assertIn("v2.base.latest_successful_public_run = latest_successful_current_public_run", text)
+        self.assertIn("v2.base.dispatch_private_if_ready = dispatch_private_with_visibility", text)
 
     def test_r2_bootstrap_has_exact_fifteen_file_allowlist_and_noop_path(self) -> None:
         source = BOOTSTRAP_R2.read_text(encoding="utf-8")
