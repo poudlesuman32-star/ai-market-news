@@ -59,7 +59,7 @@ def api(method: str, path: str, *, token: str, payload: dict[str, Any] | None = 
 
 
 def clean_text(value: Any, *, token: str) -> str:
-    text = str(value or "")[:MAX_ITEM_LENGTH]
+    text = ("" if value is None else str(value))[:MAX_ITEM_LENGTH]
     for marker in (token, "ghp_", "github_pat_", "ghs_", "Bearer "):
         if marker:
             text = text.replace(marker, "[REDACTED]")
@@ -126,6 +126,8 @@ def render(report: dict[str, Any], *, token: str) -> str:
                 f"- Actions discounted minutes: `{clean_text(usage.get('discount_minutes'), token=token)}`",
                 f"- Actions net minutes: `{clean_text(usage.get('net_minutes'), token=token)}`",
             ])
+        if diagnostics.get("capacity_interpretation") is not None:
+            lines.append(f"- Capacity interpretation: `{clean_text(diagnostics.get('capacity_interpretation'), token=token)}`")
         if diagnostics.get("legacy_actions_billing_probe"):
             lines.append(f"- Legacy billing probe: `{clean_text(diagnostics.get('legacy_actions_billing_probe'), token=token)}`")
         if diagnostics.get("actions_usage_summary_probe"):
