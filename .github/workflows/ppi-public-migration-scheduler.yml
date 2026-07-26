@@ -10,6 +10,7 @@ on:
       - scripts/ppi_migration_autopilot.py
       - scripts/ppi_migration_autopilot_v2.py
       - scripts/ppi_migration_autopilot_v3.py
+      - scripts/ppi_migration_autopilot_v4.py
       - scripts/enrich_ppi_private_queue_diagnostics.py
       - scripts/prepare_ppi_target_update_branch.py
       - scripts/publish_ppi_autopilot_status.py
@@ -55,6 +56,7 @@ jobs:
             scripts/ppi_migration_autopilot.py \
             scripts/ppi_migration_autopilot_v2.py \
             scripts/ppi_migration_autopilot_v3.py \
+            scripts/ppi_migration_autopilot_v4.py \
             scripts/enrich_ppi_private_queue_diagnostics.py \
             scripts/prepare_ppi_target_update_branch.py \
             scripts/publish_ppi_autopilot_status.py
@@ -68,7 +70,7 @@ jobs:
       - name: Reconcile the next safe migration action
         run: |
           set -euo pipefail
-          python scripts/ppi_migration_autopilot_v3.py \
+          python scripts/ppi_migration_autopilot_v4.py \
             --output-root "$OUTPUT_ROOT"
 
       - name: Build fail-safe status when reconciliation stopped early
