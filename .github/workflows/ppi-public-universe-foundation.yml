@@ -1,0 +1,62 @@
+name: PPI public universe foundation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ppi-public-universe-foundation.yml
+      - config/ppi_public_source_inventory.json
+      - contracts/PPI-UNIVERSE-US-COMMON-001-R1.json
+      - schemas/ppi_public_universe_foundation.schema.json
+      - scripts/validate_ppi_public_universe_foundation.py
+      - tests/test_ppi_public_universe_foundation.py
+      - bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json
+      - bootstrap/ppi-data-acquisition/contracts/PPI-PUBLIC-COLLECTOR-003-R2.json
+      - bootstrap/ppi-data-acquisition/config/r11_batch_003.json
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-public-universe-foundation
+  cancel-in-progress: true
+
+jobs:
+  validate-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out approved main branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate code and boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/validate_ppi_public_universe_foundation.py
+          python -m unittest tests.test_ppi_public_universe_foundation -v
+
+      - name: Build public universe foundation readiness
+        run: |
+          set -euo pipefail
+          python scripts/validate_ppi_public_universe_foundation.py \
+            --output-root runtime/ppi-public-universe-foundation
+
+      - name: Publish readiness summary
+        run: |
+          set -euo pipefail
+          cat runtime/ppi-public-universe-foundation/readiness.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain safe readiness artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ppi-public-universe-foundation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: runtime/ppi-public-universe-foundation/
+          retention-days: 14
+          if-no-files-found: error
