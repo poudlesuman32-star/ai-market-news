@@ -43,6 +43,7 @@ jobs:
           python -m py_compile scripts/bootstrap_ppi_data_acquisition.py
           python -m py_compile \
             bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py \
+            bootstrap/ppi-data-acquisition/src/fetch_yfinance_expectations.py \
             bootstrap/ppi-data-acquisition/src/publish_private_handoff.py
           python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
 
@@ -57,6 +58,8 @@ jobs:
           source_workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
           target_workflow = Path('bootstrap/ppi-data-acquisition/.github/workflows/collect-r11-public-evidence.yml').read_text(encoding='utf-8')
           script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
+          helper = Path('bootstrap/ppi-data-acquisition/src/fetch_yfinance_expectations.py').read_text(encoding='utf-8')
+          collector_source = Path('bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py').read_text(encoding='utf-8')
           legacy = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
           acquisition = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json').read_text(encoding='utf-8'))
           collector = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-PUBLIC-COLLECTOR-003-R1.json').read_text(encoding='utf-8'))
@@ -72,31 +75,40 @@ jobs:
           assert old_secret_reference not in source_workflow
           assert 'spoudel2010-ux/ppi-data-acquisition' in script
           assert 'BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"' in script
+          assert 'src/fetch_yfinance_expectations.py' in script
           assert '\n  workflow_dispatch:\n' in target_workflow
           assert '\n  schedule:\n' not in target_workflow
           assert '\n  repository_dispatch:\n' not in target_workflow
           assert 'PRIVATE_RELEASE_HANDOFF_ENABLED: true' in target_workflow
+          assert "'yfinance==1.5.1'" in target_workflow
           assert 'ppi-r11-public-success-' in target_workflow
           assert 'ppi-r11-public-failure-' in target_workflow
           assert 'actions/checkout@v' not in target_workflow
           assert 'actions/upload-artifact@v' not in target_workflow
+          assert 'EXPECTED_YFINANCE_VERSION = "1.5.1"' in helper
+          assert '"function": "EARNINGS_ESTIMATES"' not in collector_source
+          assert collector_source.count('"function": "NEWS_SENTIMENT"') == 1
           assert scope['contract_id'] == 'PPI-R11-PUBLIC-ACQUISITION-003-R1'
           assert scope['private_contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
           assert scope['collector_release_id'] == 'PPI-PUBLIC-COLLECTOR-003-R1'
           assert scope['expected_bundle_count'] == 48
           assert scope['expected_path_count'] == 50
           assert scope['expected_provider_request_count'] == 49
+          assert scope['expected_alpha_vantage_request_count'] == 12
           assert scope['authorized_actions'] == []
           assert legacy['status'] == 'superseded_before_target_collection'
           assert legacy['superseded_by'] == acquisition['contract_id']
           assert acquisition['status'] == 'frozen'
+          assert acquisition['alpha_vantage_batch_request_count'] == 12
           assert acquisition['private_dispatch_authorized'] is False
           assert acquisition['registry_mutation_authorized'] is False
           assert acquisition['authorized_actions'] == []
           assert collector['status'] == 'frozen'
+          assert collector['alpha_vantage_batch_request_count'] == 12
           assert collector['expected_path_count'] == 50
           assert collector['public_raw_artifact_uploaded'] is False
           assert licensing['public_raw_artifact_policy'] == 'public_storage_prohibited'
+          assert licensing['dispositions'][0]['provider'] == 'yahoo_finance_via_yfinance'
           assert all(item['disposition'] == 'private_repository_handoff' for item in licensing['dispositions'])
           PY
 
