@@ -23,6 +23,9 @@ class PublicBoundaryTests(unittest.TestCase):
             scope["categories"],
             ["expectation_history", "independent_recognition", "market_time_series", "specialized_contract_data"],
         )
+        self.assertEqual(scope["expectation_provider"], "yahoo_finance_via_yfinance")
+        self.assertEqual(scope["pinned_yfinance_version"], "1.5.1")
+        self.assertEqual(scope["expected_alpha_vantage_request_count"], 12)
         self.assertEqual(scope["expected_bundle_count"], 48)
         self.assertEqual(scope["expected_path_count"], 50)
         self.assertEqual(scope["expected_provider_request_count"], 49)
@@ -42,6 +45,8 @@ class PublicBoundaryTests(unittest.TestCase):
         self.assertIn("ppi-r11-public-success-", text)
         self.assertIn("ppi-r11-public-failure-", text)
         self.assertIn("persist-credentials: false", text)
+        self.assertIn("'yfinance==1.5.1'", text)
+        self.assertIn("src/fetch_yfinance_expectations.py", text)
         self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", text)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", text)
         self.assertNotIn("actions/checkout@v", text)
@@ -57,8 +62,9 @@ class PublicBoundaryTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_collector_contains_no_private_calculation(self) -> None:
-        text = (ROOT / "src/collect_raw_provider_evidence.py").read_text(encoding="utf-8").lower()
+    def test_collector_keeps_calculation_private_and_limits_alpha_calls(self) -> None:
+        text = (ROOT / "src/collect_raw_provider_evidence.py").read_text(encoding="utf-8")
+        lowered = text.lower()
         for forbidden in (
             "relative_strength",
             "sma_50",
@@ -67,9 +73,21 @@ class PublicBoundaryTests(unittest.TestCase):
             "countability",
             "registry append",
             "place_order",
-            "yfinance",
         ):
-            self.assertNotIn(forbidden, text)
+            self.assertNotIn(forbidden, lowered)
+        self.assertIn('"provider": "yahoo_finance_via_yfinance"', text)
+        self.assertIn('"function": "NEWS_SENTIMENT"', text)
+        self.assertNotIn('"function": "EARNINGS_ESTIMATES"', text)
+        self.assertIn("ALPHA_MIN_INTERVAL_SECONDS = 12.5", text)
+        self.assertIn('"alpha_vantage_request_count": 12', text)
+
+    def test_public_yahoo_helper_is_bounded_and_pinned(self) -> None:
+        text = (ROOT / "src/fetch_yfinance_expectations.py").read_text(encoding="utf-8")
+        self.assertIn('EXPECTED_YFINANCE_VERSION = "1.5.1"', text)
+        self.assertEqual(text.count("SUPPORTED_ENTITIES"), 2)
+        self.assertIn("get_eps_trend", text)
+        self.assertIn("get_eps_revisions", text)
+        self.assertIn("get_earnings_estimate", text)
 
     def test_private_handoff_does_not_dispatch_or_mutate_registry(self) -> None:
         text = (ROOT / "src/publish_private_handoff.py").read_text(encoding="utf-8")
@@ -83,6 +101,8 @@ class PublicBoundaryTests(unittest.TestCase):
         value = json.loads((ROOT / "config/provider_licensing_dispositions.json").read_text(encoding="utf-8"))
         self.assertEqual(value["public_raw_artifact_policy"], "public_storage_prohibited")
         self.assertTrue(value["dispositions"])
+        self.assertEqual(value["dispositions"][0]["provider"], "yahoo_finance_via_yfinance")
+        self.assertEqual(value["dispositions"][1]["maximum_batch_requests"], 12)
         for item in value["dispositions"]:
             self.assertEqual(item["disposition"], "private_repository_handoff")
             self.assertEqual(item["public_retention"], "hash_and_metadata_only")
@@ -94,6 +114,8 @@ class PublicBoundaryTests(unittest.TestCase):
         self.assertEqual(collector["status"], "frozen")
         self.assertEqual(acquisition["private_contract_id"], "PPI-R11-BATCH-EVIDENCE-003-R1")
         self.assertEqual(acquisition["collector_release_id"], collector["contract_id"])
+        self.assertEqual(acquisition["category_providers"]["expectation_history"], "yahoo_finance_via_yfinance:1.5.1")
+        self.assertEqual(collector["alpha_vantage_batch_request_count"], 12)
         self.assertEqual(acquisition["exact_success_package"]["path_count"], 50)
         self.assertFalse(acquisition["private_dispatch_authorized"])
         self.assertEqual(acquisition["authorized_actions"], [])
