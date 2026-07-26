@@ -198,6 +198,7 @@ def target_files() -> dict[str, str]:
         "contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json",
         "contracts/PPI-PUBLIC-COLLECTOR-003-R1.json",
         "src/collect_raw_provider_evidence.py",
+        "src/fetch_yfinance_expectations.py",
         "src/publish_private_handoff.py",
         "tests/test_public_boundary.py",
     }
