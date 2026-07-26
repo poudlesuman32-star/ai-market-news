@@ -9,6 +9,9 @@ CONFIG = ROOT / "config/ppi_public_migration_schedule.json"
 WORKFLOW = ROOT / ".github/workflows/ppi-public-migration-scheduler.yml"
 AUTOPILOT = ROOT / "scripts/ppi_migration_autopilot.py"
 AUTOPILOT_V2 = ROOT / "scripts/ppi_migration_autopilot_v2.py"
+AUTOPILOT_V3 = ROOT / "scripts/ppi_migration_autopilot_v3.py"
+BOOTSTRAP_R2 = ROOT / "scripts/bootstrap_ppi_data_acquisition_r2.py"
+PREPARE = ROOT / "scripts/prepare_ppi_target_update_branch.py"
 STATUS_PUBLISHER = ROOT / "scripts/publish_ppi_autopilot_status.py"
 
 
@@ -45,14 +48,17 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         ):
             self.assertFalse(authority[key], key)
 
-    def test_workflow_uses_approved_secret_bindings_and_sha_pinned_actions(self) -> None:
+    def test_workflow_runs_r2_controller_and_sha_pinned_actions(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '23 * * * *'", text)
         self.assertIn("permissions:\n  contents: read", text)
         self.assertIn("secrets.RAW_TOKEN", text)
         self.assertIn("secrets.PPI_ALPHA_VANTAGE_API_KEY", text)
         self.assertIn("secrets.PPI_MARKETDATA_TOKEN", text)
-        self.assertIn("scripts/ppi_migration_autopilot_v2.py", text)
+        self.assertIn("scripts/bootstrap_ppi_data_acquisition_r2.py", text)
+        self.assertIn("scripts/ppi_migration_autopilot_v3.py", text)
+        self.assertIn("scripts/prepare_ppi_target_update_branch.py", text)
+        self.assertIn("Prepare exact post-squash target update branch", text)
         self.assertIn("scripts/publish_ppi_autopilot_status.py", text)
         self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", text)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", text)
@@ -68,33 +74,64 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_autopilot_is_exact_repo_fail_closed_and_deduplicated(self) -> None:
+    def test_base_autopilot_keeps_dangerous_authority_disabled(self) -> None:
         text = AUTOPILOT.read_text(encoding="utf-8")
         self.assertIn('TARGET_REPOSITORY = "spoudel2010-ux/ppi-data-acquisition"', text)
         self.assertIn("TARGET_REPOSITORY_ID = 1312286476", text)
         self.assertIn('PRIVATE_REPOSITORY = "musksuman3/ai-signal-engine"', text)
         self.assertIn("PRIVATE_REPOSITORY_ID = 1290626648", text)
         self.assertIn('sync_secret(TARGET_REPOSITORY, "PPI_PRIVATE_HANDOFF_TOKEN"', text)
-        self.assertIn("daily public collection retry ceiling reached", text)
-        self.assertIn("target_pr_merge_after_machine_gates", text)
         self.assertIn('"registry_mutation": False', text)
         self.assertIn('"production": False', text)
         self.assertIn('"trading": False', text)
         self.assertIn('"r12": False', text)
         self.assertNotIn("--admin", text)
 
-    def test_v2_probes_secret_names_without_reading_values(self) -> None:
+    def test_v2_discovers_current_target_pr_and_limits_retry_per_revision(self) -> None:
         text = AUTOPILOT_V2.read_text(encoding="utf-8")
         self.assertIn('"gh", "secret", "list"', text)
         self.assertIn('"--json", "name"', text)
         self.assertNotIn('"gh", "secret", "get"', text)
-        self.assertNotIn("gh secret get", text)
-        self.assertIn("collector will fail fast", text)
-        self.assertIn("latest public collection run", text.lower())
+        self.assertIn("current_target_pr", text)
+        self.assertIn("multiple open acquisition update pull requests exist", text)
+        self.assertIn("same_revision", text)
+        self.assertIn("current acquisition revision already failed in the past 24 hours", text)
+        self.assertIn("src/fetch_yfinance_expectations.py", text)
+        self.assertIn("PPI-R11-PUBLIC-ACQUISITION-003-R2", text)
         self.assertIn('"registry_mutation": False', text)
         self.assertIn('"production": False', text)
         self.assertIn('"trading": False', text)
         self.assertIn('"r12": False', text)
+
+    def test_v3_uses_r2_bootstrap_and_current_sha_success_only(self) -> None:
+        text = AUTOPILOT_V3.read_text(encoding="utf-8")
+        self.assertIn("bootstrap_ppi_data_acquisition_r2.py", text)
+        self.assertIn("latest_successful_current_public_run", text)
+        self.assertIn('run.get("head_sha"', text)
+        self.assertIn("main_sha", text)
+        self.assertIn("v2.base.latest_successful_public_run = latest_successful_current_public_run", text)
+
+    def test_r2_bootstrap_has_exact_fifteen_file_allowlist(self) -> None:
+        text = BOOTSTRAP_R2.read_text(encoding="utf-8")
+        self.assertIn("REQUIRED_R2_PATHS", text)
+        self.assertIn('"contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json"', text)
+        self.assertIn('"contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json"', text)
+        self.assertIn('"contracts/PPI-PUBLIC-COLLECTOR-003-R1.json"', text)
+        self.assertIn('"contracts/PPI-PUBLIC-COLLECTOR-003-R2.json"', text)
+        self.assertIn('"src/collect_raw_provider_evidence_r2.py"', text)
+        self.assertIn('"src/fetch_yfinance_expectations.py"', text)
+        self.assertEqual(text.count("    \"") - text.count('f\"'), 15)
+
+    def test_stale_target_branch_cleaner_is_exact_and_fail_closed(self) -> None:
+        text = PREPARE.read_text(encoding="utf-8")
+        self.assertIn("TARGET_REPOSITORY_ID = 1312286476", text)
+        self.assertIn("multiple open target update pull requests exist", text)
+        self.assertIn('"src/collect_raw_provider_evidence_r2.py"', text)
+        self.assertIn('"src/fetch_yfinance_expectations.py"', text)
+        self.assertIn('"contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json"', text)
+        self.assertIn('"contracts/PPI-PUBLIC-COLLECTOR-003-R2.json"', text)
+        self.assertIn('payload={"sha": main_sha, "force": True}', text)
+        self.assertIn("open_target_update_has_content_changes", text)
 
     def test_status_issue_is_sanitized_and_dangerous_authority_fails_closed(self) -> None:
         text = STATUS_PUBLISHER.read_text(encoding="utf-8")
