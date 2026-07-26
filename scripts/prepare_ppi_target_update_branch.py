@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import base64
 import json
 import os
 from typing import Any
@@ -24,6 +23,7 @@ EXPECTED_PATHS = (
     "contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json",
     "contracts/PPI-PUBLIC-COLLECTOR-003-R1.json",
     "src/collect_raw_provider_evidence.py",
+    "src/fetch_yfinance_expectations.py",
     "src/publish_private_handoff.py",
     "tests/test_public_boundary.py",
 )
