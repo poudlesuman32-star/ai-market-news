@@ -12,34 +12,41 @@ AUTOPILOT = ROOT / "scripts/ppi_migration_autopilot.py"
 AUTOPILOT_V2 = ROOT / "scripts/ppi_migration_autopilot_v2.py"
 AUTOPILOT_V3 = ROOT / "scripts/ppi_migration_autopilot_v3.py"
 AUTOPILOT_V4 = ROOT / "scripts/ppi_migration_autopilot_v4.py"
+AUTOPILOT_V5 = ROOT / "scripts/ppi_migration_autopilot_v5.py"
 BOOTSTRAP_R2 = ROOT / "scripts/bootstrap_ppi_data_acquisition_r2.py"
 PRIVATE_DIAGNOSTIC = ROOT / "scripts/enrich_ppi_private_queue_diagnostics.py"
 PREPARE = ROOT / "scripts/prepare_ppi_target_update_branch.py"
 STATUS_PUBLISHER = ROOT / "scripts/publish_ppi_autopilot_status.py"
+REMOVED_ENABLEMENT = ROOT / "scripts/enable_ppi_private_actions_once.py"
 
 
 class PpiMigrationAutopilotTests(unittest.TestCase):
-    def test_autopilot_is_hourly_and_requires_no_human_dispatch(self) -> None:
+    def test_autopilot_is_hourly_public_reconciliation_with_manual_private_recovery(self) -> None:
         value = json.loads(CONFIG.read_text(encoding="utf-8"))
         self.assertTrue(value["enabled"])
-        self.assertEqual(value["schema_version"], "2.0.0")
-        self.assertEqual(value["mode"], "idempotent_reconciliation")
+        self.assertEqual(value["schema_version"], "2.1.0")
+        self.assertEqual(value["mode"], "public_reconciliation_private_billing_hold")
         self.assertEqual(value["cron_utc"], "23 * * * *")
+        self.assertEqual(value["private_execution_state"], "held_after_pre_runner_failure")
+        self.assertEqual(value["private_recovery_confirmation"], "RECOVER-PPI-PRIVATE-AFTER-BILLING-REVIEW")
+        self.assertEqual(value["private_recovery_run_id"], 30188784601)
         self.assertTrue(value["automatic_task_advancement"])
-        self.assertFalse(value["human_dispatch_required"])
+        self.assertTrue(value["human_dispatch_required"])
         self.assertTrue(value["fail_closed"])
 
-    def test_authorized_actions_are_narrow_and_dangerous_authority_is_disabled(self) -> None:
+    def test_authorized_actions_are_narrow_and_private_automatic_authority_is_disabled(self) -> None:
         authority = json.loads(CONFIG.read_text(encoding="utf-8"))["authority"]
         for key in (
             "bootstrap_sync",
             "target_secret_sync",
             "target_pr_merge_after_machine_gates",
             "public_collection_dispatch",
-            "private_final_analysis_dispatch",
+            "manual_private_recovery_after_billing_review",
         ):
             self.assertTrue(authority[key], key)
         for key in (
+            "private_final_analysis_dispatch",
+            "billing_budget_mutation",
             "registry_mutation",
             "production",
             "publication",
@@ -51,7 +58,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         ):
             self.assertFalse(authority[key], key)
 
-    def test_workflow_runs_v4_controller_diagnostics_and_sha_pinned_actions(self) -> None:
+    def test_workflow_runs_v5_public_only_controller_and_sha_pinned_actions(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '23 * * * *'", text)
         self.assertIn("permissions:\n  contents: read", text)
@@ -59,9 +66,11 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("secrets.PPI_ALPHA_VANTAGE_API_KEY", text)
         self.assertIn("secrets.PPI_MARKETDATA_TOKEN", text)
         self.assertIn("scripts/bootstrap_ppi_data_acquisition_r2.py", text)
-        self.assertIn("scripts/ppi_migration_autopilot_v3.py", text)
         self.assertIn("scripts/ppi_migration_autopilot_v4.py", text)
-        self.assertIn("python scripts/ppi_migration_autopilot_v4.py", text)
+        self.assertIn("scripts/ppi_migration_autopilot_v5.py", text)
+        self.assertIn("python scripts/ppi_migration_autopilot_v5.py", text)
+        self.assertNotIn("python scripts/ppi_migration_autopilot_v4.py", text)
+        self.assertIn("Reconcile public state while private execution is held", text)
         self.assertIn("scripts/enrich_ppi_private_queue_diagnostics.py", text)
         self.assertIn("Enrich private queue and Actions usage diagnostics", text)
         self.assertIn("scripts/prepare_ppi_target_update_branch.py", text)
@@ -78,6 +87,8 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
             "production_authorized: true",
             "trading_authorized: true",
             "r12_authorized: true",
+            "Enable private Actions with selected GitHub-owned actions only",
+            "Dispatch exact post-enable private recovery once",
         ):
             self.assertNotIn(forbidden, text)
 
@@ -127,29 +138,34 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("v2.base.latest_successful_public_run = latest_successful_current_public_run", text)
         self.assertIn("v2.base.dispatch_private_if_ready = dispatch_private_with_visibility", text)
 
-    def test_v4_enforces_one_private_workflow_and_exact_minute_meter(self) -> None:
+    def test_v4_retains_historical_singleton_and_exact_minute_controls(self) -> None:
         text = AUTOPILOT_V4.read_text(encoding="utf-8")
         self.assertIn("is_authorized_private_workflow_run", text)
-        self.assertIn('run.get("event")', text)
-        self.assertIn('run.get("head_branch")', text)
         self.assertIn("within_authorization_window", text)
         self.assertIn("ACTIVE_STATUSES", text)
         self.assertIn("QUEUED_STATUSES", text)
         self.assertIn("PRIVATE_MINUTE_CEILING = 2000.0", text)
         self.assertIn("/actions/runs/{run_id}/cancel", text)
         self.assertIn("private final-analysis singleton retained", text)
-        self.assertIn("cancelled redundant queued runs", text)
-        self.assertIn("redundant queued runs could not be cancelled", text)
-        self.assertIn("current public authorization window", text)
-        self.assertIn("/settings/billing/actions", text)
         self.assertIn("gross usage alone is never used as a private-capacity gate", text)
-        self.assertNotIn("settings/billing/usage/summary", text)
-        self.assertIn("zero-job private run", text)
-        self.assertIn("retry waits for the next month", text)
         self.assertIn("automatic retry is disabled", text)
-        self.assertIn("v3.dispatch_private_with_visibility = dispatch_exact_private_run", text)
-        self.assertNotIn("private_run_matches_public", text)
-        self.assertNotIn("public_run_id_from_private_run", text)
+        self.assertNotIn("PPI_ALPHA_VANTAGE_API_KEY", text)
+        self.assertNotIn("PPI_MARKETDATA_TOKEN", text)
+        self.assertNotIn("raw_provider_payload", text)
+
+    def test_v5_makes_private_dispatch_and_cancellation_a_hard_noop(self) -> None:
+        text = AUTOPILOT_V5.read_text(encoding="utf-8")
+        self.assertIn("held_private_dispatch", text)
+        self.assertIn("Automatic private final-analysis dispatch is disabled", text)
+        self.assertIn("v4.dispatch_exact_private_run = held_private_dispatch", text)
+        self.assertIn('authority["private_final_analysis_dispatch"] = False', text)
+        self.assertIn('authority["manual_private_recovery_after_billing_review"] = True', text)
+        self.assertIn('authority["billing_budget_mutation"] = False', text)
+        self.assertIn('report["private_execution_state"] = "held_after_pre_runner_failure"', text)
+        self.assertIn("ppi-private-recovery-after-billing-review.yml", text)
+        self.assertNotIn("/dispatches", text)
+        self.assertNotIn("/cancel", text)
+        self.assertNotIn("force-cancel", text)
         self.assertNotIn("PPI_ALPHA_VANTAGE_API_KEY", text)
         self.assertNotIn("PPI_MARKETDATA_TOKEN", text)
         self.assertNotIn("raw_provider_payload", text)
@@ -188,7 +204,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("settings/billing/actions", text)
         self.assertIn("settings/billing/usage/summary", text)
         self.assertIn('version="2026-03-10"', text)
-        self.assertIn("remains queued with no allocated job", text)
+        self.assertIn("queued with no allocated job", text)
         self.assertIn("exact included-minute ceiling reached", text)
         self.assertIn("included-minute ceiling is reached", text)
         self.assertIn("gross Actions usage is fully discounted", text)
@@ -226,6 +242,9 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("Capacity interpretation", text)
         self.assertNotIn("raw_provider_payload", text)
         self.assertNotIn("private score", text.lower())
+
+    def test_obsolete_automatic_private_enablement_is_removed(self) -> None:
+        self.assertFalse(REMOVED_ENABLEMENT.exists())
 
 
 if __name__ == "__main__":

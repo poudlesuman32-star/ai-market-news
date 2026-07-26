@@ -12,6 +12,7 @@ on:
       - scripts/ppi_migration_autopilot_v2.py
       - scripts/ppi_migration_autopilot_v3.py
       - scripts/ppi_migration_autopilot_v4.py
+      - scripts/ppi_migration_autopilot_v5.py
       - scripts/disable_ppi_private_actions_after_startup_failure.py
       - scripts/rerun_ppi_private_after_billing_review.py
       - scripts/diagnose_ppi_private_startup_failure.py
@@ -62,6 +63,7 @@ jobs:
             scripts/ppi_migration_autopilot_v2.py \
             scripts/ppi_migration_autopilot_v3.py \
             scripts/ppi_migration_autopilot_v4.py \
+            scripts/ppi_migration_autopilot_v5.py \
             scripts/disable_ppi_private_actions_after_startup_failure.py \
             scripts/rerun_ppi_private_after_billing_review.py \
             scripts/diagnose_ppi_private_startup_failure.py \
@@ -83,10 +85,10 @@ jobs:
           set -euo pipefail
           python scripts/prepare_ppi_target_update_branch.py
 
-      - name: Reconcile the next safe migration action
+      - name: Reconcile public state while private execution is held
         run: |
           set -euo pipefail
-          python scripts/ppi_migration_autopilot_v4.py \
+          python scripts/ppi_migration_autopilot_v5.py \
             --output-root "$OUTPUT_ROOT"
 
       - name: Build fail-safe status when reconciliation stopped early
@@ -123,6 +125,8 @@ jobs:
                   "target_pr_merge_after_machine_gates": False,
                   "public_collection_dispatch": False,
                   "private_final_analysis_dispatch": False,
+                  "manual_private_recovery_after_billing_review": True,
+                  "billing_budget_mutation": False,
                   "registry_mutation": False,
                   "production": False,
                   "publication": False,
