@@ -1,0 +1,63 @@
+name: PPI private recovery after billing review
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RECOVER-PPI-PRIVATE-AFTER-BILLING-REVIEW after reviewing GitHub Actions billing and budgets
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-private-recovery-after-billing-review
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'RECOVER-PPI-PRIVATE-AFTER-BILLING-REVIEW'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      RAW_TOKEN: ${{ secrets.RAW_TOKEN }}
+      RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Check out approved public control code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate exact recovery boundary
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/rerun_ppi_private_after_billing_review.py \
+            scripts/diagnose_ppi_private_startup_failure.py
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/rerun_ppi_private_after_billing_review.py').read_text(encoding='utf-8')
+          required = (
+              'RECOVER-PPI-PRIVATE-AFTER-BILLING-REVIEW',
+              'RECOVERY_RUN_ID = 30188784601',
+              'EXPECTED_PRIVATE_HEAD_SHA = "49cbb0ce6aaa9bdb2e63dc54ac443a2b5cf6b312"',
+              '/rerun-failed-jobs',
+              'automatic rerun is forbidden',
+              'github_owned_allowed": True',
+              'verified_allowed": False',
+              'patterns_allowed": []',
+          )
+          for marker in required:
+              if marker not in text:
+                  raise SystemExit(f'missing recovery marker: {marker}')
+          for forbidden in ('PPI_ALPHA_VANTAGE_API_KEY', 'PPI_MARKETDATA_TOKEN', 'raw_provider_payload'):
+              if forbidden in text:
+                  raise SystemExit(f'forbidden recovery marker: {forbidden}')
+          PY
+
+      - name: Rerun exact pre-runner failure after billing review
+        run: |
+          set -euo pipefail
+          python scripts/rerun_ppi_private_after_billing_review.py
