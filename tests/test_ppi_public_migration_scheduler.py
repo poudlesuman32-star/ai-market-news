@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config/ppi_public_migration_schedule.json"
 WORKFLOW = ROOT / ".github/workflows/ppi-public-migration-scheduler.yml"
 AUTOPILOT = ROOT / "scripts/ppi_migration_autopilot.py"
+AUTOPILOT_V2 = ROOT / "scripts/ppi_migration_autopilot_v2.py"
+STATUS_PUBLISHER = ROOT / "scripts/publish_ppi_autopilot_status.py"
 
 
 class PpiMigrationAutopilotTests(unittest.TestCase):
@@ -50,6 +52,8 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("secrets.RAW_TOKEN", text)
         self.assertIn("secrets.PPI_ALPHA_VANTAGE_API_KEY", text)
         self.assertIn("secrets.PPI_MARKETDATA_TOKEN", text)
+        self.assertIn("scripts/ppi_migration_autopilot_v2.py", text)
+        self.assertIn("scripts/publish_ppi_autopilot_status.py", text)
         self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", text)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", text)
         self.assertIn("persist-credentials: false", text)
@@ -78,6 +82,31 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('"trading": False', text)
         self.assertIn('"r12": False', text)
         self.assertNotIn("--admin", text)
+
+    def test_v2_probes_secret_names_without_reading_values(self) -> None:
+        text = AUTOPILOT_V2.read_text(encoding="utf-8")
+        self.assertIn('"gh", "secret", "list"', text)
+        self.assertIn('"--json", "name"', text)
+        self.assertNotIn('"gh", "secret", "get"', text)
+        self.assertNotIn("gh secret get", text)
+        self.assertIn("collector will fail fast", text)
+        self.assertIn("latest public collection run", text.lower())
+        self.assertIn('"registry_mutation": False', text)
+        self.assertIn('"production": False', text)
+        self.assertIn('"trading": False', text)
+        self.assertIn('"r12": False', text)
+
+    def test_status_issue_is_sanitized_and_dangerous_authority_fails_closed(self) -> None:
+        text = STATUS_PUBLISHER.read_text(encoding="utf-8")
+        self.assertIn('SOURCE_REPOSITORY = "poudlesuman32-star/ai-market-news"', text)
+        self.assertIn("SOURCE_REPOSITORY_ID = 1290414659", text)
+        self.assertIn("STATUS_ISSUE = 83", text)
+        self.assertIn('"ghp_"', text)
+        self.assertIn('"github_pat_"', text)
+        self.assertIn('"Bearer "', text)
+        self.assertIn("dangerous authority unexpectedly enabled", text)
+        self.assertNotIn("raw_provider_payload", text)
+        self.assertNotIn("private score", text.lower())
 
 
 if __name__ == "__main__":
