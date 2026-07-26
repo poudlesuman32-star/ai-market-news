@@ -35,6 +35,16 @@ def public_run_id_from_private_run(run: dict[str, Any]) -> str | None:
     return fallback.group(1) if fallback else None
 
 
+def private_run_matches_public(run: dict[str, Any], public_run_id: str) -> bool:
+    if not public_run_id.isdigit():
+        return False
+    if str(run.get("event") or "") != "workflow_dispatch":
+        return False
+    if str(run.get("head_branch") or "") != "main":
+        return False
+    return public_run_id in json.dumps(run, sort_keys=True, separators=(",", ":"))
+
+
 def jobs_for_run(token: str, run_id: int) -> list[dict[str, Any]] | None:
     status, value = v3.v2.base.api(
         "GET",
@@ -100,16 +110,16 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
     )
 
     runs = v3.v2.base.list_workflow_runs(v3.v2.base.PRIVATE_REPOSITORY, v3.v2.base.PRIVATE_WORKFLOW, token)
-    matching = [run for run in runs if public_run_id_from_private_run(run) == public_run_id]
+    matching = [run for run in runs if private_run_matches_public(run, public_run_id)]
     unknown_active = [
         run
         for run in runs
         if str(run.get("status") or "") in ACTIVE_STATUSES
-        and public_run_id_from_private_run(run) is None
+        and not private_run_matches_public(run, public_run_id)
     ]
     if unknown_active:
         ids = [str(run.get("id")) for run in unknown_active]
-        return False, f"private dispatch blocked by active workflow runs with unrecognized titles: {', '.join(ids)}"
+        return False, f"private dispatch blocked by active workflow runs for a different or unresolved public identity: {', '.join(ids)}"
 
     active = [run for run in matching if str(run.get("status") or "") in ACTIVE_STATUSES]
     if active:
@@ -199,7 +209,7 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
     )
     for attempt in range(7):
         visible_runs = v3.v2.base.list_workflow_runs(v3.v2.base.PRIVATE_REPOSITORY, v3.v2.base.PRIVATE_WORKFLOW, token)
-        visible = next((run for run in visible_runs if public_run_id_from_private_run(run) == public_run_id), None)
+        visible = next((run for run in visible_runs if private_run_matches_public(run, public_run_id)), None)
         if visible is not None:
             suffix = "" if used is not None else f"; {usage_detail}"
             return True, (
