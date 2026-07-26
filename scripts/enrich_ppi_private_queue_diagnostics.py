@@ -93,10 +93,10 @@ def main() -> int:
         require(authority.get(key) is False, f"dangerous authority unexpectedly enabled: {key}")
 
     diagnostics: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "private_repository": PRIVATE_REPOSITORY,
         "private_repository_id": PRIVATE_REPOSITORY_ID,
-        "expected_included_private_minutes": EXPECTED_INCLUDED_PRIVATE_MINUTES,
+        "configured_private_minute_ceiling": EXPECTED_INCLUDED_PRIVATE_MINUTES,
     }
     blocked = report.get("blocked_reasons")
     if not isinstance(blocked, list):
@@ -135,7 +135,10 @@ def main() -> int:
                 queue_minutes = max(0.0, (datetime.now(timezone.utc) - created).total_seconds() / 60.0)
                 diagnostics["queue_age_minutes"] = round(queue_minutes, 2)
             if private_run.get("status") in {"queued", "pending", "waiting"} and not job_items and (queue_minutes or 0) >= 5:
-                unique_append(blocked, f"Private workflow run {run_id} remains queued with no allocated job after {round(queue_minutes or 0, 1)} minutes.")
+                unique_append(
+                    blocked,
+                    f"Private workflow run {run_id} remains queued with no allocated job after {round(queue_minutes or 0, 1)} minutes.",
+                )
         else:
             diagnostics["jobs_probe"] = {"status": status, "available": False}
 
@@ -146,13 +149,23 @@ def main() -> int:
         if old_status == 200 and isinstance(old_value, dict):
             used = minute_value(old_value.get("total_minutes_used"))
             included = minute_value(old_value.get("included_minutes"))
+            effective_ceiling = min(included, float(EXPECTED_INCLUDED_PRIVATE_MINUTES)) if included > 0 else None
             diagnostics["actions_minutes"] = {
                 "total_minutes_used": used,
                 "included_minutes": included,
-                "remaining_included_minutes": max(0.0, included - used) if included > 0 else None,
+                "effective_ceiling": effective_ceiling,
+                "remaining_included_minutes": max(0.0, effective_ceiling - used) if effective_ceiling is not None else None,
             }
-            if included > 0 and used >= included:
-                unique_append(blocked, f"Private Actions included minutes are exhausted: {used:g} used of {included:g} included minutes.")
+            if effective_ceiling is not None and used >= effective_ceiling:
+                diagnostics["capacity_interpretation"] = "exact included-minute ceiling reached"
+                unique_append(
+                    blocked,
+                    f"Private Actions included-minute ceiling is reached: {used:g} used of {effective_ceiling:g} allowed minutes.",
+                )
+            elif effective_ceiling is not None:
+                diagnostics["capacity_interpretation"] = "exact included-minute capacity remains"
+            else:
+                diagnostics["capacity_interpretation"] = "legacy billing response did not expose an included-minute ceiling"
         elif old_status in {403, 404}:
             diagnostics["legacy_actions_billing_probe"] = "not_authorized_or_unavailable"
 
@@ -168,17 +181,30 @@ def main() -> int:
             items = usage_value.get("usageItems")
             if isinstance(items, list):
                 action_items = [
-                    item for item in items
+                    item
+                    for item in items
                     if isinstance(item, dict)
                     and str(item.get("product", "")).lower() == "actions"
                     and str(item.get("unitType", "")).lower() == "minutes"
                 ]
+                gross = sum(minute_value(item.get("grossQuantity")) for item in action_items)
+                discount = sum(minute_value(item.get("discountQuantity")) for item in action_items)
+                net = sum(minute_value(item.get("netQuantity")) for item in action_items)
                 diagnostics["actions_usage_summary"] = {
-                    "gross_minutes": sum(minute_value(item.get("grossQuantity")) for item in action_items),
-                    "discount_minutes": sum(minute_value(item.get("discountQuantity")) for item in action_items),
-                    "net_minutes": sum(minute_value(item.get("netQuantity")) for item in action_items),
+                    "gross_minutes": gross,
+                    "discount_minutes": discount,
+                    "net_minutes": net,
                     "item_count": len(action_items),
                 }
+                if "actions_minutes" not in diagnostics:
+                    if gross > 0 and discount >= gross and net == 0:
+                        diagnostics["capacity_interpretation"] = (
+                            "gross Actions usage is fully discounted; it does not prove private included-minute exhaustion"
+                        )
+                    else:
+                        diagnostics["capacity_interpretation"] = (
+                            "usage-summary quantities do not expose exact private included-minute consumption"
+                        )
         elif usage_status in {403, 404}:
             diagnostics["actions_usage_summary_probe"] = "not_authorized_or_unavailable"
 
@@ -194,12 +220,13 @@ def main() -> int:
             handle.write(f"- Private run: `{diagnostics.get('private_run_id', 'none')}`\n")
             handle.write(f"- Allocated jobs: `{diagnostics.get('allocated_job_count', 'unknown')}`\n")
             handle.write(f"- Queue age minutes: `{diagnostics.get('queue_age_minutes', 'unknown')}`\n")
+            handle.write(f"- Capacity interpretation: `{diagnostics.get('capacity_interpretation', 'unresolved')}`\n")
             actions_minutes = diagnostics.get("actions_minutes")
             if isinstance(actions_minutes, dict):
                 handle.write(
                     "- Included Actions minutes: "
                     f"`{actions_minutes.get('total_minutes_used')}` used / "
-                    f"`{actions_minutes.get('included_minutes')}` included\n"
+                    f"`{actions_minutes.get('effective_ceiling')}` ceiling\n"
                 )
     print(json.dumps({"status": report.get("status"), "diagnostics": diagnostics}, sort_keys=True))
     return 0
