@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import unittest
 from pathlib import Path
@@ -112,15 +113,21 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("v2.base.latest_successful_public_run = latest_successful_current_public_run", text)
 
     def test_r2_bootstrap_has_exact_fifteen_file_allowlist(self) -> None:
-        text = BOOTSTRAP_R2.read_text(encoding="utf-8")
-        self.assertIn("REQUIRED_R2_PATHS", text)
-        self.assertIn('"contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json"', text)
-        self.assertIn('"contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json"', text)
-        self.assertIn('"contracts/PPI-PUBLIC-COLLECTOR-003-R1.json"', text)
-        self.assertIn('"contracts/PPI-PUBLIC-COLLECTOR-003-R2.json"', text)
-        self.assertIn('"src/collect_raw_provider_evidence_r2.py"', text)
-        self.assertIn('"src/fetch_yfinance_expectations.py"', text)
-        self.assertEqual(text.count("    \"") - text.count('f\"'), 15)
+        source = BOOTSTRAP_R2.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "REQUIRED_R2_PATHS" for target in node.targets)
+        )
+        paths = ast.literal_eval(assignment.value)
+        self.assertEqual(len(paths), 15)
+        self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json", paths)
+        self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json", paths)
+        self.assertIn("contracts/PPI-PUBLIC-COLLECTOR-003-R1.json", paths)
+        self.assertIn("contracts/PPI-PUBLIC-COLLECTOR-003-R2.json", paths)
+        self.assertIn("src/collect_raw_provider_evidence_r2.py", paths)
+        self.assertIn("src/fetch_yfinance_expectations.py", paths)
 
     def test_stale_target_branch_cleaner_is_exact_and_fail_closed(self) -> None:
         text = PREPARE.read_text(encoding="utf-8")
