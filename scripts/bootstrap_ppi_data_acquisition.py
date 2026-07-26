@@ -111,8 +111,6 @@ def ensure_repository_initialized(repository: str, *, token: str) -> str:
         "# PPI Data Acquisition\n\n"
         "Initialized by a reviewed manual-only cross-repository workflow.\n"
     )
-    # The target repository is empty, so no branch reference exists yet.
-    # Omitting the branch lets GitHub create the first commit on its default branch.
     api(
         "PUT",
         f"/repos/{repository}/contents/README.md",
@@ -195,8 +193,12 @@ def target_files() -> dict[str, str]:
         ".gitignore",
         ".github/workflows/collect-r11-public-evidence.yml",
         "config/r11_batch_003.json",
+        "config/provider_licensing_dispositions.json",
         "contracts/PPI-R11-PUBLIC-ACQUISITION-003.json",
+        "contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json",
+        "contracts/PPI-PUBLIC-COLLECTOR-003-R1.json",
         "src/collect_raw_provider_evidence.py",
+        "src/publish_private_handoff.py",
         "tests/test_public_boundary.py",
     }
     require(set(result) == required, f"Unexpected target template files: {sorted(result)}")
@@ -219,23 +221,22 @@ def ensure_draft_pr(repository: str, *, token: str) -> str:
         f"/repos/{repository}/pulls",
         token=token,
         payload={
-            "title": "Bootstrap manual-only PPI public data acquisition",
+            "title": "Bootstrap hardened PPI public data acquisition",
             "head": BOOTSTRAP_BRANCH,
             "base": DEFAULT_BASE,
             "draft": True,
             "body": (
                 "## Summary\n"
                 "- initialize the dedicated public PPI acquisition boundary\n"
-                "- bind the exact frozen batch-3 twelve-ticker and 48-bundle scope\n"
-                "- add a manual-only Alpha Vantage and MarketData raw collector\n"
-                "- retain provider payload hashes, immutable receipts, and workflow artifacts\n"
-                "- keep schedules and private-repository dispatch disabled\n\n"
-                "## Safety\n"
-                "No private curation, derived calculations, scoring, countability, registry writes, "
-                "production, broker, order, trading, MMM/raw_data, or R12 authority is added.\n\n"
-                "## Required repository secrets before collection\n"
+                "- bind the exact R1 twelve-ticker and 50-path scope\n"
+                "- collect and validate provider inputs on public runners\n"
+                "- retain only hashes and safe metadata publicly\n"
+                "- publish the exact evidence package as a private release asset\n"
+                "- keep private dispatch, scoring, registry, production, and trading authority disabled\n\n"
+                "## Required repository secrets\n"
                 "- `PPI_ALPHA_VANTAGE_API_KEY`\n"
                 "- `PPI_MARKETDATA_TOKEN`\n"
+                "- `PPI_PRIVATE_HANDOFF_TOKEN`\n"
             ),
         },
         allowed_statuses=(201,),
