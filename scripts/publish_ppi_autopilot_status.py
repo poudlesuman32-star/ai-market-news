@@ -69,8 +69,12 @@ def clean_text(value: Any, *, token: str) -> str:
 def render(report: dict[str, Any], *, token: str) -> str:
     authority = report.get("authority")
     require(isinstance(authority, dict), "autopilot report authority is missing")
-    for key in ("registry_mutation", "production", "publication", "broker", "orders", "trading", "mmm_raw_data", "r12"):
+    for key in ("private_final_analysis_dispatch", "billing_budget_mutation", "registry_mutation", "production", "publication", "broker", "orders", "trading", "mmm_raw_data", "r12"):
         require(authority.get(key) is False, f"dangerous authority unexpectedly enabled: {key}")
+    require(
+        authority.get("manual_private_recovery_after_billing_review") is True,
+        "manual billing-reviewed recovery authority is missing",
+    )
 
     run = report.get("run") if isinstance(report.get("run"), dict) else {}
     lines = [
@@ -84,6 +88,17 @@ def render(report: dict[str, Any], *, token: str) -> str:
         f"- Token login: `{clean_text(report.get('token_login'), token=token)}`",
         f"- Acquisition permission: `{clean_text(report.get('target_permission'), token=token)}`",
         f"- Private permission: `{clean_text(report.get('private_permission'), token=token)}`",
+        "",
+        "## Execution authority",
+        "",
+        f"- Automatic private dispatch: `{clean_text(authority.get('private_final_analysis_dispatch'), token=token)}`",
+        f"- Manual billing-reviewed recovery: `{clean_text(authority.get('manual_private_recovery_after_billing_review'), token=token)}`",
+        f"- Billing-budget mutation: `{clean_text(authority.get('billing_budget_mutation'), token=token)}`",
+        f"- Registry mutation from public autopilot: `{clean_text(authority.get('registry_mutation'), token=token)}`",
+        f"- Production/publication/trading authority: `{clean_text(any(authority.get(key) is True for key in ('production', 'publication', 'broker', 'orders', 'trading')), token=token)}`",
+        f"- Private execution state: `{clean_text(report.get('private_execution_state'), token=token)}`",
+        f"- Manual recovery workflow: `{clean_text(report.get('manual_recovery_workflow'), token=token)}`",
+        f"- Manual recovery confirmation: `{clean_text(report.get('manual_recovery_confirmation'), token=token)}`",
         "",
         "## Actions",
         "",
@@ -189,7 +204,7 @@ def render(report: dict[str, Any], *, token: str) -> str:
         "",
         "## Safety boundary",
         "",
-        "Provider credentials and raw provider payloads are never written to this issue. Registry, production, publication, broker, order, trading, MMM/raw-data, and R12 authority remain disabled in the public autopilot.",
+        "Provider credentials and raw provider payloads are never written to this issue. Automatic private dispatch, billing-budget mutation, registry mutation from the public autopilot, production, publication, broker, order, trading, MMM/raw-data, and R12 authority remain disabled.",
         "",
         "This issue is replaced automatically on every reconciliation run.",
     ])
