@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-SEC-UNIVERSE-PILOT-001-R1",
+  "status": "pilot",
+  "purpose": "Fetch one SEC bulk ticker/exchange file and produce a deterministic 500-candidate public universe seed for identity and classification validation.",
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "source_repository_id": 1290414659,
+  "universe_contract_id": "PPI-UNIVERSE-US-COMMON-001-R1",
+  "source_inventory_id": "PPI-PUBLIC-SOURCE-INVENTORY-001-R1",
+  "source": {
+    "source_id": "sec_company_tickers_exchange",
+    "url": "https://www.sec.gov/files/company_tickers_exchange.json",
+    "allowed_host": "www.sec.gov",
+    "allowed_path": "/files/company_tickers_exchange.json",
+    "expected_fields": ["cik", "name", "ticker", "exchange"],
+    "cost_class": "free",
+    "access_model": "single_bulk_request",
+    "authentication": "none",
+    "declared_user_agent_required": true,
+    "fair_access_max_requests_per_second": 10,
+    "pilot_max_attempts": 3,
+    "max_response_bytes": 20000000,
+    "raw_payload_retention": "hash_only"
+  },
+  "pilot": {
+    "candidate_limit": 500,
+    "eligible_exchange_mapping": {
+      "NYSE": "NYSE",
+      "Nasdaq": "NASDAQ",
+      "NYSE American": "NYSE_AMERICAN"
+    },
+    "selection_algorithm": "sha256_rank_v1",
+    "identity_status": "provisional_sec_seed",
+    "classification_status": "unresolved",
+    "exact_output_paths": [
+      "sec-universe-pilot-500.jsonl",
+      "manifest.json",
+      "receipt.json",
+      "report.md"
+    ]
+  },
+  "authority": {
+    "remote_fetch": true,
+    "sec_bulk_universe_fetch": true,
+    "provider_credentials": false,
+    "screening": false,
+    "deep_evidence_collection": false,
+    "private_repository_access": false,
+    "private_dispatch": false,
+    "billing_budget_mutation": false,
+    "registry_mutation": false,
+    "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
+    "trading": false,
+    "mmm_raw_data": false,
+    "r12": false
+  },
+  "authorized_actions": []
+}
