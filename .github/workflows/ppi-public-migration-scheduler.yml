@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/ppi-public-migration-scheduler.yml
       - scripts/ppi_migration_autopilot.py
+      - scripts/publish_ppi_autopilot_status.py
       - scripts/bootstrap_ppi_data_acquisition.py
       - bootstrap/ppi-data-acquisition/**
       - config/ppi_public_migration_schedule.json
@@ -45,7 +46,8 @@ jobs:
           python -m py_compile \
             scripts/bootstrap_ppi_data_acquisition.py \
             scripts/build_ppi_public_migration_readiness.py \
-            scripts/ppi_migration_autopilot.py
+            scripts/ppi_migration_autopilot.py \
+            scripts/publish_ppi_autopilot_status.py
           python -m unittest tests.test_ppi_public_migration_scheduler -v
 
       - name: Reconcile the next safe migration action
@@ -54,6 +56,64 @@ jobs:
           python scripts/ppi_migration_autopilot.py \
             --output-root "$OUTPUT_ROOT"
 
+      - name: Build fail-safe status when reconciliation stopped early
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ ! -s "$OUTPUT_ROOT/autopilot.json" ]; then
+            mkdir -p "$OUTPUT_ROOT"
+            python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          report = {
+              "schema_version": "1.0.0",
+              "status": "failed_before_report",
+              "token_login": "unresolved",
+              "target_permission": "unresolved",
+              "private_permission": "unresolved",
+              "actions": [],
+              "blocked_reasons": ["The autopilot stopped before producing its normal report. Inspect the linked public workflow run."],
+              "run": {
+                  "repository": os.environ.get("GITHUB_REPOSITORY", ""),
+                  "run_id": os.environ.get("GITHUB_RUN_ID", ""),
+                  "attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+                  "head_sha": os.environ.get("GITHUB_SHA", ""),
+                  "event": os.environ.get("GITHUB_EVENT_NAME", ""),
+                  "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+              },
+              "authority": {
+                  "bootstrap_sync": False,
+                  "target_secret_sync": False,
+                  "target_pr_merge_after_machine_gates": False,
+                  "public_collection_dispatch": False,
+                  "private_final_analysis_dispatch": False,
+                  "registry_mutation": False,
+                  "production": False,
+                  "publication": False,
+                  "broker": False,
+                  "orders": False,
+                  "trading": False,
+                  "mmm_raw_data": False,
+                  "r12": False,
+              },
+          }
+          Path(os.environ["OUTPUT_ROOT"]).joinpath("autopilot.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          fi
+
+      - name: Publish sanitized status to issue 83
+        if: always()
+        run: |
+          set -euo pipefail
+          python scripts/publish_ppi_autopilot_status.py \
+            --report "$OUTPUT_ROOT/autopilot.json"
+
       - name: Publish autopilot summary
         if: always()
         run: |
@@ -61,7 +121,7 @@ jobs:
           if [ -s "$OUTPUT_ROOT/autopilot.md" ]; then
             cat "$OUTPUT_ROOT/autopilot.md" >> "$GITHUB_STEP_SUMMARY"
           else
-            printf '## PPI migration autopilot\n\nAutopilot report was not created.\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '## PPI migration autopilot\n\nSee issue #83 for the sanitized fail-safe status.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Retain autopilot report
