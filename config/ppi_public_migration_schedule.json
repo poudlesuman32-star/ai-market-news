@@ -1,12 +1,15 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "scheduler_id": "PPI-MIGRATION-AUTOPILOT-001",
   "enabled": true,
-  "mode": "idempotent_reconciliation",
+  "mode": "public_reconciliation_private_billing_hold",
   "cron_utc": "23 * * * *",
   "active_public_acquisition_contract": "PPI-R11-PUBLIC-ACQUISITION-003-R2",
   "active_public_collector_release": "PPI-PUBLIC-COLLECTOR-003-R2",
   "private_analytical_contract": "PPI-R11-BATCH-EVIDENCE-003-R1",
+  "private_execution_state": "held_after_pre_runner_failure",
+  "private_recovery_confirmation": "RECOVER-PPI-PRIVATE-AFTER-BILLING-REVIEW",
+  "private_recovery_run_id": 30188784601,
   "repositories": {
     "source": {"name": "poudlesuman32-star/ai-market-news", "id": 1290414659},
     "acquisition": {
@@ -27,7 +30,9 @@
     "target_secret_sync": true,
     "target_pr_merge_after_machine_gates": true,
     "public_collection_dispatch": true,
-    "private_final_analysis_dispatch": true,
+    "private_final_analysis_dispatch": false,
+    "manual_private_recovery_after_billing_review": true,
+    "billing_budget_mutation": false,
     "registry_mutation": false,
     "production": false,
     "publication": false,
@@ -46,11 +51,11 @@
     {"id": "T06", "name": "Separate public receipt artifacts from private evidence packages"},
     {"id": "T07", "name": "Protect secrets and pin Actions"},
     {"id": "T08", "name": "Create a private release handoff and exact trust gate"},
-    {"id": "T09", "name": "Run network-disabled private final analysis"},
-    {"id": "T10", "name": "Run the controlled batch-3 pilot automatically"},
+    {"id": "T09", "name": "Hold private execution after pre-runner failure"},
+    {"id": "T10", "name": "Require explicit billing-reviewed recovery for the controlled batch-3 pilot"},
     {"id": "T11", "name": "Retire private acquisition and rotate bootstrap credentials"}
   ],
   "fail_closed": true,
   "automatic_task_advancement": true,
-  "human_dispatch_required": false
+  "human_dispatch_required": true
 }
