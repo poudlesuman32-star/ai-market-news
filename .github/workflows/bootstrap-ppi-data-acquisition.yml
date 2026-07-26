@@ -25,7 +25,7 @@ jobs:
       TARGET_REPOSITORY: ${{ inputs.target_repository }}
     steps:
       - name: Check out reviewed bootstrap code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: main
           persist-credentials: false
@@ -41,11 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/bootstrap_ppi_data_acquisition.py
-          python -m py_compile bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py
+          python -m py_compile \
+            bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py \
+            bootstrap/ppi-data-acquisition/src/publish_private_handoff.py
           python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
 
-          # Tests and py_compile create binary bytecode beneath the template tree.
-          # Remove it before the bootstrap script reads the reviewed UTF-8 template files.
           find bootstrap/ppi-data-acquisition -type f -name '*.pyc' -delete
           find bootstrap/ppi-data-acquisition -type d -name '__pycache__' -empty -delete
           test -z "$(find bootstrap/ppi-data-acquisition -type f -name '*.pyc' -print -quit)"
@@ -57,7 +57,10 @@ jobs:
           source_workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
           target_workflow = Path('bootstrap/ppi-data-acquisition/.github/workflows/collect-r11-public-evidence.yml').read_text(encoding='utf-8')
           script = Path('scripts/bootstrap_ppi_data_acquisition.py').read_text(encoding='utf-8')
-          contract = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
+          legacy = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
+          acquisition = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json').read_text(encoding='utf-8'))
+          collector = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-PUBLIC-COLLECTOR-003-R1.json').read_text(encoding='utf-8'))
+          licensing = json.loads(Path('bootstrap/ppi-data-acquisition/config/provider_licensing_dispositions.json').read_text(encoding='utf-8'))
           scope = json.loads(Path('bootstrap/ppi-data-acquisition/config/r11_batch_003.json').read_text(encoding='utf-8'))
 
           assert '\n  workflow_dispatch:\n' in source_workflow
@@ -72,17 +75,29 @@ jobs:
           assert '\n  workflow_dispatch:\n' in target_workflow
           assert '\n  schedule:\n' not in target_workflow
           assert '\n  repository_dispatch:\n' not in target_workflow
-          assert scope['contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
-          assert scope['batch_sequence'] == 3
+          assert 'PRIVATE_RELEASE_HANDOFF_ENABLED: true' in target_workflow
+          assert 'ppi-r11-public-success-' in target_workflow
+          assert 'ppi-r11-public-failure-' in target_workflow
+          assert 'actions/checkout@v' not in target_workflow
+          assert 'actions/upload-artifact@v' not in target_workflow
+          assert scope['contract_id'] == 'PPI-R11-PUBLIC-ACQUISITION-003-R1'
+          assert scope['private_contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
+          assert scope['collector_release_id'] == 'PPI-PUBLIC-COLLECTOR-003-R1'
           assert scope['expected_bundle_count'] == 48
-          assert scope['new_candidate_tickers'] == ['QCOM', 'MRVL', 'GFS', 'TXN']
+          assert scope['expected_path_count'] == 50
+          assert scope['expected_provider_request_count'] == 49
           assert scope['authorized_actions'] == []
-          assert contract['status'] == 'frozen_public_collection_scope'
-          assert contract['private_dispatch_enabled'] is False
-          assert contract['private_calculation_authorized'] is False
-          assert contract['registry_mutation_authorized'] is False
-          assert contract['broker_or_trading_authorized'] is False
-          assert contract['authorized_actions'] == []
+          assert legacy['status'] == 'superseded_before_target_collection'
+          assert legacy['superseded_by'] == acquisition['contract_id']
+          assert acquisition['status'] == 'frozen'
+          assert acquisition['private_dispatch_authorized'] is False
+          assert acquisition['registry_mutation_authorized'] is False
+          assert acquisition['authorized_actions'] == []
+          assert collector['status'] == 'frozen'
+          assert collector['expected_path_count'] == 50
+          assert collector['public_raw_artifact_uploaded'] is False
+          assert licensing['public_raw_artifact_policy'] == 'public_storage_prohibited'
+          assert all(item['disposition'] == 'private_repository_handoff' for item in licensing['dispositions'])
           PY
 
       - name: Create reviewed target bootstrap draft PR
