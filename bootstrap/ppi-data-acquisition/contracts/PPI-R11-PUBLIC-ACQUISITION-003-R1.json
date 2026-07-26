@@ -13,31 +13,23 @@
   "workflow_path": ".github/workflows/collect-r11-public-evidence.yml",
   "batch_sequence": 3,
   "cumulative_tickers": [
-    "AAPL",
-    "MU",
-    "NVDA",
-    "AMD",
-    "AVGO",
-    "INTC",
-    "TSM",
-    "ARM",
-    "QCOM",
-    "MRVL",
-    "GFS",
-    "TXN"
+    "AAPL", "MU", "NVDA", "AMD", "AVGO", "INTC",
+    "TSM", "ARM", "QCOM", "MRVL", "GFS", "TXN"
   ],
-  "new_candidate_tickers": [
-    "QCOM",
-    "MRVL",
-    "GFS",
-    "TXN"
-  ],
+  "new_candidate_tickers": ["QCOM", "MRVL", "GFS", "TXN"],
   "categories": [
     "expectation_history",
     "independent_recognition",
     "market_time_series",
     "specialized_contract_data"
   ],
+  "category_providers": {
+    "expectation_history": "yahoo_finance_via_yfinance:1.5.1",
+    "independent_recognition": "alpha_vantage:NEWS_SENTIMENT",
+    "market_time_series": "marketdata:daily_candles",
+    "specialized_contract_data": "marketdata:option_chain"
+  },
+  "alpha_vantage_batch_request_count": 12,
   "queue_receipt_sha256": "afd074a959c2c612f6dd5f6c91ed66ce2346144167c73b4d21999005e9a049b3",
   "maximum_input_age_hours": 168,
   "exact_success_package": {
