@@ -106,12 +106,21 @@ def render(report: dict[str, Any], *, token: str) -> str:
             "",
             "## Private queue diagnostics",
             "",
-            f"- Private run: `{clean_text(diagnostics.get('private_run_id'), token=token)}`",
+            f"- Retained private run: `{clean_text(diagnostics.get('private_run_id'), token=token)}`",
+            f"- Active private run count: `{clean_text(diagnostics.get('active_private_run_count', 'unknown'), token=token)}`",
+            f"- Active private run IDs: `{clean_text(diagnostics.get('active_private_run_ids', 'unknown'), token=token)}`",
             f"- Run status: `{clean_text(diagnostics.get('private_run_status'), token=token)}`",
             f"- Run conclusion: `{clean_text(diagnostics.get('private_run_conclusion'), token=token)}`",
             f"- Allocated jobs: `{clean_text(diagnostics.get('allocated_job_count', 'unknown'), token=token)}`",
             f"- Queue age minutes: `{clean_text(diagnostics.get('queue_age_minutes', 'unknown'), token=token)}`",
         ])
+        permissions = diagnostics.get("actions_permissions")
+        if isinstance(permissions, dict):
+            lines.extend([
+                f"- Private Actions enabled: `{clean_text(permissions.get('enabled'), token=token)}`",
+                f"- Allowed Actions policy: `{clean_text(permissions.get('allowed_actions'), token=token)}`",
+                f"- SHA pinning required: `{clean_text(permissions.get('sha_pinning_required'), token=token)}`",
+            ])
         minutes = diagnostics.get("actions_minutes")
         if isinstance(minutes, dict):
             lines.extend([
@@ -125,6 +134,14 @@ def render(report: dict[str, Any], *, token: str) -> str:
                 f"- Actions gross minutes: `{clean_text(usage.get('gross_minutes'), token=token)}`",
                 f"- Actions discounted minutes: `{clean_text(usage.get('discount_minutes'), token=token)}`",
                 f"- Actions net minutes: `{clean_text(usage.get('net_minutes'), token=token)}`",
+            ])
+        private_usage = diagnostics.get("private_repository_usage_summary")
+        if isinstance(private_usage, dict):
+            lines.extend([
+                f"- Private repository usage items: `{clean_text(private_usage.get('item_count'), token=token)}`",
+                f"- Private repository gross minutes: `{clean_text(private_usage.get('gross_minutes'), token=token)}`",
+                f"- Private repository discounted minutes: `{clean_text(private_usage.get('discount_minutes'), token=token)}`",
+                f"- Private repository net minutes: `{clean_text(private_usage.get('net_minutes'), token=token)}`",
             ])
         if diagnostics.get("capacity_interpretation") is not None:
             lines.append(f"- Capacity interpretation: `{clean_text(diagnostics.get('capacity_interpretation'), token=token)}`")
