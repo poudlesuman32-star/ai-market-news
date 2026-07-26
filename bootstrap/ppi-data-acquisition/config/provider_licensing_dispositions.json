@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-R11-PUBLIC-ACQUISITION-003-R1",
+  "default_disposition": "public_storage_prohibited",
+  "allowed_dispositions": [
+    "raw_public_allowed",
+    "sanitized_public_allowed",
+    "hash_and_metadata_only",
+    "private_repository_handoff",
+    "public_storage_prohibited"
+  ],
+  "provider_operations": {
+    "yahoo_finance_via_yfinance:expectation_history": "private_repository_handoff",
+    "alpha_vantage:news_sentiment": "private_repository_handoff",
+    "marketdata:daily_candles": "private_repository_handoff",
+    "marketdata:option_chain": "private_repository_handoff"
+  },
+  "benchmark_operation": {
+    "marketdata:daily_candles_benchmark": "private_repository_handoff"
+  },
+  "public_success_artifact_contains_provider_payloads": false,
+  "public_failure_artifact_contains_provider_payloads": false,
+  "private_release_handoff_required": true,
+  "authorized_actions": []
+}
