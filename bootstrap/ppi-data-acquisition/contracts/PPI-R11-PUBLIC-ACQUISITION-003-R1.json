@@ -4,7 +4,7 @@
   "status": "frozen",
   "private_contract_id": "PPI-R11-BATCH-EVIDENCE-003-R1",
   "collector_release_id": "PPI-PUBLIC-COLLECTOR-003-R1",
-  "collector_release_sha256": "pending-finalized-collector-contract-hash",
+  "collector_release_sha256": "b7f2efba9de78d59b8b24e21c688fc2d3d34c0f921dba8b6b5e289c646a6ca11",
   "repository": "spoudel2010-ux/ppi-data-acquisition",
   "repository_id": 1312286476,
   "private_handoff_repository": "musksuman3/ai-signal-engine",
