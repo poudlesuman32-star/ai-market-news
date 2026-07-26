@@ -70,6 +70,7 @@ jobs:
           fi
           python -m py_compile \
             src/collect_raw_provider_evidence.py \
+            src/collect_raw_provider_evidence_r2.py \
             src/fetch_yfinance_expectations.py \
             src/publish_private_handoff.py
           python -m unittest discover -s tests -p "test_*.py" -v
@@ -82,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$OUTPUT_ROOT" "$SAFE_ROOT" "$FAILURE_ROOT"
-          python src/collect_raw_provider_evidence.py \
+          python src/collect_raw_provider_evidence_r2.py \
             --scope config/r11_batch_003.json \
             --output-root "$OUTPUT_ROOT" \
             --request-id "$REQUEST_ID" \
