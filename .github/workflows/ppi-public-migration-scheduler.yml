@@ -10,6 +10,7 @@ on:
       - scripts/ppi_migration_autopilot.py
       - scripts/ppi_migration_autopilot_v2.py
       - scripts/ppi_migration_autopilot_v3.py
+      - scripts/enrich_ppi_private_queue_diagnostics.py
       - scripts/prepare_ppi_target_update_branch.py
       - scripts/publish_ppi_autopilot_status.py
       - scripts/bootstrap_ppi_data_acquisition.py
@@ -54,6 +55,7 @@ jobs:
             scripts/ppi_migration_autopilot.py \
             scripts/ppi_migration_autopilot_v2.py \
             scripts/ppi_migration_autopilot_v3.py \
+            scripts/enrich_ppi_private_queue_diagnostics.py \
             scripts/prepare_ppi_target_update_branch.py \
             scripts/publish_ppi_autopilot_status.py
           python -m unittest tests.test_ppi_public_migration_scheduler -v
@@ -119,6 +121,13 @@ jobs:
           )
           PY
           fi
+
+      - name: Enrich private queue and Actions usage diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          python scripts/enrich_ppi_private_queue_diagnostics.py \
+            --report "$OUTPUT_ROOT/autopilot.json"
 
       - name: Publish sanitized status to issue 83
         if: always()
