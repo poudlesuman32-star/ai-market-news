@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from src import collect_raw_provider_evidence as collector
+import collect_raw_provider_evidence as collector
 
 PUBLIC_CONTRACT_ID = "PPI-R11-PUBLIC-ACQUISITION-003-R2"
 COLLECTOR_RELEASE_ID = "PPI-PUBLIC-COLLECTOR-003-R2"
