@@ -2,15 +2,12 @@
 from __future__ import annotations
 
 import json
-import re
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 import ppi_migration_autopilot_v3 as v3
 
-PRIVATE_RUN_TITLE = re.compile(r"^Final private analysis for public run ([0-9]+)$")
-PRIVATE_RUN_TITLE_SEARCH = re.compile(r"Final private analysis for public run ([0-9]+)")
 ACTIVE_STATUSES = {"queued", "pending", "waiting", "requested", "in_progress"}
 QUEUED_STATUSES = {"queued", "pending", "waiting", "requested"}
 PRIVATE_MINUTE_CEILING = 2000.0
@@ -25,24 +22,11 @@ def parse_time(value: Any) -> datetime | None:
         return None
 
 
-def public_run_id_from_private_run(run: dict[str, Any]) -> str | None:
-    title = str(run.get("display_title") or "")
-    exact = PRIVATE_RUN_TITLE.fullmatch(title)
-    if exact:
-        return exact.group(1)
-    serialized = json.dumps(run, sort_keys=True, separators=(",", ":"))
-    fallback = PRIVATE_RUN_TITLE_SEARCH.search(serialized)
-    return fallback.group(1) if fallback else None
-
-
-def private_run_matches_public(run: dict[str, Any], public_run_id: str) -> bool:
-    if not public_run_id.isdigit():
-        return False
-    if str(run.get("event") or "") != "workflow_dispatch":
-        return False
-    if str(run.get("head_branch") or "") != "main":
-        return False
-    return public_run_id in json.dumps(run, sort_keys=True, separators=(",", ":"))
+def is_authorized_private_workflow_run(run: dict[str, Any]) -> bool:
+    return (
+        str(run.get("event") or "") == "workflow_dispatch"
+        and str(run.get("head_branch") or "") == "main"
+    )
 
 
 def jobs_for_run(token: str, run_id: int) -> list[dict[str, Any]] | None:
@@ -100,6 +84,12 @@ def run_sort_key(run: dict[str, Any]) -> tuple[int, datetime]:
     return priority, created
 
 
+def within_authorization_window(run: dict[str, Any], public_run: dict[str, Any]) -> bool:
+    run_created = parse_time(run.get("created_at"))
+    public_completed = parse_time(public_run.get("updated_at")) or parse_time(public_run.get("created_at"))
+    return bool(run_created and public_completed and run_created >= public_completed)
+
+
 def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[bool, str]:
     public_run_id = str(public_run.get("id") or "")
     public_head_sha = str(public_run.get("head_sha") or "").lower()
@@ -108,27 +98,26 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
         len(public_head_sha) == 40 and all(char in "0123456789abcdef" for char in public_head_sha),
         "public head SHA is invalid",
     )
+    v3.v2.base.require(
+        parse_time(public_run.get("updated_at")) is not None or parse_time(public_run.get("created_at")) is not None,
+        "public run authorization time is missing",
+    )
 
     runs = v3.v2.base.list_workflow_runs(v3.v2.base.PRIVATE_REPOSITORY, v3.v2.base.PRIVATE_WORKFLOW, token)
-    matching = [run for run in runs if private_run_matches_public(run, public_run_id)]
-    unknown_active = [
-        run
-        for run in runs
-        if str(run.get("status") or "") in ACTIVE_STATUSES
-        and not private_run_matches_public(run, public_run_id)
-    ]
-    if unknown_active:
-        ids = [str(run.get("id")) for run in unknown_active]
-        return False, f"private dispatch blocked by active workflow runs for a different or unresolved public identity: {', '.join(ids)}"
+    active = [run for run in runs if str(run.get("status") or "") in ACTIVE_STATUSES]
+    invalid_active = [run for run in active if not is_authorized_private_workflow_run(run)]
+    if invalid_active:
+        ids = [str(run.get("id")) for run in invalid_active]
+        return False, f"private singleton blocked by active runs outside workflow_dispatch/main: {', '.join(ids)}"
 
-    active = [run for run in matching if str(run.get("status") or "") in ACTIVE_STATUSES]
-    if active:
-        ordered = sorted(active, key=run_sort_key)
+    authorized_active = [run for run in active if is_authorized_private_workflow_run(run)]
+    if authorized_active:
+        ordered = sorted(authorized_active, key=run_sort_key)
         keeper = ordered[0]
         in_progress = [run for run in ordered if str(run.get("status") or "") == "in_progress"]
         if len(in_progress) > 1:
             ids = [str(run.get("id")) for run in in_progress]
-            return False, f"multiple private analyses are already in progress for public run {public_run_id}: {', '.join(ids)}"
+            return False, f"multiple private final analyses are already in progress: {', '.join(ids)}"
 
         cancelled: list[int] = []
         unresolved: list[int] = []
@@ -142,7 +131,7 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
                 unresolved.append(duplicate_id)
 
         detail = (
-            f"private analysis already exists for public run {public_run_id}: "
+            f"private final-analysis singleton retained for public run {public_run_id}: "
             f"run {keeper.get('id')} is {keeper.get('status')} with conclusion {keeper.get('conclusion')}"
         )
         if cancelled:
@@ -151,18 +140,27 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
             detail += f"; redundant queued runs could not be cancelled {unresolved}"
         return False, detail
 
-    successful = [run for run in matching if run.get("status") == "completed" and run.get("conclusion") == "success"]
+    authorized_window_runs = [
+        run
+        for run in runs
+        if is_authorized_private_workflow_run(run) and within_authorization_window(run, public_run)
+    ]
+    successful = [
+        run
+        for run in authorized_window_runs
+        if run.get("status") == "completed" and run.get("conclusion") == "success"
+    ]
     if successful:
         run = sorted(
             successful,
             key=lambda item: parse_time(item.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc),
             reverse=True,
         )[0]
-        return False, f"private analysis run {run.get('id')} already succeeded for public run {public_run_id}"
+        return False, f"private final-analysis run {run.get('id')} already succeeded in the current public authorization window"
 
     unsuccessful = [
         run
-        for run in matching
+        for run in authorized_window_runs
         if run.get("status") == "completed"
         and run.get("conclusion") in {"failure", "cancelled", "timed_out", "startup_failure"}
     ]
@@ -179,7 +177,7 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
         same_month = bool(created and created.year == now.year and created.month == now.month)
         if jobs:
             return False, (
-                f"private analysis run {newest_id} already executed and concluded {newest.get('conclusion')}; "
+                f"private final-analysis run {newest_id} already executed and concluded {newest.get('conclusion')}; "
                 "automatic retry is disabled"
             )
         if same_month:
@@ -209,18 +207,26 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
     )
     for attempt in range(7):
         visible_runs = v3.v2.base.list_workflow_runs(v3.v2.base.PRIVATE_REPOSITORY, v3.v2.base.PRIVATE_WORKFLOW, token)
-        visible = next((run for run in visible_runs if private_run_matches_public(run, public_run_id)), None)
+        visible = next(
+            (
+                run
+                for run in visible_runs
+                if is_authorized_private_workflow_run(run)
+                and str(run.get("status") or "") in ACTIVE_STATUSES
+                and within_authorization_window(run, public_run)
+            ),
+            None,
+        )
         if visible is not None:
             suffix = "" if used is not None else f"; {usage_detail}"
             return True, (
-                f"dispatched private analysis for public run {public_run_id}; "
-                f"private workflow run {visible.get('id')} is {visible.get('status')} "
-                f"with conclusion {visible.get('conclusion')}{suffix}"
+                f"dispatched private final-analysis singleton for public run {public_run_id}; "
+                f"run {visible.get('id')} is {visible.get('status')} with conclusion {visible.get('conclusion')}{suffix}"
             )
         if attempt < 6:
             time.sleep(5)
     suffix = "" if used is not None else f"; {usage_detail}"
-    return True, f"dispatched private analysis for public run {public_run_id}; run not visible after 30 seconds{suffix}"
+    return True, f"dispatched private final-analysis singleton for public run {public_run_id}; run not visible after 30 seconds{suffix}"
 
 
 def main() -> int:
