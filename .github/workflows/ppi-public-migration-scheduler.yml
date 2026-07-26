@@ -2,6 +2,16 @@ name: PPI migration autopilot
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ppi-public-migration-scheduler.yml
+      - scripts/ppi_migration_autopilot.py
+      - scripts/bootstrap_ppi_data_acquisition.py
+      - bootstrap/ppi-data-acquisition/**
+      - config/ppi_public_migration_schedule.json
+      - tests/test_ppi_public_migration_scheduler.py
   schedule:
     - cron: '23 * * * *'
 
