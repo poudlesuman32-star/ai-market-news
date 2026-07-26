@@ -100,6 +100,41 @@ def render(report: dict[str, Any], *, token: str) -> str:
     else:
         lines.append("- None.")
 
+    startup = report.get("private_startup_failure")
+    if isinstance(startup, dict):
+        startup_run = startup.get("run") if isinstance(startup.get("run"), dict) else {}
+        workflow = startup.get("workflow") if isinstance(startup.get("workflow"), dict) else {}
+        permissions = startup.get("permissions") if isinstance(startup.get("permissions"), dict) else {}
+        selected = startup.get("selected_actions") if isinstance(startup.get("selected_actions"), dict) else {}
+        jobs = startup.get("jobs") if isinstance(startup.get("jobs"), list) else []
+        first_job = jobs[0] if jobs and isinstance(jobs[0], dict) else {}
+        billing = startup.get("private_repository_billing_usage") if isinstance(startup.get("private_repository_billing_usage"), dict) else {}
+        lines.extend([
+            "",
+            "## Exact private startup failure",
+            "",
+            f"- Failed run: `{clean_text(startup_run.get('id'), token=token)}`",
+            f"- Classification: `{clean_text(startup.get('classification'), token=token)}`",
+            f"- Run status/conclusion: `{clean_text(startup_run.get('status'), token=token)}` / `{clean_text(startup_run.get('conclusion'), token=token)}`",
+            f"- Private head SHA: `{clean_text(startup_run.get('head_sha'), token=token)}`",
+            f"- Run started at: `{clean_text(startup_run.get('run_started_at'), token=token)}`",
+            f"- Workflow state: `{clean_text(workflow.get('state'), token=token)}`",
+            f"- Actions enabled/policy: `{clean_text(permissions.get('enabled'), token=token)}` / `{clean_text(permissions.get('allowed_actions'), token=token)}`",
+            f"- GitHub-owned actions allowed: `{clean_text(selected.get('github_owned_allowed'), token=token)}`",
+            f"- Verified third-party actions allowed: `{clean_text(selected.get('verified_allowed'), token=token)}`",
+            f"- Job count: `{clean_text(startup.get('job_count'), token=token)}`",
+            f"- Job ID: `{clean_text(first_job.get('id'), token=token)}`",
+            f"- Job status/conclusion: `{clean_text(first_job.get('status'), token=token)}` / `{clean_text(first_job.get('conclusion'), token=token)}`",
+            f"- Job duration seconds: `{clean_text(first_job.get('duration_seconds'), token=token)}`",
+            f"- Runner ID/name: `{clean_text(first_job.get('runner_id'), token=token)}` / `{clean_text(first_job.get('runner_name'), token=token)}`",
+            f"- Runner group: `{clean_text(first_job.get('runner_group_id'), token=token)}` / `{clean_text(first_job.get('runner_group_name'), token=token)}`",
+            f"- Runner labels: `{clean_text(first_job.get('labels'), token=token)}`",
+            f"- Workflow step count: `{clean_text(first_job.get('step_count'), token=token)}`",
+            f"- Private billing usage items: `{clean_text(billing.get('item_count'), token=token)}`",
+            f"- Private billing quantity: `{clean_text(billing.get('quantity'), token=token)}`",
+            f"- Private billing net amount: `{clean_text(billing.get('net_amount'), token=token)}`",
+        ])
+
     diagnostics = report.get("private_queue_diagnostics")
     if isinstance(diagnostics, dict):
         lines.extend([

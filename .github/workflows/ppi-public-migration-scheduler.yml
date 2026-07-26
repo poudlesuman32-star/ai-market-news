@@ -13,6 +13,7 @@ on:
       - scripts/ppi_migration_autopilot_v4.py
       - scripts/enable_ppi_private_actions_once.py
       - scripts/dispatch_ppi_private_post_enable_recovery.py
+      - scripts/diagnose_ppi_private_startup_failure.py
       - scripts/enrich_ppi_private_queue_diagnostics.py
       - scripts/prepare_ppi_target_update_branch.py
       - scripts/publish_ppi_autopilot_status.py
@@ -61,6 +62,7 @@ jobs:
             scripts/ppi_migration_autopilot_v4.py \
             scripts/enable_ppi_private_actions_once.py \
             scripts/dispatch_ppi_private_post_enable_recovery.py \
+            scripts/diagnose_ppi_private_startup_failure.py \
             scripts/enrich_ppi_private_queue_diagnostics.py \
             scripts/prepare_ppi_target_update_branch.py \
             scripts/publish_ppi_autopilot_status.py
@@ -137,6 +139,13 @@ jobs:
           )
           PY
           fi
+
+      - name: Diagnose exact private startup failure
+        if: always()
+        run: |
+          set -euo pipefail
+          python scripts/diagnose_ppi_private_startup_failure.py \
+            --report "$OUTPUT_ROOT/autopilot.json"
 
       - name: Enrich private queue and Actions usage diagnostics
         if: always()
