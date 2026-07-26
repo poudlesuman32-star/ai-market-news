@@ -10,6 +10,7 @@ from typing import Any
 import ppi_migration_autopilot_v3 as v3
 
 PRIVATE_RUN_TITLE = re.compile(r"^Final private analysis for public run ([0-9]+)$")
+PRIVATE_RUN_TITLE_SEARCH = re.compile(r"Final private analysis for public run ([0-9]+)")
 ACTIVE_STATUSES = {"queued", "pending", "waiting", "requested", "in_progress"}
 QUEUED_STATUSES = {"queued", "pending", "waiting", "requested"}
 PRIVATE_MINUTE_CEILING = 2000.0
@@ -26,8 +27,12 @@ def parse_time(value: Any) -> datetime | None:
 
 def public_run_id_from_private_run(run: dict[str, Any]) -> str | None:
     title = str(run.get("display_title") or "")
-    match = PRIVATE_RUN_TITLE.fullmatch(title)
-    return match.group(1) if match else None
+    exact = PRIVATE_RUN_TITLE.fullmatch(title)
+    if exact:
+        return exact.group(1)
+    serialized = json.dumps(run, sort_keys=True, separators=(",", ":"))
+    fallback = PRIVATE_RUN_TITLE_SEARCH.search(serialized)
+    return fallback.group(1) if fallback else None
 
 
 def jobs_for_run(token: str, run_id: int) -> list[dict[str, Any]] | None:
