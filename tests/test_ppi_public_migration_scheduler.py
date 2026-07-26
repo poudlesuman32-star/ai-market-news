@@ -63,8 +63,8 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("cron: '23 * * * *'", text)
         self.assertIn("permissions:\n  contents: read", text)
         self.assertIn("secrets.RAW_TOKEN", text)
-        self.assertIn("secrets.PPI_ALPHA_VANTAGE_API_KEY", text)
-        self.assertIn("secrets.PPI_MARKETDATA_TOKEN", text)
+        self.assertNotIn("secrets.PPI_ALPHA_VANTAGE_API_KEY", text)
+        self.assertNotIn("secrets.PPI_MARKETDATA_TOKEN", text)
         self.assertIn("scripts/bootstrap_ppi_data_acquisition_r2.py", text)
         self.assertIn("scripts/ppi_migration_autopilot_v4.py", text)
         self.assertIn("scripts/ppi_migration_autopilot_v5.py", text)
@@ -226,7 +226,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('payload={"sha": main_sha, "force": True}', text)
         self.assertIn("open_target_update_has_content_changes", text)
 
-    def test_status_issue_is_sanitized_preserves_zero_and_displays_queue_diagnostics(self) -> None:
+    def test_status_issue_is_sanitized_preserves_zero_and_enforces_authority(self) -> None:
         text = STATUS_PUBLISHER.read_text(encoding="utf-8")
         self.assertIn('SOURCE_REPOSITORY = "poudlesuman32-star/ai-market-news"', text)
         self.assertIn("SOURCE_REPOSITORY_ID = 1290414659", text)
@@ -235,7 +235,12 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('"github_pat_"', text)
         self.assertIn('"Bearer "', text)
         self.assertIn("dangerous authority unexpectedly enabled", text)
+        self.assertIn("manual billing-reviewed recovery authority is missing", text)
         self.assertIn('"" if value is None else str(value)', text)
+        self.assertIn("## Execution authority", text)
+        self.assertIn("Automatic private dispatch", text)
+        self.assertIn("Manual billing-reviewed recovery", text)
+        self.assertIn("Billing-budget mutation", text)
         self.assertIn("## Private queue diagnostics", text)
         self.assertIn("Allocated jobs", text)
         self.assertIn("Actions minutes included", text)
