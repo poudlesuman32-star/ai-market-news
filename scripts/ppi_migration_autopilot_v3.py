@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import sys
+import time
+from typing import Any
 
 import ppi_migration_autopilot_v2 as v2
 
@@ -21,6 +24,7 @@ R2_REQUIRED_PATHS = (
     "src/publish_private_handoff.py",
     "tests/test_public_boundary.py",
 )
+ORIGINAL_PRIVATE_DISPATCH = v2.base.dispatch_private_if_ready
 
 
 def run_bootstrap_r2(token: str) -> None:
@@ -124,10 +128,34 @@ def latest_successful_current_public_run(token: str):
     return None
 
 
+def private_run_for_public(token: str, public_run_id: str) -> dict[str, Any] | None:
+    runs = v2.base.list_workflow_runs(v2.base.PRIVATE_REPOSITORY, v2.base.PRIVATE_WORKFLOW, token)
+    for run in runs[:30]:
+        if public_run_id and public_run_id in json.dumps(run, sort_keys=True):
+            return run
+    return None
+
+
+def dispatch_private_with_visibility(token: str, public_run: dict[str, Any]) -> tuple[bool, str]:
+    public_run_id = str(public_run.get("id", ""))
+    dispatched, detail = ORIGINAL_PRIVATE_DISPATCH(token, public_run)
+    for attempt in range(7):
+        private_run = private_run_for_public(token, public_run_id)
+        if private_run is not None:
+            return dispatched, (
+                f"{detail}; private workflow run {private_run.get('id')} is "
+                f"{private_run.get('status')} with conclusion {private_run.get('conclusion')}"
+            )
+        if attempt < 6:
+            time.sleep(5)
+    return dispatched, f"{detail}; private workflow run is not visible after 30 seconds"
+
+
 def main() -> int:
     v2.base.run_bootstrap = run_bootstrap_r2
     v2.target_gate = target_gate_r2
     v2.base.latest_successful_public_run = latest_successful_current_public_run
+    v2.base.dispatch_private_if_ready = dispatch_private_with_visibility
     return v2.main()
 
 
