@@ -42,14 +42,30 @@ def jobs_for_run(token: str, run_id: int) -> list[dict[str, Any]] | None:
     return [item for item in value["jobs"] if isinstance(item, dict)]
 
 
-def cancel_private_run(token: str, run_id: int) -> bool:
-    status, _ = v3.v2.base.api(
-        "POST",
-        f"/repos/{v3.v2.base.PRIVATE_REPOSITORY}/actions/runs/{run_id}/cancel",
-        token=token,
-        allowed_statuses=(202, 409),
-    )
-    return status == 202
+def cancel_private_run(token: str, run_id: int) -> tuple[bool, str]:
+    errors: list[str] = []
+    try:
+        status, _ = v3.v2.base.api(
+            "POST",
+            f"/repos/{v3.v2.base.PRIVATE_REPOSITORY}/actions/runs/{run_id}/cancel",
+            token=token,
+            allowed_statuses=(202, 409),
+        )
+        if status == 202:
+            return True, "cancelled through GitHub Actions REST"
+        errors.append("GitHub Actions REST returned 409")
+    except Exception as exc:
+        errors.append(f"GitHub Actions REST failed: {exc}")
+
+    try:
+        v3.v2.base.run_command(
+            ["gh", "run", "cancel", str(run_id), "--repo", v3.v2.base.PRIVATE_REPOSITORY],
+            env={"GH_TOKEN": token},
+        )
+        return True, "cancelled through gh run cancel"
+    except Exception as exc:
+        errors.append(f"gh run cancel failed: {exc}")
+    return False, " | ".join(errors)
 
 
 def exact_private_minute_usage(token: str, login: str) -> tuple[float | None, float | None, str]:
@@ -120,15 +136,16 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
             return False, f"multiple private final analyses are already in progress: {', '.join(ids)}"
 
         cancelled: list[int] = []
-        unresolved: list[int] = []
+        unresolved: list[str] = []
         for duplicate in ordered[1:]:
             duplicate_id = int(duplicate.get("id") or 0)
             if duplicate_id <= 0 or str(duplicate.get("status") or "") not in QUEUED_STATUSES:
                 continue
-            if cancel_private_run(token, duplicate_id):
+            was_cancelled, cancellation_detail = cancel_private_run(token, duplicate_id)
+            if was_cancelled:
                 cancelled.append(duplicate_id)
             else:
-                unresolved.append(duplicate_id)
+                unresolved.append(f"{duplicate_id} ({cancellation_detail})")
 
         detail = (
             f"private final-analysis singleton retained for public run {public_run_id}: "
@@ -137,7 +154,7 @@ def dispatch_exact_private_run(token: str, public_run: dict[str, Any]) -> tuple[
         if cancelled:
             detail += f"; cancelled redundant queued runs {cancelled}"
         if unresolved:
-            detail += f"; redundant queued runs could not be cancelled {unresolved}"
+            detail += f"; redundant queued runs could not be cancelled: {'; '.join(unresolved)}"
         return False, detail
 
     authorized_window_runs = [
