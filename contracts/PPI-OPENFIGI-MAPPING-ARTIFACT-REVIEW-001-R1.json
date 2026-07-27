@@ -1,0 +1,53 @@
+{
+  "artifact_modes": {
+    "blocked": {
+      "gate_passed": false,
+      "required_paths": [
+        "blocked.json",
+        "report.md"
+      ]
+    },
+    "success": {
+      "candidate_count": 500,
+      "exact_request_count": 50,
+      "gate_passed": true,
+      "required_paths": [
+        "manifest.json",
+        "openfigi-mapping-500.jsonl",
+        "receipt.json",
+        "report.md"
+      ]
+    }
+  },
+  "authority": {
+    "billing_budget_mutation": false,
+    "deep_evidence_collection": false,
+    "private_access": false,
+    "private_dispatch": false,
+    "production": false,
+    "publication": false,
+    "registry_mutation": false,
+    "screening": false,
+    "stable_instrument_id_allocation": false,
+    "trading": false
+  },
+  "authorized_actions": [],
+  "contract_id": "PPI-OPENFIGI-MAPPING-ARTIFACT-REVIEW-001-R1",
+  "mapping_states": [
+    "exact",
+    "ambiguous",
+    "unmatched"
+  ],
+  "repository": "poudlesuman32-star/ai-market-news",
+  "retention": {
+    "review_artifact_days": 14,
+    "review_paths": [
+      "review.json",
+      "review.md"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "source_contract_id": "PPI-OPENFIGI-MAPPING-PILOT-001-R1",
+  "source_workflow_name": "PPI OpenFIGI 500-candidate mapping pilot",
+  "status": "installed_held_pending_mapping_artifact"
+}
