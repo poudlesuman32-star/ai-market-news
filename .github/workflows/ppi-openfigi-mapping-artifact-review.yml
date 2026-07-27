@@ -1,0 +1,95 @@
+name: PPI OpenFIGI mapping artifact review
+
+on:
+  workflow_run:
+    workflows:
+      - PPI OpenFIGI 500-candidate mapping pilot
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact OpenFIGI mapping workflow run ID
+        required: true
+        type: string
+      source_run_attempt:
+        description: Exact OpenFIGI mapping workflow run attempt
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-openfigi-mapping-artifact-review-${{ github.event.workflow_run.id || inputs.source_run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+      SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+      OUTPUT_ROOT: runtime/ppi-openfigi-mapping-artifact-review
+    steps:
+      - name: Check out approved main branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate review code and boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/review_openfigi_mapping_artifact.py
+          python -m unittest tests.test_ppi_openfigi_mapping_artifact_review -v
+
+      - name: Download exact OpenFIGI mapping artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$SOURCE_RUN_ID" in (*[!0-9]*|'') exit 1 ;; esac
+          case "$SOURCE_RUN_ATTEMPT" in (*[!0-9]*|'') exit 1 ;; esac
+          mkdir -p source-run downloaded-artifact
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" \
+            > source-run/run.json
+          artifact_name="ppi-openfigi-mapping-pilot-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}"
+          gh run download "$SOURCE_RUN_ID" \
+            --name "$artifact_name" \
+            --dir downloaded-artifact
+
+      - name: Verify exact mapping artifact and build review receipt
+        run: |
+          set -euo pipefail
+          python scripts/review_openfigi_mapping_artifact.py \
+            --artifact-root downloaded-artifact \
+            --source-run-json source-run/run.json \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --source-run-attempt "$SOURCE_RUN_ATTEMPT" \
+            --output-root "$OUTPUT_ROOT"
+
+      - name: Publish review summary
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -s "$OUTPUT_ROOT/review.md" ]; then
+            cat "$OUTPUT_ROOT/review.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '# PPI OpenFIGI mapping artifact review\n\nNo review receipt was produced.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain safe review receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ppi-openfigi-mapping-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: runtime/ppi-openfigi-mapping-artifact-review/
+          retention-days: 14
+          if-no-files-found: error
