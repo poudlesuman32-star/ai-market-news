@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1",
+  "status": "active_public_gate",
+  "source_contract_id": "PPI-SEC-UNIVERSE-PILOT-001-R1",
+  "source_workflow_name": "PPI SEC 500-instrument universe pilot",
+  "source_repository": "poudlesuman32-star/ai-market-news",
+  "source_repository_id": 1290414659,
+  "expected_success_paths": [
+    "manifest.json",
+    "receipt.json",
+    "report.md",
+    "sec-universe-pilot-500.jsonl"
+  ],
+  "expected_blocked_paths": [
+    "blocked.json",
+    "report.md"
+  ],
+  "required_candidate_count": 500,
+  "required_identity_status": "provisional_sec_seed",
+  "required_classification_status": "unresolved",
+  "next_stage": "openfigi_identity_mapping",
+  "next_stage_authorized_by_this_contract": false,
+  "authority": {
+    "source_artifact_download": true,
+    "source_artifact_verification": true,
+    "safe_review_receipt": true,
+    "openfigi_mapping": false,
+    "screening": false,
+    "deep_evidence_collection": false,
+    "private_access": false,
+    "private_dispatch": false,
+    "billing_budget_mutation": false,
+    "registry_mutation": false,
+    "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
+    "trading": false,
+    "mmm_raw_data": false,
+    "r12": false
+  },
+  "authorized_actions": [
+    "download_exact_public_artifact",
+    "verify_exact_public_artifact",
+    "publish_safe_review_receipt"
+  ]
+}
