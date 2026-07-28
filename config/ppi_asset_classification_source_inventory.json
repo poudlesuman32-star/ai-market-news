@@ -1,0 +1,75 @@
+{
+  "inventory_id": "PPI-ASSET-CLASSIFICATION-SOURCES-001-R1",
+  "prohibited_methods": [
+    "security_name_substring_classification",
+    "ticker_suffix_classification",
+    "issuer_country_only_classification",
+    "absence_of_f6_as_common_stock_proof"
+  ],
+  "purpose": "Objective public-source readiness for future common-stock versus ADR classification.",
+  "schema_version": "1.0.0",
+  "sources": [
+    {
+      "access": "free_public_unauthenticated",
+      "endpoint": "https://api.openfigi.com/v3/mapping",
+      "enum_endpoint": "https://api.openfigi.com/v3/mapping/values/securityType2",
+      "limitations": [
+        "Provider metadata is evidence, not final legal determination.",
+        "Ambiguous and unmatched mappings remain unresolved."
+      ],
+      "positive_evidence": {
+        "adr": {
+          "market_sector": "Equity",
+          "security_type2": "Depositary Receipt"
+        },
+        "common_stock": {
+          "market_sector": "Equity",
+          "security_type2": "Common Stock"
+        }
+      },
+      "retained_fields": [
+        "figi",
+        "composite_figi",
+        "share_class_figi",
+        "market_sector",
+        "security_type",
+        "security_type2"
+      ],
+      "source_id": "openfigi_v3_instrument_metadata",
+      "status": "approved_objective_instrument_metadata"
+    },
+    {
+      "access": "free_public_declared_user_agent_required",
+      "forms": [
+        "F-6",
+        "F-6EF"
+      ],
+      "limitations": [
+        "Absence of F-6 or F-6EF is not common-stock evidence.",
+        "Depositary-bank filer records require exact subject-issuer linkage."
+      ],
+      "positive_evidence": "Exact subject-CIK filing linkage may support ADR classification.",
+      "source_id": "sec_edgar_f6_subject_filings",
+      "status": "approved_positive_adr_evidence_pending_collector"
+    },
+    {
+      "access": "free_public_declared_user_agent_required",
+      "classification_authority": false,
+      "limitations": [
+        "Ticker, CIK, issuer name and exchange do not establish common-stock or ADR subtype."
+      ],
+      "source_id": "sec_company_tickers_exchange",
+      "status": "approved_identity_seed_only"
+    },
+    {
+      "access": "public_download_candidate",
+      "classification_authority": false,
+      "limitations": [
+        "Published directory fields do not provide a dedicated ADR flag.",
+        "Security-name heuristics are prohibited."
+      ],
+      "source_id": "nasdaq_symbol_directory",
+      "status": "pending_terms_and_semantics_review"
+    }
+  ]
+}
