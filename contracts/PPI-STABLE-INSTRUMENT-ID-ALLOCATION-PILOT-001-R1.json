@@ -1,0 +1,54 @@
+{
+  "allocation_policy": {
+    "ambiguous": "defer_without_guessing",
+    "exact": "allocate",
+    "unmatched": "defer_without_guessing"
+  },
+  "allocation_states": [
+    "allocated",
+    "deferred_ambiguous",
+    "deferred_unmatched"
+  ],
+  "authority": {
+    "billing_budget_mutation": false,
+    "deep_evidence_collection": false,
+    "private_access": false,
+    "private_dispatch": false,
+    "production": false,
+    "publication": false,
+    "registry_mutation": false,
+    "screening": false,
+    "stable_instrument_id_allocation": true,
+    "trading": false
+  },
+  "authorized_actions": [
+    "stable_instrument_id_allocation_public_pilot"
+  ],
+  "contract_id": "PPI-STABLE-INSTRUMENT-ID-ALLOCATION-PILOT-001-R1",
+  "gate": {
+    "exact_source_mapping_hash_required": true,
+    "review_artifact_mode": "success",
+    "review_candidate_count": 500,
+    "review_gate_passed_required": true,
+    "review_request_count": 50
+  },
+  "identity_policy": {
+    "algorithm": "sha256_figi_namespace_v1",
+    "cik_is_issuer_level_only": true,
+    "duplicate_exact_figi_policy": "fail_closed",
+    "instrument_id_format": "ppi-us-equity-<first-24-lowercase-hex-of-sha256>",
+    "namespace_input": "PPI-STABLE-INSTRUMENT-ID-V1|FIGI|<FIGI>",
+    "primary_external_key": "FIGI",
+    "ticker_is_primary_key": false
+  },
+  "repository": "poudlesuman32-star/ai-market-news",
+  "retention": {
+    "normalized_allocation_results": true,
+    "safe_artifact_days": 14
+  },
+  "schema_version": "1.0.0",
+  "source_candidate_count": 500,
+  "source_contract_id": "PPI-OPENFIGI-MAPPING-PILOT-001-R1",
+  "source_review_contract_id": "PPI-OPENFIGI-MAPPING-ARTIFACT-REVIEW-001-R1",
+  "status": "installed_held_pending_mapping_review_gate"
+}
