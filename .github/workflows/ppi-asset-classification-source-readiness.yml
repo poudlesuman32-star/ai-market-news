@@ -1,0 +1,66 @@
+name: PPI asset classification source readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ppi-asset-classification-source-readiness.yml
+      - config/ppi_asset_classification_source_inventory.json
+      - contracts/PPI-ASSET-CLASSIFICATION-SOURCE-READINESS-001-R1.json
+      - scripts/validate_ppi_asset_classification_source_readiness.py
+      - tests/test_ppi_asset_classification_source_readiness.py
+  schedule:
+    - cron: '11 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-asset-classification-source-readiness
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OUTPUT_ROOT: runtime/ppi-asset-classification-source-readiness
+    steps:
+      - name: Check out approved main branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate code and boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/validate_ppi_asset_classification_source_readiness.py
+          python -m unittest tests.test_ppi_asset_classification_source_readiness -v
+
+      - name: Probe objective classification metadata readiness
+        run: |
+          set -euo pipefail
+          python scripts/validate_ppi_asset_classification_source_readiness.py \
+            --output-root "$OUTPUT_ROOT"
+
+      - name: Publish readiness summary
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -s "$OUTPUT_ROOT/readiness.md" ]; then
+            cat "$OUTPUT_ROOT/readiness.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '# PPI asset classification source readiness\n\nNo readiness receipt was produced.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain safe readiness receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ppi-asset-classification-source-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: runtime/ppi-asset-classification-source-readiness/
+          retention-days: 14
+          if-no-files-found: error
