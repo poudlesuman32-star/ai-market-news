@@ -1,4 +1,5 @@
 name: PPI SEC 500-instrument universe pilot
+run-name: SEC 500 pilot - ${{ github.event_name }} - ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
