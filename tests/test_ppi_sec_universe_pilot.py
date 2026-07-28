@@ -119,11 +119,14 @@ class SecUniversePilotTests(unittest.TestCase):
             self.assertFalse(blocked["private_access"])
             self.assertEqual(blocked["status"], "blocked")
 
-    def test_workflow_is_public_only_and_uses_repository_variable(self) -> None:
+    def test_workflow_is_public_only_and_automates_user_agent_resolution(self) -> None:
         text = WORKFLOW_PATH.read_text(encoding="utf-8")
         self.assertIn("cron: '37 6 * * 3'", text)
         self.assertIn("permissions:\n  contents: read", text)
-        self.assertIn("vars.PPI_SEC_USER_AGENT", text)
+        self.assertIn("scripts/resolve_sec_user_agent.py", text)
+        self.assertIn("vars.PPI_SEC_CONTACT_EMAIL", text)
+        self.assertIn("users/${GITHUB_REPOSITORY_OWNER}", text)
+        self.assertNotIn("vars.PPI_SEC_USER_AGENT", text)
         self.assertIn("--blocked-if-missing-user-agent", text)
         self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", text)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", text)
