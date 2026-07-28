@@ -1,0 +1,48 @@
+{
+  "artifact_modes": {
+    "blocked": {
+      "gate_passed": false,
+      "required_paths": [
+        "blocked.json",
+        "report.md"
+      ]
+    },
+    "success": {
+      "candidate_count": 500,
+      "gate_passed": true,
+      "required_paths": [
+        "manifest.json",
+        "receipt.json",
+        "report.md",
+        "universe-deferred.jsonl",
+        "universe-instruments.jsonl"
+      ]
+    }
+  },
+  "authority": {
+    "asset_classification": false,
+    "billing_budget_mutation": false,
+    "deep_evidence_collection": false,
+    "private_access": false,
+    "private_dispatch": false,
+    "production": false,
+    "publication": false,
+    "registry_mutation": false,
+    "screening": false,
+    "trading": false
+  },
+  "authorized_actions": [],
+  "contract_id": "PPI-IMMUTABLE-UNIVERSE-SNAPSHOT-ARTIFACT-REVIEW-001-R1",
+  "repository": "poudlesuman32-star/ai-market-news",
+  "retention": {
+    "review_artifact_days": 14,
+    "review_paths": [
+      "review.json",
+      "review.md"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "source_contract_id": "PPI-IMMUTABLE-UNIVERSE-SNAPSHOT-PILOT-001-R1",
+  "source_workflow_name": "PPI immutable 500-instrument universe snapshot pilot",
+  "status": "installed_held_pending_snapshot_artifact"
+}
