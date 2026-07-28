@@ -26,20 +26,20 @@ class SecUserAgentResolverTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             result = resolver.resolve(
-                "operations@research.example.org",
-                self.owner_file(root, "profile@research.example.org"),
+                "operations@ppi-research.org",
+                self.owner_file(root, "profile@ppi-research.org"),
             )
             self.assertTrue(result["resolved"])
             self.assertEqual(result["source"], "repository_contact_variable")
             self.assertEqual(
                 result["user_agent"],
-                "PPI Universe Research operations@research.example.org",
+                "PPI Universe Research operations@ppi-research.org",
             )
 
     def test_public_profile_email_is_automatic_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            result = resolver.resolve("", self.owner_file(root, "owner@research.example.org"))
+            result = resolver.resolve("", self.owner_file(root, "owner@ppi-research.org"))
             self.assertTrue(result["resolved"])
             self.assertEqual(result["source"], "github_public_profile")
             self.assertEqual(result["application_name"], "PPI Universe Research")
@@ -55,8 +55,9 @@ class SecUserAgentResolverTests(unittest.TestCase):
     def test_rejects_noreply_and_placeholder_addresses(self) -> None:
         for value in (
             "12345+owner@users.noreply.github.com",
-            "noreply@research.example.org",
+            "noreply@ppi-research.org",
             "ops@example.com",
+            "ops@research.example.org",
             "invalid",
         ):
             with self.subTest(value=value):
@@ -66,7 +67,7 @@ class SecUserAgentResolverTests(unittest.TestCase):
     def test_cli_writes_user_agent_to_github_environment_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            owner = self.owner_file(root, "owner@research.example.org")
+            owner = self.owner_file(root, "owner@ppi-research.org")
             github_env = root / "env"
             github_output = root / "output"
             old_argv = list(__import__("sys").argv)
@@ -83,9 +84,9 @@ class SecUserAgentResolverTests(unittest.TestCase):
                 __import__("sys").argv = old_argv
             env_text = github_env.read_text(encoding="utf-8")
             output_text = github_output.read_text(encoding="utf-8")
-            self.assertIn("PPI_SEC_USER_AGENT=PPI Universe Research owner@research.example.org", env_text)
+            self.assertIn("PPI_SEC_USER_AGENT=PPI Universe Research owner@ppi-research.org", env_text)
             self.assertIn("resolved=true", output_text)
-            self.assertNotIn("owner@research.example.org", output_text)
+            self.assertNotIn("owner@ppi-research.org", output_text)
 
     def test_workflow_uses_automatic_resolver_without_full_user_agent_variable(self) -> None:
         text = WORKFLOW_PATH.read_text(encoding="utf-8")
