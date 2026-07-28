@@ -10,7 +10,9 @@ on:
       - contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json
       - schemas/ppi_sec_universe_pilot.schema.json
       - scripts/collect_sec_universe_pilot.py
+      - scripts/resolve_sec_user_agent.py
       - tests/test_ppi_sec_universe_pilot.py
+      - tests/test_ppi_sec_user_agent_resolver.py
       - config/ppi_public_source_inventory.json
       - contracts/PPI-UNIVERSE-US-COMMON-001-R1.json
   schedule:
@@ -29,7 +31,7 @@ jobs:
     timeout-minutes: 10
     env:
       OUTPUT_ROOT: runtime/ppi-sec-universe-pilot
-      PPI_SEC_USER_AGENT: ${{ vars.PPI_SEC_USER_AGENT }}
+      PPI_SEC_CONTACT_EMAIL: ${{ vars.PPI_SEC_CONTACT_EMAIL }}
     steps:
       - name: Check out approved main branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -40,10 +42,42 @@ jobs:
       - name: Validate code and boundaries
         run: |
           set -euo pipefail
-          python -m py_compile scripts/collect_sec_universe_pilot.py
-          python -m unittest tests.test_ppi_sec_universe_pilot -v
+          python -m py_compile scripts/collect_sec_universe_pilot.py scripts/resolve_sec_user_agent.py
+          python -m unittest \
+            tests.test_ppi_sec_universe_pilot \
+            tests.test_ppi_sec_user_agent_resolver \
+            -v
 
-      - name: Collect or report missing SEC user agent
+      - name: Resolve declared SEC user agent automatically
+        id: user_agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime/ppi-sec-user-agent-resolution
+          owner_json=runtime/ppi-sec-user-agent-resolution/owner.json
+          if ! gh api "users/${GITHUB_REPOSITORY_OWNER}" > "$owner_json"; then
+            printf '{}\n' > "$owner_json"
+          fi
+          python scripts/resolve_sec_user_agent.py \
+            --configured-email "$PPI_SEC_CONTACT_EMAIL" \
+            --owner-json "$owner_json" \
+            --github-env "$GITHUB_ENV" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Report SEC user-agent resolution
+        run: |
+          set -euo pipefail
+          {
+            printf '## SEC declared user agent\n\n'
+            printf -- '- Resolved: %s\n' '${{ steps.user_agent.outputs.resolved }}'
+            printf -- '- Contact source: %s\n' '${{ steps.user_agent.outputs.source }}'
+            if [ '${{ steps.user_agent.outputs.resolved }}' != 'true' ]; then
+              printf -- '- Result: fail-closed before SEC network access\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect or report unresolved SEC contact
         run: |
           set -euo pipefail
           python scripts/collect_sec_universe_pilot.py \
