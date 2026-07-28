@@ -13,14 +13,14 @@ EMAIL = re.compile(
     r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$",
     re.IGNORECASE,
 )
-REJECTED_DOMAINS = {
+REJECTED_DOMAIN_SUFFIXES = (
     "example.com",
     "example.org",
     "example.net",
     "localhost",
     "noreply.github.com",
     "users.noreply.github.com",
-}
+)
 
 
 class ResolverError(RuntimeError):
@@ -35,6 +35,10 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def rejected_domain(domain: str) -> bool:
+    return any(domain == suffix or domain.endswith(f".{suffix}") for suffix in REJECTED_DOMAIN_SUFFIXES)
+
+
 def validate_email(value: object) -> str:
     email = normalize(value).lower()
     if not email or len(email) > 254 or not EMAIL.fullmatch(email):
@@ -42,7 +46,7 @@ def validate_email(value: object) -> str:
     local, domain = email.rsplit("@", 1)
     if local in {"noreply", "no-reply", "donotreply", "do-not-reply"}:
         raise ResolverError("SEC contact email must be monitored")
-    if domain in REJECTED_DOMAINS or domain.endswith(".invalid") or domain.endswith(".example"):
+    if rejected_domain(domain) or domain.endswith(".invalid") or domain.endswith(".example"):
         raise ResolverError("SEC contact email uses a non-contact domain")
     return email
 
