@@ -9,7 +9,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 API_ROOT = "https://api.github.com"
-TARGET_REPOSITORY = "spoudel2010-ux/ppi-data-acquisition"
+TARGET_REPOSITORY = "MarketMakingLFG/ppi-data-acquisition"
 TARGET_REPOSITORY_ID = 1312286476
 TARGET_BRANCH = "agent/bootstrap-r11-public-acquisition"
 BASE_BRANCH = "main"
