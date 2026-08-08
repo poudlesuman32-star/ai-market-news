@@ -13,7 +13,7 @@
   "repositories": {
     "source": {"name": "poudlesuman32-star/ai-market-news", "id": 1290414659},
     "acquisition": {
-      "name": "spoudel2010-ux/ppi-data-acquisition",
+      "name": "MarketMakingLFG/ppi-data-acquisition",
       "id": 1312286476,
       "pull_request_selection": "dynamic_current_bootstrap_branch",
       "branch": "agent/bootstrap-r11-public-acquisition",
