@@ -18,6 +18,7 @@ on:
       - scripts/diagnose_ppi_private_startup_failure.py
       - scripts/enrich_ppi_private_queue_diagnostics.py
       - scripts/prepare_ppi_target_update_branch.py
+      - scripts/check_ppi_r2_exact_head_ci.py
       - scripts/publish_ppi_autopilot_status.py
       - scripts/bootstrap_ppi_data_acquisition.py
       - scripts/bootstrap_ppi_data_acquisition_r2.py
@@ -67,6 +68,7 @@ jobs:
             scripts/diagnose_ppi_private_startup_failure.py \
             scripts/enrich_ppi_private_queue_diagnostics.py \
             scripts/prepare_ppi_target_update_branch.py \
+            scripts/check_ppi_r2_exact_head_ci.py \
             scripts/publish_ppi_autopilot_status.py
           python -m unittest \
             tests.test_ppi_public_migration_scheduler \
@@ -77,6 +79,11 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/disable_ppi_private_actions_after_startup_failure.py
+
+      - name: Observe exact-head private CI
+        run: |
+          set -euo pipefail
+          python scripts/check_ppi_r2_exact_head_ci.py
 
       - name: Prepare exact post-squash target update branch
         run: |
