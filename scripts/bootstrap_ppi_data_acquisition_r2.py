@@ -118,23 +118,17 @@ def main() -> int:
     base_commit_sha = base.ensure_repository_initialized(repository, token=token)
     base.ensure_branch(repository, base.BOOTSTRAP_BRANCH, base_commit_sha, token=token)
 
-    files = target_files_r2()
-    desired = {path: git_blob_sha(content) for path, content in files.items()}
+    # This is a dedicated generated branch. Always rebase it deterministically by
+    # resetting to the current producer main before reapplying the reviewed file set.
+    # That prevents stale branch ancestry from making an otherwise exact update PR
+    # conflict after a prior squash merge or concurrent migration reconciliation.
     branch_commit_sha = base.get_ref_sha(repository, base.BOOTSTRAP_BRANCH, token=token)
     base.require(branch_commit_sha is not None, "R2 target branch is missing")
-
-    branch_matches_desired = all(
-        base.read_file_sha(repository, path, base.BOOTSTRAP_BRANCH, token=token) == desired[path]
-        for path in files
-    )
-    base_matches_desired = all(
-        base.read_file_sha(repository, path, base.DEFAULT_BASE, token=token) == desired[path]
-        for path in files
-    )
-    if branch_matches_desired and base_matches_desired and branch_commit_sha != base_commit_sha:
+    if branch_commit_sha != base_commit_sha:
         reset_branch(repository, base.BOOTSTRAP_BRANCH, base_commit_sha, token=token)
-        branch_commit_sha = base_commit_sha
 
+    files = target_files_r2()
+    desired = {path: git_blob_sha(content) for path, content in files.items()}
     changed_paths: list[str] = []
     for path, content in files.items():
         if base.read_file_sha(repository, path, base.BOOTSTRAP_BRANCH, token=token) == desired[path]:
