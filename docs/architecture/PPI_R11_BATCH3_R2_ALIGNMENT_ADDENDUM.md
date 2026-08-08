@@ -2,7 +2,7 @@
 
 **Status:** proposed alignment for review  
 **Date:** July 29, 2026  
-**Applies to:** `poudlesuman32-star/ai-market-news`, `spoudel2010-ux/ppi-data-acquisition`, and `musksuman3/ai-signal-engine`
+**Applies to:** `poudlesuman32-star/ai-market-news`, `MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`), and `musksuman3/ai-signal-engine`
 
 ## Decision
 
@@ -53,7 +53,7 @@ The new batch-3 candidates remain:
 
 ## Trust boundary
 
-`spoudel2010-ux/ppi-data-acquisition` remains the only provider-execution plane. It may collect, retry, validate objective structure, package, hash, and hand off evidence. It may not score, approve, publish trading signals, mutate the private registry, or start private analysis automatically.
+`MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`) remains the only provider-execution plane. It may collect, retry, validate objective structure, package, hash, and hand off evidence. It may not score, approve, publish trading signals, mutate the private registry, or start private analysis automatically.
 
 `musksuman3/ai-signal-engine` may accept an R2 package only after a fail-closed trust gate verifies:
 
