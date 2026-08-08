@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import ppi_migration_autopilot_v2 as v2
@@ -24,6 +25,25 @@ R2_REQUIRED_PATHS = (
     "src/publish_private_handoff.py",
     "tests/test_public_boundary.py",
 )
+EXACT_MANAGED_PATHS = (
+    "README.md",
+    ".gitignore",
+    ".github/workflows/collect-r11-public-evidence.yml",
+    "config/r11_batch_003.json",
+    "config/provider_licensing_dispositions.json",
+    "contracts/PPI-R11-PUBLIC-ACQUISITION-003.json",
+    "contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json",
+    "contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json",
+    "contracts/PPI-PUBLIC-COLLECTOR-003-R1.json",
+    "contracts/PPI-PUBLIC-COLLECTOR-003-R2.json",
+    "src/collect_raw_provider_evidence.py",
+    "src/collect_raw_provider_evidence_r2.py",
+    "src/fetch_yfinance_expectations.py",
+    "src/publish_private_handoff.py",
+    "src/publish_prepared_private_handoff.py",
+    "tests/test_public_boundary.py",
+)
+TEMPLATE_ROOT = Path(__file__).resolve().parents[1] / "bootstrap" / "ppi-data-acquisition"
 ORIGINAL_PRIVATE_DISPATCH = v2.base.dispatch_private_if_ready
 
 
@@ -112,6 +132,25 @@ def target_gate_r2(token: str, ref: str) -> tuple[bool, list[str]]:
         reasons.append("public acquisition R2 Alpha Vantage bound is missing")
     if '"alpha_vantage_batch_request_count": 12' not in collector_r2:
         reasons.append("public collector R2 Alpha Vantage bound is missing")
+
+    # Marker checks protect semantic invariants; exact managed-blob equality prevents
+    # migration drift from being declared current merely because old files still contain
+    # the same markers. Both the update branch and producer main must exactly match the
+    # reviewed bootstrap source before the gate can pass.
+    for path in EXACT_MANAGED_PATHS:
+        template = TEMPLATE_ROOT / path
+        if not template.is_file() or template.is_symlink():
+            reasons.append(f"reviewed template is missing or unsafe: {path}")
+            continue
+        expected = template.read_text(encoding="utf-8")
+        try:
+            actual = v2.base.fetch_text(v2.base.TARGET_REPOSITORY, path, ref, token)
+        except Exception:
+            reasons.append(f"target {ref} is missing exact managed path {path}")
+            continue
+        if actual != expected:
+            reasons.append(f"target {ref} managed blob differs from reviewed template: {path}")
+
     return not reasons, reasons
 
 
