@@ -104,6 +104,21 @@ class SecUserAgentResolverTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
+    def test_workflow_masks_contact_before_validation_and_collection(self) -> None:
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        mask_step = text.index("- name: Mask configured SEC contact")
+        validation_step = text.index("- name: Validate code and boundaries")
+        resolver_step = text.index("- name: Resolve declared SEC user agent automatically")
+        collection_step = text.index("- name: Collect or report unresolved SEC contact")
+        self.assertLess(mask_step, validation_step)
+        self.assertLess(mask_step, resolver_step)
+        self.assertLess(mask_step, collection_step)
+        self.assertIn("printf '::add-mask::%s\\n' \"$PPI_SEC_CONTACT_EMAIL\"", text)
+        self.assertIn(
+            "printf '::add-mask::PPI Universe Research %s\\n' \"$PPI_SEC_CONTACT_EMAIL\"",
+            text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
