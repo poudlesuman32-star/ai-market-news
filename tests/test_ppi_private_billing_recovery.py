@@ -13,24 +13,23 @@ REMOVED_AUTO_DISPATCH = ROOT / "scripts/dispatch_ppi_private_post_enable_recover
 
 
 class PpiPrivateBillingRecoveryTests(unittest.TestCase):
-    def test_hourly_scheduler_holds_private_actions_and_never_auto_recovers(self) -> None:
+    def test_hourly_scheduler_allows_private_ci_and_never_auto_recovers(self) -> None:
         text = SCHEDULER.read_text(encoding="utf-8")
-        self.assertIn("Hold private Actions after pre-runner failure", text)
+        self.assertIn("Allow private CI while keeping private dispatch held", text)
         self.assertIn("scripts/disable_ppi_private_actions_after_startup_failure.py", text)
-        self.assertNotIn("Enable private Actions with selected GitHub-owned actions only", text)
         self.assertNotIn("Dispatch exact post-enable private recovery once", text)
         self.assertNotIn("scripts/enable_ppi_private_actions_once.py", text)
         self.assertNotIn("scripts/dispatch_ppi_private_post_enable_recovery.py", text)
 
-    def test_fail_closed_hold_is_bound_to_exact_pre_runner_failure(self) -> None:
+    def test_ci_availability_control_is_bound_to_exact_historical_failure(self) -> None:
         text = HOLD.read_text(encoding="utf-8")
         self.assertIn('PRIVATE_REPOSITORY = "musksuman3/ai-signal-engine"', text)
         self.assertIn("PRIVATE_REPOSITORY_ID = 1290626648", text)
         self.assertIn("RECOVERY_RUN_ID = 30188784601", text)
         self.assertIn('EXPECTED_PRIVATE_HEAD_SHA = "49cbb0ce6aaa9bdb2e63dc54ac443a2b5cf6b312"', text)
-        self.assertIn('payload={"enabled": False}', text)
-        self.assertIn("hold_not_applied_recovery_active", text)
-        self.assertIn("hold_not_applied_recovery_succeeded", text)
+        self.assertIn('payload={"enabled": True}', text)
+        self.assertIn("private_actions_enabled_for_ci_private_dispatch_held", text)
+        self.assertIn('"automatic_private_dispatch": False', text)
         self.assertNotIn("rerun-failed-jobs", text)
         self.assertNotIn("dispatches", text)
         self.assertNotIn("PPI_ALPHA_VANTAGE_API_KEY", text)
