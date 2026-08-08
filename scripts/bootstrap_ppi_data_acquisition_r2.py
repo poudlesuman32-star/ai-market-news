@@ -24,9 +24,9 @@ REQUIRED_R2_PATHS = {
     "src/collect_raw_provider_evidence_r2.py",
     "src/fetch_yfinance_expectations.py",
     "src/publish_private_handoff.py",
-    "src/publish_prepared_private_handoff.py",
     "tests/test_public_boundary.py",
 }
+MANAGED_R2_MIGRATION_EXTRAS = {"src/publish_prepared_private_handoff.py"}
 
 
 def target_files_r2() -> dict[str, str]:
@@ -39,7 +39,8 @@ def target_files_r2() -> dict[str, str]:
         relative = path.relative_to(base.TEMPLATE_ROOT).as_posix()
         base.require(relative and not relative.startswith("../"), f"Unsafe template path: {relative}")
         result[relative] = path.read_text(encoding="utf-8")
-    base.require(set(result) == REQUIRED_R2_PATHS, f"Unexpected R2 target template files: {sorted(result)}")
+    expected = REQUIRED_R2_PATHS | MANAGED_R2_MIGRATION_EXTRAS
+    base.require(set(result) == expected, f"Unexpected R2 target template files: {sorted(result)}")
     return result
 
 
