@@ -73,7 +73,7 @@ jobs:
             tests.test_ppi_private_billing_recovery \
             -v
 
-      - name: Hold private Actions after pre-runner failure
+      - name: Allow private CI while keeping private dispatch held
         run: |
           set -euo pipefail
           python scripts/disable_ppi_private_actions_after_startup_failure.py
