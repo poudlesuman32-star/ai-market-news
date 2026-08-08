@@ -40,7 +40,7 @@ def api(
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "PPI fail-closed private Actions hold",
+            "User-Agent": "PPI private CI availability boundary",
             **({"Content-Type": "application/json"} if body is not None else {}),
         },
     )
@@ -78,44 +78,32 @@ def main() -> int:
     status = str(run.get("status") or "")
     conclusion = run.get("conclusion")
     attempt = int(run.get("run_attempt") or 1)
+    require(status == "completed" and conclusion == "failure", "historical recovery run is not the expected terminal failure")
 
-    if status in {"queued", "pending", "waiting", "requested", "in_progress"}:
-        print(json.dumps({
-            "status": "hold_not_applied_recovery_active",
-            "recovery_run_id": RECOVERY_RUN_ID,
-            "run_status": status,
-            "run_attempt": attempt,
-        }, sort_keys=True))
-        return 0
-    if status == "completed" and conclusion == "success":
-        print(json.dumps({
-            "status": "hold_not_applied_recovery_succeeded",
-            "recovery_run_id": RECOVERY_RUN_ID,
-            "run_attempt": attempt,
-        }, sort_keys=True))
-        return 0
-
-    require(status == "completed" and conclusion == "failure", "recovery run is not the expected terminal failure")
-
+    # Repository-wide Actions must remain available for read-only CI and exact-head
+    # validation. Automatic private analysis is held independently in v5 by replacing
+    # the dispatch function with a hard no-op, so enabling Actions does not authorize
+    # acquisition, scoring, registry mutation, production, or trading.
     _, permissions = api("GET", f"/repos/{PRIVATE_REPOSITORY}/actions/permissions", token=token)
     require(isinstance(permissions, dict), "private Actions permissions response is invalid")
-    if permissions.get("enabled") is not False:
+    if permissions.get("enabled") is not True:
         api(
             "PUT",
             f"/repos/{PRIVATE_REPOSITORY}/actions/permissions",
             token=token,
-            payload={"enabled": False},
+            payload={"enabled": True},
             allowed_statuses=(204,),
         )
 
     _, after = api("GET", f"/repos/{PRIVATE_REPOSITORY}/actions/permissions", token=token)
-    require(isinstance(after, dict) and after.get("enabled") is False, "private Actions fail-closed hold was not applied")
+    require(isinstance(after, dict) and after.get("enabled") is True, "private Actions were not enabled for CI")
     print(json.dumps({
-        "status": "private_actions_held_after_pre_runner_failure",
+        "status": "private_actions_enabled_for_ci_private_dispatch_held",
         "repository": PRIVATE_REPOSITORY,
         "recovery_run_id": RECOVERY_RUN_ID,
         "run_attempt": attempt,
         "run_conclusion": conclusion,
+        "automatic_private_dispatch": False,
     }, sort_keys=True))
     return 0
 
