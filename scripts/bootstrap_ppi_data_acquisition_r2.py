@@ -24,6 +24,7 @@ REQUIRED_R2_PATHS = {
     "src/collect_raw_provider_evidence_r2.py",
     "src/fetch_yfinance_expectations.py",
     "src/publish_private_handoff.py",
+    "src/publish_prepared_private_handoff.py",
     "tests/test_public_boundary.py",
 }
 
@@ -84,6 +85,9 @@ def ensure_r2_pr(repository: str, *, token: str) -> str:
                 "- deploy public acquisition and collector R2\n"
                 "- collect expectations through pinned public Yahoo/yfinance\n"
                 "- limit Alpha Vantage to twelve paced recognition requests\n"
+                "- execute the twelve-ticker provider work as four deterministic three-ticker shards\n"
+                "- retain a public-safe shard checkpoint receipt without changing the exact 50-path private package\n"
+                "- attest the exact final ZIP before private publication\n"
                 "- preserve the exact 48-bundle, 50-path private handoff\n"
                 "- keep private dispatch, scoring, registry, production, publication, trading, MMM/raw-data, and R12 authority disabled\n"
             ),
