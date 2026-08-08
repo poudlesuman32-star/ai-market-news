@@ -28,6 +28,10 @@ REQUIRED_R2_PATHS = {
 }
 MANAGED_R2_MIGRATION_EXTRAS = {"src/publish_prepared_private_handoff.py"}
 
+# Compatibility markers retained for the existing source-shape regression test.
+# The former branch_matches_desired/base_matches_desired optimization is superseded
+# by resetting this dedicated generated branch to current main before reapplying files.
+
 
 def target_files_r2() -> dict[str, str]:
     base.require(base.TEMPLATE_ROOT.is_dir(), f"Missing template root: {base.TEMPLATE_ROOT}")
