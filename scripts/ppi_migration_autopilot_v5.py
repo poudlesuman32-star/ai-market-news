@@ -9,6 +9,9 @@ from typing import Any
 
 import ppi_migration_autopilot_v4 as v4
 
+MIGRATED_TARGET_REPOSITORY = "MarketMakingLFG/ppi-data-acquisition"
+MIGRATED_TARGET_REPOSITORY_ID = 1312286476
+
 HOLD_REASON = (
     "Automatic private final-analysis dispatch is disabled after pre-runner failure 30188784601; "
     "only the manual billing-reviewed recovery workflow is authorized."
@@ -74,6 +77,11 @@ def enforce_report_hold(output_root: Path) -> None:
 
 def main() -> int:
     output_root = output_root_from_argv()
+    # The repository was transferred without changing its stable GitHub repository ID.
+    # Override the historical base-controller name at the active v5 entrypoint so all
+    # API, secret-sync, PR, and public-workflow operations target the canonical owner.
+    v4.v3.v2.base.TARGET_REPOSITORY = MIGRATED_TARGET_REPOSITORY
+    v4.v3.v2.base.TARGET_REPOSITORY_ID = MIGRATED_TARGET_REPOSITORY_ID
     v4.dispatch_exact_private_run = held_private_dispatch
     result = v4.main()
     enforce_report_hold(output_root)
