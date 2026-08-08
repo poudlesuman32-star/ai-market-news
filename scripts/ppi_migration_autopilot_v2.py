@@ -136,23 +136,36 @@ def merge_target_pr(token: str, pr_number: int) -> None:
 def should_dispatch_public(token: str, main_sha: str) -> tuple[bool, str]:
     runs = base.list_workflow_runs(base.TARGET_REPOSITORY, base.PUBLIC_WORKFLOW, token)
     same_revision = [run for run in runs if str(run.get("head_sha", "")).lower() == main_sha.lower()]
+
     for run in same_revision:
         if run.get("status") in {"queued", "in_progress", "waiting", "pending"}:
             return False, f"public collection run {run.get('id')} is already {run.get('status')} for current main"
     for run in same_revision:
         if run.get("status") == "completed" and run.get("conclusion") == "success":
             return False, f"public collection run {run.get('id')} already succeeded for current main"
+
     cutoff = base.utc_now() - timedelta(hours=24)
-    failures = [
-        run for run in same_revision
+
+    # Provider quota/cooldown is repository-wide, not commit-scoped. A migration-only
+    # commit must not reset the collection window and immediately repeat 25 MarketData
+    # calls. Any recent terminal collection run therefore holds provider execution for
+    # 24 hours, even if main advanced, while the controller may continue safe code/CI
+    # reconciliation. This does not affect exact-head validation or private CI.
+    recent_terminal = [
+        run for run in runs
         if run.get("status") == "completed"
-        and run.get("conclusion") in {"failure", "cancelled", "timed_out"}
+        and run.get("conclusion") in {"success", "failure", "cancelled", "timed_out"}
         and isinstance(run.get("created_at"), str)
         and base.parse_github_time(run["created_at"]) >= cutoff
     ]
-    if failures:
-        return False, f"current acquisition revision already failed in the past 24 hours at run {failures[0].get('id')}"
-    return True, "no current-revision public collection exists"
+    if recent_terminal:
+        latest = recent_terminal[0]
+        return False, (
+            f"provider cooldown active for 24 hours after public run {latest.get('id')} "
+            f"({latest.get('conclusion')}); code revision does not reset provider quota window"
+        )
+
+    return True, "no active collection and provider cooldown expired"
 
 
 def main() -> int:
