@@ -12,7 +12,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 API_ROOT = "https://api.github.com"
-DEFAULT_TARGET = "spoudel2010-ux/ppi-data-acquisition"
+DEFAULT_TARGET = "MarketMakingLFG/ppi-data-acquisition"
 DEFAULT_BASE = "main"
 BOOTSTRAP_BRANCH = "agent/bootstrap-r11-public-acquisition"
 TEMPLATE_ROOT = Path(__file__).resolve().parents[1] / "bootstrap" / "ppi-data-acquisition"
