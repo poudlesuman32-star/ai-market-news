@@ -1,94 +1,92 @@
 # PPI Public-First Implementation Progress Reconciliation
 
-**Reconciliation date:** 2026-08-03  
+**Reconciliation date:** 2026-08-09  
 **Canonical backlog:** `docs/architecture/PPI_PUBLIC_FIRST_3000_6000_TICKER_EXECUTION_PLAN.md`  
 **Current status ledger:** `docs/architecture/PPI_PUBLIC_FIRST_IMPLEMENTATION_PROGRESS.md`  
 **Tracking issue:** #104
 
 ## Authoritative ordered status
 
-The 26-step public-first plan remains the governing order. Repository implementation and merged documentation show that steps 1 through 7 are installed:
+The 26-step public-first plan remains the governing order. Steps 1 through 7 are implemented on `main`.
 
-1. Batch 3 remains frozen.
-2. The public source inventory exists.
-3. Approved public universe-source policy is documented.
-4. The universe foundation contract exists.
-5. Stable identity schemas and deterministic ID rules exist.
-6. SEC bulk-universe ingestion and artifact review are implemented.
-7. OpenFIGI mapping and review, stable-ID allocation and review, and immutable-universe snapshot and review are implemented as downstream fail-closed stages.
+Step 8 in the canonical plan is the first 500-instrument pilot milestone. It should not be redefined to require completion of the later OpenFIGI, stable-ID, and immutable-snapshot implementation chain. Those stages are downstream mechanisms that consume a passing reviewed SEC pilot.
 
-The first incomplete safe ordered item is:
+Current step-8 evidence is:
 
-```text
-Step 8 — Produce and independently review the live 500-instrument pilot chain.
-```
+- SEC contact configuration: complete according to issue #104; value remains undisclosed.
+- SEC pilot run: `30915422311`, attempt `1`, completed successfully on `main`.
+- SEC pilot artifact: `8894830703`, exact four-path success artifact.
+- Candidate count: exactly `500`.
+- Approved SEC bulk requests: exactly `1`.
+- Raw SEC payload retained: `false`.
+- Source-payload SHA-256: recorded in issue #104.
+- Candidate-snapshot SHA-256: recorded in issue #104.
+- SEC artifact-review receipt: not yet independently located and verified.
 
-No later 3,000-instrument expansion, screening-source approval, broad screening, private recovery, deep-evidence package, or private finalization step may be treated as complete because implementation scaffolding exists.
+Therefore step 8 is no longer broadly “not live-proven.” Its acquisition half is live-proven. The only remaining step-8 evidence gap is the exact passing SEC artifact-review receipt bound to run `30915422311`, attempt `1`, artifact `8894830703`.
 
-## Configured, installed, and proven are different states
-
-Current evidence supports these classifications:
+## Current state by stage
 
 | Item | State |
 |---|---|
-| `PPI_SEC_CONTACT_EMAIL` configuration | Configured according to issue #104; value must remain undisclosed. |
+| Batch 3 freeze | Complete. |
+| Public source inventory and universe foundation | Complete. |
 | SEC user-agent resolver | Installed and fail-closed. |
-| SEC 500-candidate collector | Installed; successful live four-path artifact not proven. |
-| SEC artifact reviewer | Installed; passing live review receipt not proven. |
-| OpenFIGI mapper and reviewer | Installed and gated; live reviewed mapping not proven. |
-| Stable-ID allocator and reviewer | Installed and gated; live reviewed allocation not proven. |
-| Immutable snapshot assembler and reviewer | Installed and gated; live reviewed snapshot not proven. |
+| SEC 500-candidate collector | Live-proven by run `30915422311`. |
+| SEC artifact reviewer | Installed; passing receipt for run `30915422311` not yet independently verified. |
+| OpenFIGI mapper and reviewer | Installed and gated; no live reviewed mapping is claimed here. |
+| Stable-ID allocator and reviewer | Installed and gated; no live reviewed allocation is claimed here. |
+| Immutable snapshot assembler and reviewer | Installed and gated; no live reviewed snapshot is claimed here. |
 | Asset-classification readiness | Installed as source-readiness policy; zero instruments classified. |
 | 3,000-instrument snapshot | Not started under a new contract. |
 | Public screening | Blocked pending approved sustainable source and terms. |
 | Private recovery and final analysis | Held under the separate billing-reviewed manual gate. |
 
-## Stale status-ledger text
+## Stale documentation corrected by this reconciliation
 
-The current progress ledger still lists configuring `PPI_SEC_CONTACT_EMAIL` as the first next action. Issue #104 now records that configuration complete. The ledger should instead state:
+The current implementation progress ledger is stale where it says:
 
-```text
-SEC contact configuration: complete according to issue #104
-SEC live pilot: not yet proven
-SEC four-path success artifact: not yet proven
-SEC review receipt: not yet proven
-OpenFIGI → stable-ID → immutable-snapshot live chain: not yet proven
+- SEC contact configuration remains to be done;
+- no successful live SEC 500-candidate artifact is confirmed;
+- the next action is to run the SEC pilot.
+
+Those statements were superseded by issue #104 evidence from run `30915422311`.
+
+Older issue comments that refer to the removed full-value `PPI_SEC_USER_AGENT` variable are also historical. Current resolution uses `PPI_SEC_CONTACT_EMAIL`, then an eligible public GitHub profile email, and otherwise fails closed before SEC access.
+
+A separate operational defect was observed in the successful SEC run: the configured contact was rendered in Actions environment logging. Draft PR #119 proposes masking before downstream commands. That defect requires remediation but does not invalidate the successful SEC acquisition artifact.
+
+## Exact remaining step-8 evidence
+
+To close step 8, independently verify the automatic SEC artifact-review result for source run `30915422311`, attempt `1`, and confirm its safe receipt contains at least:
+
+```json
+{
+  "gate_passed": true,
+  "artifact_mode": "success",
+  "candidate_count": 500
+}
 ```
 
-Older issue comments referring to the removed full-value `PPI_SEC_USER_AGENT` variable are historical. The current authoritative resolver uses `PPI_SEC_CONTACT_EMAIL`, then an eligible public GitHub profile email, and otherwise fails closed before SEC access.
+The review must also bind to the exact source run identity, exact four-path artifact, candidate snapshot hash, source payload hash, and public-only authority boundaries required by `PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1`.
 
-## Exact step-8 completion evidence
+## What does not block step 8
 
-Step 8 is complete only when one exact live chain records:
+The following are not prerequisites for declaring the SEC 500-instrument pilot reviewed:
 
-1. SEC workflow run ID and attempt.
-2. SEC artifact ID and exact four-path success set.
-3. Exactly 500 provisional candidate records.
-4. Exactly one approved SEC bulk URL request.
-5. Zero retained raw SEC payload.
-6. Source-payload and candidate-snapshot SHA-256 values.
-7. Passing SEC review receipt with `gate_passed: true`, `artifact_mode: success`, and `candidate_count: 500`.
-8. OpenFIGI run, artifact, request count, mapping dispositions, hashes, and passing review receipt.
-9. Stable-ID allocation run, artifact, deterministic allocation/deferred counts, hashes, and passing review receipt.
-10. Immutable universe/deferred snapshot run, artifact, total disposition count of 500, lineage hashes, and passing review receipt.
-11. Explicit confirmation that no private dispatch, billing mutation, registry mutation, production publication, broker, order, or trading authority was used.
+- completing OpenFIGI mapping;
+- completing stable-ID allocation;
+- completing immutable-snapshot assembly;
+- classifying common stock versus ADR;
+- producing the 3,000-instrument snapshot;
+- performing public screening;
+- performing any private recovery or final analysis.
 
-## Current blocker
-
-The remaining step-8 blocker is an explicit operator-controlled manual dispatch of `PPI SEC 500-instrument universe pilot` from `main`. This reconciliation does not dispatch that workflow or authorize provider acquisition.
+Those remain later ordered work and must be evaluated only after step 8 is closed.
 
 ## Next safe action
 
-After the operator manually runs the SEC pilot, independently inspect the exact run and artifacts, record the evidence above in issue #104, and allow downstream workflows to continue only from passing exact review receipts.
-
-Until that evidence exists, the accurate status is:
-
-```text
-steps 1–7 implemented
-step 8 installed but not live-proven
-steps 9–26 not yet earned
-public-first system fail-closed
-```
+Locate and independently verify the already-automatic SEC artifact-review run corresponding to source run `30915422311`. Do not rerun SEC acquisition merely to recreate evidence. If the exact review receipt passes, mark step 8 complete and move the canonical backlog to step 9: produce the 3,000-instrument snapshot under a new contract.
 
 ## Safety boundary
 
