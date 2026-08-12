@@ -16,7 +16,10 @@ SECRET_ENV = (
     "PPI_MARKETDATA_TOKEN",
     "PPI_PRIVATE_HANDOFF_TOKEN",
 )
-AUTH_HEADER_RE = re.compile(rb"(?i)authorization\s*:\s*(?:bearer|token)\s+(?!\*{3,}\b|redacted\b)[A-Za-z0-9_.~+/=-]{8,}")
+AUTH_HEADER_RE = re.compile(
+    rb"(?i)authorization\s*:\s*(?:bearer|token)\s+"
+    rb"(?!\*{3,}(?:\s|$)|redacted(?:\s|$))[A-Za-z0-9_.~+/=-]{8,}"
+)
 CREDENTIAL_QUERY_RE = re.compile(rb"(?i)(?:apikey|api_key|access_token|auth_token|token|password)=[A-Za-z0-9_.~%+/=-]{8,}")
 
 
