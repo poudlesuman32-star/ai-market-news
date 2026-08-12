@@ -6,6 +6,10 @@ on:
     paths:
       - "news/**"
       - "scripts/publish_public_news_snapshot.sh"
+      - "scripts/bootstrap_ppi_data_acquisition.py"
+      - "scripts/bootstrap_ppi_data_acquisition_r2.py"
+      - "bootstrap/ppi-data-acquisition/**"
+      - ".github/workflows/bootstrap-ppi-data-acquisition.yml"
       - ".github/workflows/public-news-collectors.yml"
       - ".github/workflows/collect-public-news.yml"
       - ".github/workflows/collect-public-news-live.yml"
@@ -271,4 +275,53 @@ jobs:
           assert 'DATA_COMMIT=$DATA_COMMIT' in publisher
           assert 'POINTER_COMMIT=$POINTER_COMMIT' in publisher
           assert 'iteration-16-market-data' not in publisher
+          PY
+
+  validate-r11-bootstrap:
+    name: Validate R11 producer bootstrap remediation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Compile bootstrap producer implementation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/bootstrap_ppi_data_acquisition.py \
+            scripts/bootstrap_ppi_data_acquisition_r2.py \
+            bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py \
+            bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence_r2.py \
+            bootstrap/ppi-data-acquisition/src/run_resumable_r2.py \
+            bootstrap/ppi-data-acquisition/src/private_checkpoint_store.py \
+            bootstrap/ppi-data-acquisition/src/scan_job_log.py \
+            bootstrap/ppi-data-acquisition/src/fetch_yfinance_expectations.py \
+            bootstrap/ppi-data-acquisition/src/publish_private_handoff.py \
+            bootstrap/ppi-data-acquisition/src/publish_prepared_private_handoff.py
+
+      - name: Run focused producer boundary and adversarial tests
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
+
+      - name: Confirm bootstrap remains non-operational in PR CI
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/bootstrap-ppi-data-acquisition.yml').read_text(encoding='utf-8')
+          target = Path('bootstrap/ppi-data-acquisition/.github/workflows/collect-r11-public-evidence.yml').read_text(encoding='utf-8')
+          assert '\n  workflow_dispatch:\n' in workflow
+          assert '\n  push:\n' not in workflow
+          assert '\n  pull_request:\n' not in workflow
+          assert 'default: MarketMakingLFG/ppi-data-acquisition' in workflow
+          assert 'PPI_CROSS_REPOSITORY_AUTOMATION: $' + '{{ secrets.RAW_TOKEN }}' in workflow
+          assert 'src/private_checkpoint_store.py restore' in target
+          assert 'src/private_checkpoint_store.py publish' in target
+          assert 'scan-job-log:' in target
+          assert 'actions/jobs/${job_id}/logs' in target
+          assert 'runtime/r11-batch3-private-checkpoint/' not in target.split('Retain public safe success metadata', 1)[1]
           PY
