@@ -29,6 +29,7 @@ REQUIRED_R2_PATHS = {
     "src/publish_private_handoff.py",
     "tests/test_public_boundary.py",
     "tests/test_resume_log_evidence.py",
+    "tests/test_checkpoint_authentication.py",
 }
 MANAGED_R2_MIGRATION_EXTRAS = {"src/publish_prepared_private_handoff.py"}
 
@@ -92,7 +93,7 @@ def ensure_r2_pr(repository: str, *, token: str) -> str:
                 "## Summary\n"
                 "- preserve frozen public acquisition and collector R2 contracts and exact 48-bundle/50-path handoff\n"
                 "- persist raw checkpoint material only in the private handoff repository, never as a public artifact\n"
-                "- restore only digest-verified prior-attempt checkpoints for the same run and exact head\n"
+                "- restore only digest- and credential-authenticated prior-attempt checkpoints for the same run and exact head\n"
                 "- reuse only complete 12-operation shards; partial or corrupt shards are recomputed\n"
                 "- record reused/recomputed shard identities and provider calls made by the current attempt\n"
                 "- scan the completed producer Actions job log for exact, encoded, header, and query credential leaks\n"
