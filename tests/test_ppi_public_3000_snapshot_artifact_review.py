@@ -79,7 +79,11 @@ class Step9ArtifactReviewTests(unittest.TestCase):
             root = Path(tmp)
             self.fixture(root)
             path = root / "universe-instruments-3000.jsonl"
-            path.write_bytes(path.read_bytes() + b"\n")
+            lines = path.read_bytes().splitlines()
+            first = json.loads(lines[0])
+            first["ticker"] = "TAMPERED"
+            lines[0] = validator.canon(first).rstrip(b"\n")
+            path.write_bytes(b"\n".join(lines) + b"\n")
             with self.assertRaises(reviewer.ReviewError):
                 reviewer.review(root)
 
