@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -14,9 +15,11 @@ from typing import Any
 
 from publish_private_handoff import API_ROOT, PRIVATE_REPOSITORY, PRIVATE_REPOSITORY_ID, UPLOAD_ROOT, api, canonical_json, require
 
-ASSET_RE = re.compile(r"^ppi-r11-checkpoint-(\d+)-(\d+)-([0-9a-f]{64})\.json$")
+ASSET_RE = re.compile(r"^ppi-r11-checkpoint-(\d+)-(\d+)-([0-9a-f]{64})-([0-9a-f]{64})\.json$")
 CHECKPOINT_STATUS = "r11_private_checkpoint_material"
 RELEASE_PREFIX = "ppi-r11-checkpoints-"
+AUTH_SCHEME = "hmac-sha256-domain-separated-v1"
+AUTH_DOMAIN = b"PPI-R11-BATCH3-R2/private-checkpoint/v1\0"
 
 
 def workflow_identity() -> tuple[int, int, str]:
@@ -32,6 +35,12 @@ def token() -> str:
     value = os.environ.get("PPI_PRIVATE_HANDOFF_TOKEN", "").strip()
     require(value, "PPI_PRIVATE_HANDOFF_TOKEN is missing")
     return value
+
+
+def checkpoint_auth_tag(raw: bytes, auth: str) -> str:
+    require(bool(auth), "checkpoint authentication credential is missing")
+    key = hashlib.sha256(AUTH_DOMAIN + auth.encode("utf-8")).digest()
+    return hmac.new(key, AUTH_DOMAIN + raw, hashlib.sha256).hexdigest()
 
 
 def verify_private_repository(auth: str) -> None:
@@ -106,7 +115,8 @@ def upload_checkpoint(path: Path, auth: str) -> dict[str, Any]:
     verify_private_repository(auth)
     raw = checkpoint_bytes(path, expected_run_id=run_id, expected_attempt=attempt, expected_head_sha=head_sha)
     digest = hashlib.sha256(raw).hexdigest()
-    asset_name = f"ppi-r11-checkpoint-{run_id}-{attempt}-{digest}.json"
+    auth_tag = checkpoint_auth_tag(raw, auth)
+    asset_name = f"ppi-r11-checkpoint-{run_id}-{attempt}-{digest}-{auth_tag}.json"
     release = ensure_release(run_id, head_sha, auth)
     assets = release.get("assets")
     require(isinstance(assets, list), "checkpoint release assets missing")
@@ -139,6 +149,7 @@ def upload_checkpoint(path: Path, auth: str) -> dict[str, Any]:
         "private_asset_name": asset_name,
         "private_asset_sha256": digest,
         "private_asset_bytes": len(raw),
+        "checkpoint_authentication": AUTH_SCHEME,
         "public_raw_artifact_uploaded": False,
         "private_analysis_authorized": False,
         "registry_mutation_authorized": False,
@@ -182,7 +193,7 @@ def restore_checkpoint(output: Path, auth: str) -> dict[str, Any]:
         return {"status": "no_prior_checkpoint_release", "restored": False, "authorized_actions": []}
     assets = release.get("assets")
     require(isinstance(assets, list), "checkpoint release assets missing")
-    candidates: list[tuple[int, str, dict[str, Any]]] = []
+    candidates: list[tuple[int, str, str, dict[str, Any]]] = []
     for asset in assets:
         if not isinstance(asset, dict):
             continue
@@ -193,13 +204,15 @@ def restore_checkpoint(output: Path, auth: str) -> dict[str, Any]:
         asset_run = int(match.group(1))
         asset_attempt = int(match.group(2))
         digest = match.group(3)
+        auth_tag = match.group(4)
         if asset_run == run_id and 0 < asset_attempt < attempt:
-            candidates.append((asset_attempt, digest, asset))
+            candidates.append((asset_attempt, digest, auth_tag, asset))
     if not candidates:
         return {"status": "no_prior_checkpoint_asset", "restored": False, "authorized_actions": []}
-    prior_attempt, expected_digest, asset = max(candidates, key=lambda item: item[0])
+    prior_attempt, expected_digest, expected_auth_tag, asset = max(candidates, key=lambda item: item[0])
     raw = download_asset(asset, auth)
     require(hashlib.sha256(raw).hexdigest() == expected_digest, "downloaded checkpoint digest mismatch")
+    require(hmac.compare_digest(checkpoint_auth_tag(raw, auth), expected_auth_tag), "downloaded checkpoint authentication mismatch")
     try:
         value = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -220,6 +233,7 @@ def restore_checkpoint(output: Path, auth: str) -> dict[str, Any]:
         "resumed_from_attempt": prior_attempt,
         "public_head_sha": head_sha,
         "checkpoint_sha256": expected_digest,
+        "checkpoint_authentication": AUTH_SCHEME,
         "authorized_actions": [],
     }
 
@@ -243,7 +257,7 @@ def cleanup_checkpoint(auth: str) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Persist and restore private R11 resumability checkpoints")
+    parser = argparse.ArgumentParser(description="Persist and restore authenticated private R11 resumability checkpoints")
     sub = parser.add_subparsers(dest="command", required=True)
     restore = sub.add_parser("restore")
     restore.add_argument("--output", type=Path, required=True)
