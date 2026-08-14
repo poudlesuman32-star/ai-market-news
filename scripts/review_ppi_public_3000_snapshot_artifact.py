@@ -14,6 +14,9 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(validator)
 
 DATA_PATHS = ("universe-instruments-3000.jsonl", "universe-deferred-3000.jsonl")
+MANIFEST_KEYS = {"contract_id", "artifact_mode", "data_file_sha256", "combined_snapshot_sha256", "step8_source"}
+RECEIPT_KEYS = {"contract_id", "artifact_mode", "gate_passed", "total_candidate_dispositions", "combined_snapshot_sha256"}
+STEP8_SOURCE_KEYS = {"review_run_id", "review_run_attempt", "review_artifact_id", "review_receipt_sha256"}
 
 
 class ReviewError(RuntimeError):
@@ -35,6 +38,11 @@ def load_json(path: Path) -> dict:
     return value
 
 
+def require_exact_keys(value: dict, expected: set[str], label: str) -> None:
+    if set(value) != expected:
+        raise ReviewError(f"{label} fields differ from frozen schema")
+
+
 def review(root: Path) -> dict:
     validation = validator.validate_snapshot(root)
     if validation["artifact_mode"] == "blocked":
@@ -45,6 +53,8 @@ def review(root: Path) -> dict:
 
     manifest = load_json(root / "manifest.json")
     receipt = load_json(root / "receipt.json")
+    require_exact_keys(manifest, MANIFEST_KEYS, "manifest")
+    require_exact_keys(receipt, RECEIPT_KEYS, "receipt")
 
     if manifest.get("contract_id") != validator.CONTRACT_ID:
         raise ReviewError("manifest contract_id mismatch")
@@ -54,7 +64,10 @@ def review(root: Path) -> dict:
         raise ReviewError("success artifact mode mismatch")
 
     actual_hashes = {name: sha256_bytes((root / name).read_bytes()) for name in DATA_PATHS}
-    if manifest.get("data_file_sha256") != actual_hashes:
+    declared_hashes = manifest.get("data_file_sha256")
+    if not isinstance(declared_hashes, dict) or set(declared_hashes) != set(DATA_PATHS):
+        raise ReviewError("manifest data-file hash keys differ from frozen schema")
+    if declared_hashes != actual_hashes:
         raise ReviewError("manifest data-file hashes do not match retained bytes")
 
     combined_input = {name: actual_hashes[name] for name in sorted(actual_hashes)}
@@ -72,10 +85,12 @@ def review(root: Path) -> dict:
     source = manifest.get("step8_source")
     if not isinstance(source, dict):
         raise ReviewError("manifest missing step-8 source binding")
-    required_source = ("review_run_id", "review_run_attempt", "review_artifact_id", "review_receipt_sha256")
-    if any(source.get(key) in (None, "") for key in required_source):
-        raise ReviewError("incomplete step-8 review lineage")
-    if not validator.HEX64.fullmatch(str(source["review_receipt_sha256"])):
+    require_exact_keys(source, STEP8_SOURCE_KEYS, "step-8 source")
+    for key in ("review_run_id", "review_run_attempt", "review_artifact_id"):
+        if type(source.get(key)) is not int or source[key] < 1:
+            raise ReviewError(f"invalid step-8 {key}")
+    receipt_hash = source.get("review_receipt_sha256")
+    if not isinstance(receipt_hash, str) or not validator.HEX64.fullmatch(receipt_hash):
         raise ReviewError("invalid step-8 review receipt hash")
 
     return {
