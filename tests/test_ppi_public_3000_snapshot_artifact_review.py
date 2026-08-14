@@ -107,6 +107,46 @@ class Step9ArtifactReviewTests(unittest.TestCase):
             with self.assertRaises(reviewer.ReviewError):
                 reviewer.review(root)
 
+    def test_extra_manifest_field_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            manifest = json.loads((root / "manifest.json").read_text())
+            manifest["producer_claim"] = "not-authoritative"
+            (root / "manifest.json").write_bytes(validator.canon(manifest))
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
+    def test_extra_receipt_field_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            receipt = json.loads((root / "receipt.json").read_text())
+            receipt["network_requests"] = 0
+            (root / "receipt.json").write_bytes(validator.canon(receipt))
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
+    def test_nonpositive_step8_run_id_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            manifest = json.loads((root / "manifest.json").read_text())
+            manifest["step8_source"]["review_run_id"] = 0
+            (root / "manifest.json").write_bytes(validator.canon(manifest))
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
+    def test_unexpected_data_hash_key_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            manifest = json.loads((root / "manifest.json").read_text())
+            manifest["data_file_sha256"]["raw-provider.json"] = "0" * 64
+            (root / "manifest.json").write_bytes(validator.canon(manifest))
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
     def test_blocked_artifact_never_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
