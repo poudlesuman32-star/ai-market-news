@@ -38,9 +38,38 @@ def load_json(path: Path) -> dict:
     return value
 
 
+def load_jsonl(path: Path) -> list[dict]:
+    values: list[dict] = []
+    for line in path.read_bytes().splitlines():
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise ReviewError(f"{path.name} must contain JSON objects")
+        values.append(value)
+    return values
+
+
 def require_exact_keys(value: dict, expected: set[str], label: str) -> None:
     if set(value) != expected:
         raise ReviewError(f"{label} fields differ from frozen schema")
+
+
+def require_deterministic_partition(root: Path) -> None:
+    allocated = load_jsonl(root / "universe-instruments-3000.jsonl")
+    deferred = load_jsonl(root / "universe-deferred-3000.jsonl")
+
+    if any(value.get("disposition") != "allocated" for value in allocated):
+        raise ReviewError("allocated file contains a non-allocated disposition")
+    if any(value.get("disposition") not in {"deferred_ambiguous", "deferred_unmatched"} for value in deferred):
+        raise ReviewError("deferred file contains an allocated or unknown disposition")
+
+    allocated_ids = [value.get("candidate_id") for value in allocated]
+    deferred_ids = [value.get("candidate_id") for value in deferred]
+    if allocated_ids != sorted(allocated_ids):
+        raise ReviewError("allocated records are not deterministically ordered by candidate_id")
+    if deferred_ids != sorted(deferred_ids):
+        raise ReviewError("deferred records are not deterministically ordered by candidate_id")
+    if set(allocated_ids) & set(deferred_ids):
+        raise ReviewError("allocated and deferred candidate sets overlap")
 
 
 def review(root: Path) -> dict:
@@ -51,6 +80,7 @@ def review(root: Path) -> dict:
             raise ReviewError("blocked artifact declares incompatible mode")
         return {"gate_passed": False, "artifact_mode": "blocked", "total_candidate_dispositions": 0}
 
+    require_deterministic_partition(root)
     manifest = load_json(root / "manifest.json")
     receipt = load_json(root / "receipt.json")
     require_exact_keys(manifest, MANIFEST_KEYS, "manifest")
