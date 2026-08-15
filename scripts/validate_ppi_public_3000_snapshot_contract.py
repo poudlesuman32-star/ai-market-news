@@ -16,9 +16,25 @@ SUCCESS_PATHS = {
     "universe-instruments-3000.jsonl",
 }
 BLOCKED_PATHS = {"blocked.json", "report.md"}
+RECORD_FIELDS = {
+    "candidate_id",
+    "cik",
+    "ticker",
+    "exchange",
+    "disposition",
+    "instrument_id",
+    "figi",
+    "identity_status",
+    "classification_status",
+    "source_row_sha256",
+}
 HEX64 = re.compile(r"^[a-f0-9]{64}$")
+CANDIDATE_ID = re.compile(r"^ppi-sec-seed-[a-f0-9]{24}$")
+CIK = re.compile(r"^[0-9]{10}$")
+TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,14}$")
 INSTRUMENT_ID = re.compile(r"^ppi-us-equity-[a-f0-9]{24}$")
 FIGI = re.compile(r"^[A-Z0-9]{12}$")
+EXCHANGES = {"NYSE", "NASDAQ", "NYSE_AMERICAN"}
 
 
 class ContractError(RuntimeError):
@@ -76,26 +92,40 @@ def validate_contract(path: Path) -> dict:
 
 
 def validate_record(value: dict) -> None:
-    disposition = value.get("disposition")
-    if value.get("classification_status") != "unresolved_asset_subtype":
+    if not isinstance(value, dict) or set(value) != RECORD_FIELDS:
+        raise ContractError("record fields differ from frozen schema")
+    if not isinstance(value["candidate_id"], str) or not CANDIDATE_ID.fullmatch(value["candidate_id"]):
+        raise ContractError("invalid candidate_id")
+    if not isinstance(value["cik"], str) or not CIK.fullmatch(value["cik"]):
+        raise ContractError("invalid cik")
+    if not isinstance(value["ticker"], str) or not TICKER.fullmatch(value["ticker"]):
+        raise ContractError("invalid ticker")
+    if value["exchange"] not in EXCHANGES:
+        raise ContractError("invalid exchange")
+    if value["classification_status"] != "unresolved_asset_subtype":
         raise ContractError("classification must remain unresolved_asset_subtype")
-    if not isinstance(value.get("source_row_sha256"), str) or not HEX64.fullmatch(value["source_row_sha256"]):
+    if not isinstance(value["source_row_sha256"], str) or not HEX64.fullmatch(value["source_row_sha256"]):
         raise ContractError("invalid source row hash")
+
+    disposition = value["disposition"]
     if disposition == "allocated":
-        figi = value.get("figi")
-        instrument_id = value.get("instrument_id")
+        figi = value["figi"]
+        instrument_id = value["instrument_id"]
         if not isinstance(figi, str) or not FIGI.fullmatch(figi):
             raise ContractError("allocated record requires exact FIGI")
         if not isinstance(instrument_id, str) or not INSTRUMENT_ID.fullmatch(instrument_id):
             raise ContractError("allocated record requires stable instrument ID")
         if instrument_id != stable_instrument_id(figi):
             raise ContractError("stable instrument ID does not match established algorithm")
-        if value.get("identity_status") != "verified_exact_figi":
+        if value["identity_status"] != "verified_exact_figi":
             raise ContractError("allocated identity status mismatch")
     elif disposition in {"deferred_ambiguous", "deferred_unmatched"}:
-        if value.get("instrument_id") is not None:
+        if value["instrument_id"] is not None:
             raise ContractError("deferred record must not receive an instrument ID")
-        if value.get("identity_status") != disposition:
+        figi = value["figi"]
+        if figi is not None and (not isinstance(figi, str) or not FIGI.fullmatch(figi)):
+            raise ContractError("deferred FIGI must be null or schema-valid")
+        if value["identity_status"] != disposition:
             raise ContractError("deferred identity status mismatch")
     else:
         raise ContractError("unknown disposition")
@@ -122,10 +152,10 @@ def validate_snapshot(root: Path) -> dict:
 
     if len(records) != EXPECTED_COUNT:
         raise ContractError("snapshot must contain exactly 3000 dispositions")
-    candidate_ids = [v.get("candidate_id") for v in records]
+    candidate_ids = [v["candidate_id"] for v in records]
     if len(set(candidate_ids)) != EXPECTED_COUNT:
         raise ContractError("candidate identities must be unique")
-    instrument_ids = [v["instrument_id"] for v in records if v.get("instrument_id") is not None]
+    instrument_ids = [v["instrument_id"] for v in records if v["instrument_id"] is not None]
     if len(instrument_ids) != len(set(instrument_ids)):
         raise ContractError("stable instrument IDs must be unique")
     return {"artifact_mode": "success", "gate_passed": True, "total_candidate_dispositions": EXPECTED_COUNT}
