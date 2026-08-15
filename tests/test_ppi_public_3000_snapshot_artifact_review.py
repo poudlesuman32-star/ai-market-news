@@ -20,7 +20,7 @@ class Step9ArtifactReviewTests(unittest.TestCase):
     def record(self, index: int) -> dict:
         figi = f"BBG{index:09d}"
         return {
-            "candidate_id": f"candidate-{index:04d}",
+            "candidate_id": f"ppi-sec-seed-{index:024x}",
             "cik": f"{index + 1:010d}",
             "ticker": f"T{index:04d}",
             "exchange": "NASDAQ",
