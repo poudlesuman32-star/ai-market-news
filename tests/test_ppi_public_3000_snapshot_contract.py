@@ -19,7 +19,7 @@ class Step9SnapshotContractTests(unittest.TestCase):
         figi = f"BBG{index:09d}"
         disposition = "allocated" if allocated else "deferred_unmatched"
         return {
-            "candidate_id": f"candidate-{index:04d}",
+            "candidate_id": f"ppi-sec-seed-{index:024x}",
             "cik": f"{index + 1:010d}",
             "ticker": f"T{index:04d}",
             "exchange": "NASDAQ",
@@ -65,6 +65,25 @@ class Step9SnapshotContractTests(unittest.TestCase):
         record["classification_status"] = "common_stock"
         with self.assertRaises(validator.ContractError):
             validator.validate_record(record)
+
+    def test_rejects_schema_invalid_candidate_id(self) -> None:
+        record = self.make_record(1)
+        record["candidate_id"] = "candidate-0001"
+        with self.assertRaises(validator.ContractError):
+            validator.validate_record(record)
+
+    def test_rejects_extra_record_field(self) -> None:
+        record = self.make_record(1)
+        record["producer_note"] = "unexpected"
+        with self.assertRaises(validator.ContractError):
+            validator.validate_record(record)
+
+    def test_rejects_invalid_identity_scalars(self) -> None:
+        for field, bad_value in (("cik", "123"), ("ticker", "bad ticker"), ("exchange", "OTC")):
+            record = self.make_record(1)
+            record[field] = bad_value
+            with self.subTest(field=field), self.assertRaises(validator.ContractError):
+                validator.validate_record(record)
 
     def test_deferred_record_never_gets_instrument_id(self) -> None:
         record = self.make_record(1, allocated=False)
