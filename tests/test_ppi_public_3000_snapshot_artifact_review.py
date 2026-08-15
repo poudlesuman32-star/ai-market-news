@@ -37,9 +37,13 @@ class Step9ArtifactReviewTests(unittest.TestCase):
         deferred = b""
         (root / "universe-instruments-3000.jsonl").write_bytes(instruments)
         (root / "universe-deferred-3000.jsonl").write_bytes(deferred)
+        self.refresh_metadata(root)
+        (root / "report.md").write_text("# fixture\n", encoding="utf-8")
+
+    def refresh_metadata(self, root: Path) -> None:
         hashes = {
-            "universe-instruments-3000.jsonl": hashlib.sha256(instruments).hexdigest(),
-            "universe-deferred-3000.jsonl": hashlib.sha256(deferred).hexdigest(),
+            "universe-instruments-3000.jsonl": hashlib.sha256((root / "universe-instruments-3000.jsonl").read_bytes()).hexdigest(),
+            "universe-deferred-3000.jsonl": hashlib.sha256((root / "universe-deferred-3000.jsonl").read_bytes()).hexdigest(),
         }
         combined = reviewer.canonical_json_sha256({name: hashes[name] for name in sorted(hashes)})
         manifest = {
@@ -63,7 +67,6 @@ class Step9ArtifactReviewTests(unittest.TestCase):
         }
         (root / "manifest.json").write_bytes(validator.canon(manifest))
         (root / "receipt.json").write_bytes(validator.canon(receipt))
-        (root / "report.md").write_text("# fixture\n", encoding="utf-8")
 
     def test_reviewer_recomputes_hashes_offline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,6 +87,41 @@ class Step9ArtifactReviewTests(unittest.TestCase):
             first["ticker"] = "TAMPERED"
             lines[0] = validator.canon(first).rstrip(b"\n")
             path.write_bytes(b"\n".join(lines) + b"\n")
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
+    def test_unsorted_allocated_records_fail_even_with_refreshed_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            path = root / "universe-instruments-3000.jsonl"
+            lines = path.read_bytes().splitlines()
+            lines[0], lines[1] = lines[1], lines[0]
+            path.write_bytes(b"\n".join(lines) + b"\n")
+            self.refresh_metadata(root)
+            with self.assertRaises(reviewer.ReviewError):
+                reviewer.review(root)
+
+    def test_allocated_deferred_overlap_fails_even_with_refreshed_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            allocated_path = root / "universe-instruments-3000.jsonl"
+            allocated = allocated_path.read_bytes().splitlines()
+            moved = json.loads(allocated[-1])
+            moved["disposition"] = "deferred_unmatched"
+            moved["instrument_id"] = None
+            moved["figi"] = None
+            moved["identity_status"] = "deferred_unmatched"
+            (root / "universe-deferred-3000.jsonl").write_bytes(validator.canon(moved))
+            duplicate = dict(moved)
+            duplicate["disposition"] = "allocated"
+            duplicate["figi"] = "BBG999999999"
+            duplicate["instrument_id"] = validator.stable_instrument_id(duplicate["figi"])
+            duplicate["identity_status"] = "verified_exact_figi"
+            allocated[-1] = validator.canon(duplicate).rstrip(b"\n")
+            allocated_path.write_bytes(b"\n".join(allocated) + b"\n")
+            self.refresh_metadata(root)
             with self.assertRaises(reviewer.ReviewError):
                 reviewer.review(root)
 
