@@ -6,7 +6,7 @@ on:
       target_repository:
         description: Exact public acquisition repository
         required: true
-        default: spoudel2010-ux/ppi-data-acquisition
+        default: MarketMakingLFG/ppi-data-acquisition
         type: string
 
 permissions:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate protected cross-repository configuration
         run: |
           set -euo pipefail
-          test "$TARGET_REPOSITORY" = "spoudel2010-ux/ppi-data-acquisition"
+          test "$TARGET_REPOSITORY" = "MarketMakingLFG/ppi-data-acquisition"
           test -n "$PPI_CROSS_REPOSITORY_AUTOMATION"
           test "${#PPI_CROSS_REPOSITORY_AUTOMATION}" -ge 20
 
@@ -45,8 +45,12 @@ jobs:
             scripts/bootstrap_ppi_data_acquisition_r2.py \
             bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py \
             bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence_r2.py \
+            bootstrap/ppi-data-acquisition/src/run_resumable_r2.py \
+            bootstrap/ppi-data-acquisition/src/private_checkpoint_store.py \
+            bootstrap/ppi-data-acquisition/src/scan_job_log.py \
             bootstrap/ppi-data-acquisition/src/fetch_yfinance_expectations.py \
-            bootstrap/ppi-data-acquisition/src/publish_private_handoff.py
+            bootstrap/ppi-data-acquisition/src/publish_private_handoff.py \
+            bootstrap/ppi-data-acquisition/src/publish_prepared_private_handoff.py
           python -m unittest discover -s bootstrap/ppi-data-acquisition/tests -p "test_*.py" -v
 
           find bootstrap/ppi-data-acquisition -type f -name '*.pyc' -delete
@@ -63,6 +67,9 @@ jobs:
           helper = Path('bootstrap/ppi-data-acquisition/src/fetch_yfinance_expectations.py').read_text(encoding='utf-8')
           collector_source = Path('bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence.py').read_text(encoding='utf-8')
           collector_entrypoint = Path('bootstrap/ppi-data-acquisition/src/collect_raw_provider_evidence_r2.py').read_text(encoding='utf-8')
+          resumable = Path('bootstrap/ppi-data-acquisition/src/run_resumable_r2.py').read_text(encoding='utf-8')
+          checkpoint_store = Path('bootstrap/ppi-data-acquisition/src/private_checkpoint_store.py').read_text(encoding='utf-8')
+          log_scanner = Path('bootstrap/ppi-data-acquisition/src/scan_job_log.py').read_text(encoding='utf-8')
           legacy = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003.json').read_text(encoding='utf-8'))
           acquisition_r1 = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json').read_text(encoding='utf-8'))
           acquisition_r2 = json.loads(Path('bootstrap/ppi-data-acquisition/contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json').read_text(encoding='utf-8'))
@@ -74,21 +81,28 @@ jobs:
           assert '\n  workflow_dispatch:\n' in source_workflow
           assert '\n  schedule:\n' not in source_workflow
           assert '\n  repository_dispatch:\n' not in source_workflow
+          assert 'default: MarketMakingLFG/ppi-data-acquisition' in source_workflow
           expected_secret_binding = 'PPI_CROSS_REPOSITORY_AUTOMATION: $' + '{{ secrets.RAW_TOKEN }}'
           assert expected_secret_binding in source_workflow
           assert 'bootstrap_ppi_data_acquisition_r2.py' in source_workflow
           assert 'REQUIRED_R2_PATHS' in bootstrap_r2
-          assert 'src/fetch_yfinance_expectations.py' in bootstrap_r2
-          assert 'contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json' in bootstrap_r2
-          assert 'contracts/PPI-PUBLIC-COLLECTOR-003-R2.json' in bootstrap_r2
+          assert 'src/run_resumable_r2.py' in bootstrap_r2
+          assert 'src/private_checkpoint_store.py' in bootstrap_r2
+          assert 'src/scan_job_log.py' in bootstrap_r2
+          assert 'tests/test_resume_log_evidence.py' in bootstrap_r2
           assert '\n  workflow_dispatch:\n' in target_workflow
           assert '\n  schedule:\n' not in target_workflow
           assert '\n  repository_dispatch:\n' not in target_workflow
           assert 'PRIVATE_RELEASE_HANDOFF_ENABLED: true' in target_workflow
           assert "'yfinance==1.5.1'" in target_workflow
-          assert 'src/collect_raw_provider_evidence_r2.py' in target_workflow
+          assert 'src/run_resumable_r2.py' in target_workflow
+          assert 'src/private_checkpoint_store.py restore' in target_workflow
+          assert 'src/private_checkpoint_store.py publish' in target_workflow
+          assert 'scan-job-log:' in target_workflow
+          assert 'actions/jobs/${job_id}/logs' in target_workflow
           assert 'ppi-r11-public-success-' in target_workflow
           assert 'ppi-r11-public-failure-' in target_workflow
+          assert 'ppi-r11-public-job-log-scan-' in target_workflow
           assert 'actions/checkout@v' not in target_workflow
           assert 'actions/upload-artifact@v' not in target_workflow
           assert 'EXPECTED_YFINANCE_VERSION = "1.5.1"' in helper
@@ -96,6 +110,12 @@ jobs:
           assert collector_source.count('"function": "NEWS_SENTIMENT"') == 1
           assert 'PPI-R11-PUBLIC-ACQUISITION-003-R2' in collector_entrypoint
           assert 'PPI-PUBLIC-COLLECTOR-003-R2' in collector_entrypoint
+          assert 'reuse_verified_completed_shards_only' in resumable
+          assert 'checkpoint digest mismatch' in resumable
+          assert 'PRIVATE_REPOSITORY' in checkpoint_store
+          assert 'public_raw_artifact_uploaded' in checkpoint_store
+          assert 'logs_scanned' in log_scanner
+          assert 'encoded_secret_matches' in log_scanner
           assert scope['contract_id'] == 'PPI-R11-PUBLIC-ACQUISITION-003-R2'
           assert scope['private_contract_id'] == 'PPI-R11-BATCH-EVIDENCE-003-R1'
           assert scope['collector_release_id'] == 'PPI-PUBLIC-COLLECTOR-003-R2'
