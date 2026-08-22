@@ -1,0 +1,87 @@
+name: Verify PPI R11 remediation controller
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-ppi-r11-remediation-controller.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-ppi-r11-remediation-controller
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ secrets.RAW_TOKEN }}
+      TARGET_REPOSITORY: MarketMakingLFG/ppi-data-acquisition
+      TARGET_WORKFLOW: ppi-r11-remediation-controller.yml
+    steps:
+      - name: Validate fixed target and token presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$TARGET_REPOSITORY" = "MarketMakingLFG/ppi-data-acquisition"
+          test "$TARGET_WORKFLOW" = "ppi-r11-remediation-controller.yml"
+          test -n "$GH_TOKEN"
+          test "${#GH_TOKEN}" -ge 20
+
+      - name: Dispatch repository-native remediation controller
+        id: dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "started=$started" >> "$GITHUB_OUTPUT"
+          gh workflow run "$TARGET_WORKFLOW" \
+            --repo "$TARGET_REPOSITORY" \
+            --ref main
+
+      - name: Require successful controller completion
+        env:
+          STARTED: ${{ steps.dispatch.outputs.started }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          status=""
+          conclusion=""
+
+          for _ in $(seq 1 60); do
+            sleep 10
+            run="$(
+              gh run list \
+                --repo "$TARGET_REPOSITORY" \
+                --workflow "$TARGET_WORKFLOW" \
+                --branch main \
+                --event workflow_dispatch \
+                --limit 20 \
+                --json databaseId,status,conclusion,createdAt \
+                --jq --arg started "$STARTED" '
+                  map(select(.createdAt >= $started))
+                  | sort_by(.createdAt)
+                  | reverse
+                  | .[0] // {}
+                '
+            )"
+
+            run_id="$(jq -r '.databaseId // ""' <<<"$run")"
+            status="$(jq -r '.status // ""' <<<"$run")"
+            conclusion="$(jq -r '.conclusion // ""' <<<"$run")"
+
+            if [ -n "$run_id" ] && [ "$status" = "completed" ]; then
+              break
+            fi
+          done
+
+          test -n "$run_id"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          echo "Controller run ${run_id} completed successfully."
