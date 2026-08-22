@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "review_sec_universe_pilot_artifact.py"
+SCRIPT = ROOT / "scripts/review_sec_universe_pilot_artifact.py"
 SOURCE_CONTRACT = ROOT / "contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json"
 REVIEW_CONTRACT = ROOT / "contracts/PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1.json"
 WORKFLOW = ROOT / ".github/workflows/ppi-sec-universe-artifact-review.yml"
@@ -144,6 +144,17 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
             self.assertEqual(review["candidate_count"], 500)
             self.assertTrue(review["source_run_checks"]["workflow_path"])
             self.assertTrue(review["source_run_checks"]["event"])
+
+    def test_mutable_display_name_is_not_an_identity_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact = Path(tmp) / "artifact"
+            artifact.mkdir()
+            self.success_fixture(artifact)
+            source = self.source_run()
+            source["name"] = "arbitrary presentation-only run title"
+            review = self.run_review(artifact, source)
+            self.assertTrue(review["gate_passed"])
+            self.assertNotIn("name", review["source_run_checks"])
 
     def test_exact_blocked_artifact_does_not_advance(self):
         with tempfile.TemporaryDirectory() as tmp:
