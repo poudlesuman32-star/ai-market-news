@@ -1,0 +1,116 @@
+name: Guarded merge PPI R11 producer remediation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/merge-ppi-r11-producer-remediation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guarded-merge-ppi-r11-producer-remediation
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.RAW_TOKEN }}
+      TARGET_REPOSITORY: MarketMakingLFG/ppi-data-acquisition
+      TARGET_PR: "13"
+      EXPECTED_HEAD_SHA: 79d2f8db54c9c74c5210e4516369c16fea44a4dc
+      REQUIRED_WORKFLOW_NAME: Validate R11 producer attestation remediation
+    steps:
+      - name: Validate fixed target and token presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$TARGET_REPOSITORY" = "MarketMakingLFG/ppi-data-acquisition"
+          test "$TARGET_PR" = "13"
+          test "$EXPECTED_HEAD_SHA" = "79d2f8db54c9c74c5210e4516369c16fea44a4dc"
+          test -n "$GH_TOKEN"
+          test "${#GH_TOKEN}" -ge 20
+
+      - name: Verify exact PR head, mergeability, review state, scope, and CI
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_json="$(gh api "repos/${TARGET_REPOSITORY}/pulls/${TARGET_PR}")"
+          head_sha="$(jq -r '.head.sha' <<<"$pr_json")"
+          base_ref="$(jq -r '.base.ref' <<<"$pr_json")"
+          state="$(jq -r '.state' <<<"$pr_json")"
+          merged="$(jq -r '.merged' <<<"$pr_json")"
+          mergeable="$(jq -r '.mergeable' <<<"$pr_json")"
+
+          test "$head_sha" = "$EXPECTED_HEAD_SHA"
+          test "$base_ref" = "main"
+          test "$state" = "open"
+          test "$merged" = "false"
+          test "$mergeable" = "true"
+
+          mapfile -t changed_files < <(
+            gh api --paginate "repos/${TARGET_REPOSITORY}/pulls/${TARGET_PR}/files?per_page=100" \
+              --jq '.[].filename' | sort
+          )
+
+          expected_files=(
+            ".github/workflows/collect-r11-public-evidence.yml"
+            "src/private_checkpoint_store.py"
+            "src/run_resumable_r2.py"
+            "src/scan_job_log.py"
+            "tests/test_checkpoint_authentication.py"
+            "tests/test_resume_log_evidence.py"
+          )
+
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected_files[@]}" | sort)
+          test "${#changed_files[@]}" -eq "${#expected_sorted[@]}"
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed_files[@]}")
+
+          reviews="$(gh api --paginate "repos/${TARGET_REPOSITORY}/pulls/${TARGET_PR}/reviews?per_page=100")"
+          if jq -e '[.[] | select(.state == "CHANGES_REQUESTED")] | length > 0' <<<"$reviews" >/dev/null; then
+            echo "Blocking CHANGES_REQUESTED review present" >&2
+            exit 1
+          fi
+
+          unresolved_count="$(gh api graphql \
+            -f owner='MarketMakingLFG' \
+            -f name='ppi-data-acquisition' \
+            -F number="$TARGET_PR" \
+            -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')"
+          test "$unresolved_count" = "0"
+
+          runs="$(gh api "repos/${TARGET_REPOSITORY}/actions/runs?head_sha=${EXPECTED_HEAD_SHA}&event=pull_request&per_page=100")"
+          success_count="$(jq --arg workflow "$REQUIRED_WORKFLOW_NAME" '[.workflow_runs[] | select(.name == $workflow and .status == "completed" and .conclusion == "success")] | length' <<<"$runs")"
+          test "$success_count" -ge 1
+
+      - name: Mark ready if needed and merge exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          is_draft="$(gh pr view "$TARGET_PR" --repo "$TARGET_REPOSITORY" --json isDraft --jq '.isDraft')"
+          if [ "$is_draft" = "true" ]; then
+            gh pr ready "$TARGET_PR" --repo "$TARGET_REPOSITORY"
+          fi
+
+          current_head="$(gh pr view "$TARGET_PR" --repo "$TARGET_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$current_head" = "$EXPECTED_HEAD_SHA"
+
+          gh pr merge "$TARGET_PR" \
+            --repo "$TARGET_REPOSITORY" \
+            --merge \
+            --match-head-commit "$EXPECTED_HEAD_SHA"
+
+      - name: Verify merged state
+        shell: bash
+        run: |
+          set -euo pipefail
+          merged="$(gh pr view "$TARGET_PR" --repo "$TARGET_REPOSITORY" --json mergedAt --jq '.mergedAt != null')"
+          test "$merged" = "true"
