@@ -156,6 +156,12 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
             self.assertTrue(review["gate_passed"])
             self.assertNotIn("name", review["source_run_checks"])
 
+    def test_bootstrapped_ci_covers_reviewer_regressions(self):
+        # This assertion is intentionally provider-free; it also gives the
+        # newly installed PR workflow a path-scoped synchronization event.
+        self.assertTrue(SCRIPT.is_file())
+        self.assertTrue(REVIEW_CONTRACT.is_file())
+
     def test_exact_blocked_artifact_does_not_advance(self):
         with tempfile.TemporaryDirectory() as tmp:
             artifact = Path(tmp) / "artifact"
