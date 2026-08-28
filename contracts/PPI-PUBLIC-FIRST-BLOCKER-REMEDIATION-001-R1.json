@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-PUBLIC-FIRST-BLOCKER-REMEDIATION-001-R1",
+  "canonical_backlog": "docs/architecture/PPI_PUBLIC_FIRST_3000_6000_TICKER_EXECUTION_PLAN.md",
+  "status_ledger": "docs/architecture/PPI_PUBLIC_FIRST_IMPLEMENTATION_PROGRESS.md",
+  "blocker_classes": {
+    "ci_policy_or_trigger": {
+      "safe_actions": ["inspect_repository", "inspect_workflow_results", "prepare_zero_network_ci", "prepare_tests", "prepare_draft_pr", "record_issue_evidence"],
+      "approval_required_actions": ["merge_pull_request", "enable_auto_merge", "provider_workflow_dispatch"]
+    },
+    "reviewer_or_validator_bug": {
+      "safe_actions": ["inspect_repository", "prepare_code_patch", "prepare_tests", "prepare_documentation", "prepare_draft_pr", "record_issue_evidence"],
+      "approval_required_actions": ["merge_pull_request", "enable_auto_merge", "provider_acquisition"]
+    },
+    "expired_or_missing_artifact": {
+      "safe_actions": ["inspect_workflow_results", "record_expiry_evidence", "prepare_documentation", "prepare_prerequisite_fix"],
+      "approval_required_actions": ["provider_acquisition", "provider_workflow_dispatch"]
+    },
+    "log_hygiene_or_secret_exposure": {
+      "safe_actions": ["prepare_masking_patch", "prepare_tests", "prepare_documentation", "prepare_draft_pr"],
+      "approval_required_actions": ["merge_pull_request", "enable_auto_merge", "provider_acquisition"]
+    },
+    "stale_documentation_or_ledger": {
+      "safe_actions": ["reconcile_documentation", "prepare_documentation", "prepare_draft_pr", "record_issue_evidence"],
+      "approval_required_actions": []
+    },
+    "merge_conflict_or_stale_branch": {
+      "safe_actions": ["refresh_branch_from_main", "prepare_draft_pr", "prepare_documentation"],
+      "approval_required_actions": ["merge_pull_request", "enable_auto_merge"]
+    },
+    "provider_or_quota_gate": {
+      "safe_actions": ["inspect_contracts", "inspect_cooldown_evidence", "prepare_tests", "prepare_configuration", "prepare_documentation"],
+      "approval_required_actions": ["provider_acquisition", "provider_workflow_dispatch", "alter_billing"]
+    },
+    "private_recovery_or_billing_gate": {
+      "safe_actions": ["inspect_contracts", "prepare_documentation", "record_issue_evidence"],
+      "approval_required_actions": ["private_recovery", "private_dispatch", "alter_billing", "private_provider_access"]
+    },
+    "registry_publication_or_trading_gate": {
+      "safe_actions": ["prepare_validation_code", "prepare_tests", "prepare_documentation"],
+      "approval_required_actions": ["mutate_registry", "publish_production_output", "enable_broker_authority", "enable_order_authority", "enable_trading_authority"]
+    }
+  },
+  "globally_prohibited_without_explicit_approval": [
+    "merge_pull_request",
+    "enable_auto_merge",
+    "provider_acquisition",
+    "provider_workflow_dispatch",
+    "private_recovery",
+    "private_dispatch",
+    "alter_billing",
+    "private_provider_access",
+    "mutate_registry",
+    "publish_production_output",
+    "enable_broker_authority",
+    "enable_order_authority",
+    "enable_trading_authority"
+  ],
+  "safe_preparation_actions": [
+    "inspect_repository",
+    "inspect_workflow_results",
+    "inspect_contracts",
+    "inspect_cooldown_evidence",
+    "prepare_zero_network_ci",
+    "prepare_code_patch",
+    "prepare_validation_code",
+    "prepare_masking_patch",
+    "prepare_tests",
+    "prepare_configuration",
+    "prepare_documentation",
+    "reconcile_documentation",
+    "prepare_draft_pr",
+    "record_issue_evidence",
+    "record_expiry_evidence",
+    "prepare_prerequisite_fix",
+    "refresh_branch_from_main"
+  ],
+  "anti_loop": {
+    "require_new_evidence_or_safe_change": true,
+    "duplicate_prs_for_same_blocker_forbidden": true,
+    "no_progress_status": "no_new_safe_progress"
+  },
+  "authority": {
+    "provider_acquisition": false,
+    "private_recovery": false,
+    "private_dispatch": false,
+    "billing_mutation": false,
+    "registry_mutation": false,
+    "production_publication": false,
+    "pull_request_merge": false,
+    "broker_authority": false,
+    "order_authority": false,
+    "trading_authority": false
+  }
+}
