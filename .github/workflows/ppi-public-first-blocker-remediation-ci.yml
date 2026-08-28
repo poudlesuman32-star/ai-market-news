@@ -1,0 +1,32 @@
+name: PPI public-first blocker remediation CI
+
+on:
+  pull_request:
+    paths:
+      - 'docs/architecture/PPI_PUBLIC_FIRST_BLOCKER_REMEDIATION.md'
+      - 'contracts/PPI-PUBLIC-FIRST-BLOCKER-REMEDIATION-001-R1.json'
+      - 'scripts/classify_ppi_public_first_blocker.py'
+      - 'tests/test_ppi_public_first_blocker_remediation.py'
+      - '.github/workflows/ppi-public-first-blocker-remediation-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  blocker-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile blocker policy classifier
+        run: python -m py_compile scripts/classify_ppi_public_first_blocker.py
+      - name: Run zero-network blocker policy tests
+        env:
+          NO_PROXY: '*'
+          no_proxy: '*'
+        run: python -m unittest tests.test_ppi_public_first_blocker_remediation -v
