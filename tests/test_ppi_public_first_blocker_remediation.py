@@ -105,12 +105,86 @@ class BlockerRemediationPolicyTests(unittest.TestCase):
             },
         )
 
+    def test_progress_report_uses_exact_machine_checkable_shape(self) -> None:
+        report = module.build_progress_report(
+            blocker_class="reviewer_or_validator_bug",
+            canonical_step=8,
+            evidence=["workflow_run:30915460990", "error:source_run_identity_name"],
+            safe_actions_taken=["prepare_code_patch", "prepare_tests"],
+            approval_required_for=["merge_pull_request", "provider_acquisition"],
+            next_safe_action="inspect hosted zero-network CI",
+            contract=self.contract,
+        )
+        self.assertEqual(set(report), module.REPORT_FIELDS)
+        module.validate_progress_report(report, contract=self.contract)
+
+    def test_progress_report_rejects_step_outside_26_step_plan(self) -> None:
+        for step in (0, 27):
+            with self.assertRaises(module.PolicyError):
+                module.build_progress_report(
+                    blocker_class="ci_policy_or_trigger",
+                    canonical_step=step,
+                    evidence=["missing hosted run"],
+                    safe_actions_taken=["inspect_workflow_results"],
+                    approval_required_for=[],
+                    next_safe_action="inspect repository Actions policy",
+                    contract=self.contract,
+                )
+
+    def test_progress_report_rejects_unsafe_action_as_safe_action_taken(self) -> None:
+        with self.assertRaises(module.PolicyError):
+            module.build_progress_report(
+                blocker_class="provider_or_quota_gate",
+                canonical_step=8,
+                evidence=["replacement artifact required"],
+                safe_actions_taken=["provider_acquisition"],
+                approval_required_for=["provider_acquisition"],
+                next_safe_action="request explicit approval",
+                contract=self.contract,
+            )
+
+    def test_progress_report_rejects_non_fenced_approval_action(self) -> None:
+        with self.assertRaises(module.PolicyError):
+            module.build_progress_report(
+                blocker_class="ci_policy_or_trigger",
+                canonical_step=8,
+                evidence=["workflow not scheduled"],
+                safe_actions_taken=["inspect_workflow_results"],
+                approval_required_for=["invent_new_authority"],
+                next_safe_action="inspect repository Actions policy",
+                contract=self.contract,
+            )
+
+    def test_no_progress_report_must_use_anti_loop_status(self) -> None:
+        report = module.build_progress_report(
+            blocker_class="ci_policy_or_trigger",
+            canonical_step=8,
+            evidence=[],
+            safe_actions_taken=[],
+            approval_required_for=[],
+            next_safe_action="no_new_safe_progress",
+            contract=self.contract,
+        )
+        self.assertEqual(report["next_safe_action"], "no_new_safe_progress")
+        with self.assertRaises(module.PolicyError):
+            module.build_progress_report(
+                blocker_class="ci_policy_or_trigger",
+                canonical_step=8,
+                evidence=[],
+                safe_actions_taken=[],
+                approval_required_for=[],
+                next_safe_action="repeat previous status",
+                contract=self.contract,
+            )
+
     def test_document_explicitly_preserves_canonical_order_and_approval_fence(self) -> None:
         text = DOC.read_text(encoding="utf-8")
         self.assertIn("does not change canonical backlog order", text)
         self.assertIn("replacement provider acquisition", text)
         self.assertIn("explicit approval", text)
         self.assertIn("no_new_safe_progress", text)
+        for field in module.REPORT_FIELDS:
+            self.assertIn(field, text)
 
 
 if __name__ == "__main__":
