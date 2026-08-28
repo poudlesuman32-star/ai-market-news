@@ -75,6 +75,21 @@
     "prepare_prerequisite_fix",
     "refresh_branch_from_main"
   ],
+  "progress_report_schema": {
+    "required_fields": [
+      "blocker_class",
+      "canonical_step",
+      "evidence",
+      "safe_actions_taken",
+      "approval_required_for",
+      "next_safe_action"
+    ],
+    "canonical_step_min": 1,
+    "canonical_step_max": 26,
+    "array_fields": ["evidence", "safe_actions_taken", "approval_required_for"],
+    "nonempty_string_fields": ["blocker_class", "next_safe_action"],
+    "no_progress_next_safe_action": "no_new_safe_progress"
+  },
   "anti_loop": {
     "require_new_evidence_or_safe_change": true,
     "duplicate_prs_for_same_blocker_forbidden": true,
