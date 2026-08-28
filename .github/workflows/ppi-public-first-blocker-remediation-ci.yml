@@ -23,9 +23,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile blocker policy classifier
+      - name: Compile blocker policy classifier and progress-report validator
         run: python -m py_compile scripts/classify_ppi_public_first_blocker.py
-      - name: Run zero-network blocker policy tests
+      - name: Run zero-network blocker policy and progress-report tests
         env:
           NO_PROXY: '*'
           no_proxy: '*'
