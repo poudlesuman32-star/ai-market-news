@@ -233,7 +233,7 @@ Reporting rules:
 - If both `evidence` and `safe_actions_taken` are empty, `next_safe_action` must be exactly `no_new_safe_progress`.
 - Reports must never contain secrets, contact values, provider credentials, private repository contents, billing details, or authority tokens.
 
-Human-readable progress prose may accompany this object, but it must not contradict it. The machine-checkable object is the canonical blocker-remediation summary for that run.
+Human-readable progress prose may accompany this object, but it must not contradict it. The machine-checkable object is the canonical blocker-remediation summary for that run and is the format future implementation-progress updates should use when a blocker is active.
 
 ## Anti-loop rule
 
