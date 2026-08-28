@@ -196,22 +196,44 @@ The blocker fixer must stop and request approval before:
 - production publication;
 - broker/order/trading authority.
 
-## Evidence record
+## Required implementation-progress report
 
-Every blocker remediation report should capture:
+Every future PPI blocker report, including status-ledger reconciliation and issue #104 progress notes, must emit one machine-checkable object with exactly these fields:
 
 ```json
 {
   "blocker_class": "reviewer_or_validator_bug",
   "canonical_step": 8,
-  "evidence": ["workflow run id", "job id", "error summary"],
-  "safe_actions_taken": ["draft PR", "tests"],
-  "approval_required_for": ["merge", "replacement provider acquisition"],
+  "evidence": [
+    "workflow_run:30915460990",
+    "error:source_run_identity_name"
+  ],
+  "safe_actions_taken": [
+    "prepare_code_patch",
+    "prepare_tests"
+  ],
+  "approval_required_for": [
+    "merge_pull_request",
+    "provider_acquisition"
+  ],
   "next_safe_action": "inspect hosted zero-network CI"
 }
 ```
 
-Do not place secrets, contact values, provider credentials, private repository contents, or billing details in this record.
+The shape is frozen by `contracts/PPI-PUBLIC-FIRST-BLOCKER-REMEDIATION-001-R1.json` and validated by `scripts/classify_ppi_public_first_blocker.py`.
+
+Reporting rules:
+
+- `blocker_class` must be one frozen blocker class from the remediation contract.
+- `canonical_step` must be an integer from 1 through 26 and refers to the canonical ordered backlog, not a local PR task number.
+- `evidence` is an array of non-secret evidence identifiers or concise summaries. It may be empty only when no new evidence exists.
+- `safe_actions_taken` may contain only globally allowlisted safe-preparation action IDs from the remediation contract.
+- `approval_required_for` may contain only globally fenced action IDs such as `merge_pull_request` or `provider_acquisition`.
+- `next_safe_action` must be a non-empty string.
+- If both `evidence` and `safe_actions_taken` are empty, `next_safe_action` must be exactly `no_new_safe_progress`.
+- Reports must never contain secrets, contact values, provider credentials, private repository contents, billing details, or authority tokens.
+
+Human-readable progress prose may accompany this object, but it must not contradict it. The machine-checkable object is the canonical blocker-remediation summary for that run.
 
 ## Anti-loop rule
 
