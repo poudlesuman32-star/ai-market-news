@@ -109,9 +109,13 @@ def validate_progress_report(report: dict, *, contract: dict) -> None:
     if not isinstance(next_safe_action, str) or not next_safe_action.strip():
         raise PolicyError("next_safe_action must be a non-empty string")
 
+    safe_taken = set(report["safe_actions_taken"])
     safe_global = set(contract["safe_preparation_actions"])
-    if not set(report["safe_actions_taken"]) <= safe_global:
+    if not safe_taken <= safe_global:
         raise PolicyError("safe_actions_taken contains an action outside the global safe allowlist")
+    safe_for_class = set(contract["blocker_classes"][blocker_class]["safe_actions"])
+    if not safe_taken <= safe_for_class:
+        raise PolicyError("safe_actions_taken contains an action not allowlisted for blocker_class")
 
     approval_global = set(contract["globally_prohibited_without_explicit_approval"])
     if not set(report["approval_required_for"]) <= approval_global:
