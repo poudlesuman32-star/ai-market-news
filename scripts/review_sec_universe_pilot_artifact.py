@@ -11,6 +11,8 @@ from pathlib import Path
 REVIEW_CONTRACT_ID = "PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1"
 SOURCE_CONTRACT_ID = "PPI-SEC-UNIVERSE-PILOT-001-R1"
 SOURCE_WORKFLOW_NAME = "PPI SEC 500-instrument universe pilot"
+SOURCE_WORKFLOW_PATH = ".github/workflows/ppi-sec-universe-pilot.yml"
+SOURCE_EVENT = "workflow_dispatch"
 SOURCE_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
 EXPECTED_REPOSITORY = "poudlesuman32-star/ai-market-news"
 SUCCESS_PATHS = {"manifest.json", "receipt.json", "report.md", "sec-universe-pilot-500.jsonl"}
@@ -66,7 +68,8 @@ def validate_source_run(value: dict, run_id: str, attempt: str) -> dict:
     checks = {
         "id": value.get("id") == int(run_id),
         "attempt": value.get("run_attempt") == int(attempt),
-        "name": value.get("name") == SOURCE_WORKFLOW_NAME,
+        "workflow_path": value.get("path") == SOURCE_WORKFLOW_PATH,
+        "event": value.get("event") == SOURCE_EVENT,
         "repository": (value.get("repository") or {}).get("full_name") == EXPECTED_REPOSITORY,
         "main": value.get("head_branch") == "main",
         "completed": value.get("status") == "completed",
