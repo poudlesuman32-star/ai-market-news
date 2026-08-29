@@ -19,9 +19,13 @@ permissions:
   contents: read
 
 jobs:
-  registration-smoke:
+  offline-reviewer-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
+      - name: Check out pull-request revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Confirm workflow registration
         run: printf '%s\n' 'workflow registration ok'
