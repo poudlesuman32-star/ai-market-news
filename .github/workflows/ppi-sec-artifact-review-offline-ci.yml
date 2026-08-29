@@ -1,9 +1,6 @@
 name: PPI SEC artifact reviewer offline CI
 
 on:
-  push:
-    branches:
-      - automation/sec-review-ci-yaml-registration-fix-20260829
   pull_request:
     branches:
       - main
