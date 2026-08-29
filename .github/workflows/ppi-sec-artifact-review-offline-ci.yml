@@ -34,4 +34,7 @@ jobs:
       - name: Compile reviewer
         run: python -m py_compile scripts/review_sec_universe_pilot_artifact.py
       - name: Run zero-network SEC reviewer tests
+        env:
+          NO_PROXY: '*'
+          no_proxy: '*'
         run: python -m unittest tests.test_ppi_sec_universe_artifact_review -v
