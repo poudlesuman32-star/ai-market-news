@@ -32,7 +32,9 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
         return {
             "id": 12345,
             "run_attempt": 1,
-            "name": module.SOURCE_WORKFLOW_NAME,
+            "name": "SEC 500 pilot - workflow_dispatch - main",
+            "path": module.SOURCE_WORKFLOW_PATH,
+            "event": module.SOURCE_EVENT,
             "repository": {"full_name": module.EXPECTED_REPOSITORY},
             "head_branch": "main",
             "status": "completed",
@@ -132,7 +134,7 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
         for forbidden in ("secrets.", "ai-signal-engine", "openfigi.com", "registry_mutation: true"):
             self.assertNotIn(forbidden, text)
 
-    def test_exact_success_artifact_passes(self):
+    def test_exact_success_artifact_passes_with_custom_run_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             artifact = Path(tmp) / "artifact"
             artifact.mkdir()
@@ -140,6 +142,23 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
             review = self.run_review(artifact)
             self.assertTrue(review["gate_passed"])
             self.assertEqual(review["candidate_count"], 500)
+            self.assertTrue(review["source_run_checks"]["workflow_path"])
+            self.assertTrue(review["source_run_checks"]["event"])
+
+    def test_mutable_display_name_is_not_an_identity_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact = Path(tmp) / "artifact"
+            artifact.mkdir()
+            self.success_fixture(artifact)
+            source = self.source_run()
+            source["name"] = "arbitrary presentation-only run title"
+            review = self.run_review(artifact, source)
+            self.assertTrue(review["gate_passed"])
+            self.assertNotIn("name", review["source_run_checks"])
+
+    def test_bootstrapped_ci_covers_reviewer_regressions(self):
+        self.assertTrue(SCRIPT.is_file())
+        self.assertTrue(REVIEW_CONTRACT.is_file())
 
     def test_exact_blocked_artifact_does_not_advance(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -179,13 +198,33 @@ class SecUniverseArtifactReviewTests(unittest.TestCase):
             with self.assertRaises(module.ReviewError):
                 self.run_review(artifact)
 
-    def test_source_run_mismatch_fails_closed(self):
+    def test_source_run_branch_mismatch_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             artifact = Path(tmp) / "artifact"
             artifact.mkdir()
             self.success_fixture(artifact)
             source = self.source_run()
             source["head_branch"] = "feature/unsafe"
+            with self.assertRaises(module.ReviewError):
+                self.run_review(artifact, source)
+
+    def test_source_run_path_mismatch_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact = Path(tmp) / "artifact"
+            artifact.mkdir()
+            self.success_fixture(artifact)
+            source = self.source_run()
+            source["path"] = ".github/workflows/other.yml"
+            with self.assertRaises(module.ReviewError):
+                self.run_review(artifact, source)
+
+    def test_source_run_event_mismatch_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact = Path(tmp) / "artifact"
+            artifact.mkdir()
+            self.success_fixture(artifact)
+            source = self.source_run()
+            source["event"] = "schedule"
             with self.assertRaises(module.ReviewError):
                 self.run_review(artifact, source)
 
