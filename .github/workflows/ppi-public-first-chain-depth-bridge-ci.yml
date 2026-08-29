@@ -1,0 +1,34 @@
+name: PPI public-first chain-depth bridge CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ppi-public-first-chain-depth-bridge.yml
+      - .github/workflows/ppi-stable-instrument-id-allocation-pilot.yml
+      - .github/workflows/ppi-public-first-chain-depth-bridge-ci.yml
+      - tests/test_ppi_public_first_chain_depth_bridge.py
+
+permissions:
+  contents: read
+
+jobs:
+  offline-bridge-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out pull-request revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run zero-provider bridge regression tests
+        env:
+          NO_PROXY: '*'
+        run: |
+          export no_proxy="$NO_PROXY"
+          python -m unittest tests.test_ppi_public_first_chain_depth_bridge -v
