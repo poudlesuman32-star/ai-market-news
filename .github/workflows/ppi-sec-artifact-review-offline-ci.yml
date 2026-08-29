@@ -1,14 +1,21 @@
 name: PPI SEC artifact reviewer offline CI
 
-on:
+'on':
   pull_request:
+    branches:
+      - main
     paths:
-      - 'scripts/review_sec_universe_pilot_artifact.py'
-      - 'tests/test_ppi_sec_universe_artifact_review.py'
-      - 'contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json'
-      - 'contracts/PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1.json'
-      - '.github/workflows/ppi-sec-universe-artifact-review.yml'
-      - '.github/workflows/ppi-sec-artifact-review-offline-ci.yml'
+      - scripts/review_sec_universe_pilot_artifact.py
+      - tests/test_ppi_sec_universe_artifact_review.py
+      - contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json
+      - contracts/PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1.json
+      - .github/workflows/ppi-sec-universe-artifact-review.yml
+      - .github/workflows/ppi-sec-artifact-review-offline-ci.yml
+  push:
+    branches:
+      - automation/sec-review-ci-yaml-registration-fix-20260829
+    paths:
+      - .github/workflows/ppi-sec-artifact-review-offline-ci.yml
 
 permissions:
   contents: read
@@ -18,10 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out pull-request revision
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Compile reviewer
