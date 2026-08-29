@@ -40,6 +40,15 @@ jobs:
           ref: main
           persist-credentials: false
 
+      - name: Mask configured SEC contact
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${PPI_SEC_CONTACT_EMAIL:-}" ]; then
+            printf '::add-mask::%s\n' "$PPI_SEC_CONTACT_EMAIL"
+            printf '::add-mask::PPI Universe Research %s\n' "$PPI_SEC_CONTACT_EMAIL"
+          fi
+
       - name: Validate code and boundaries
         run: |
           set -euo pipefail
