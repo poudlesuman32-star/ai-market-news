@@ -1,6 +1,9 @@
 name: PPI public-first chain-depth bridge CI
 
 on:
+  push:
+    branches:
+      - automation/public-first-chain-depth-bridge-20260829
   pull_request:
     branches:
       - main
