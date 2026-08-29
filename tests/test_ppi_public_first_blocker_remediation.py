@@ -143,6 +143,23 @@ class BlockerRemediationPolicyTests(unittest.TestCase):
                 contract=self.contract,
             )
 
+    def test_progress_report_rejects_globally_safe_action_not_safe_for_blocker_class(self) -> None:
+        self.assertIn("prepare_masking_patch", self.contract["safe_preparation_actions"])
+        self.assertNotIn(
+            "prepare_masking_patch",
+            self.contract["blocker_classes"]["ci_policy_or_trigger"]["safe_actions"],
+        )
+        with self.assertRaises(module.PolicyError):
+            module.build_progress_report(
+                blocker_class="ci_policy_or_trigger",
+                canonical_step=8,
+                evidence=["workflow not scheduled"],
+                safe_actions_taken=["prepare_masking_patch"],
+                approval_required_for=[],
+                next_safe_action="inspect repository Actions policy",
+                contract=self.contract,
+            )
+
     def test_progress_report_rejects_non_fenced_approval_action(self) -> None:
         with self.assertRaises(module.PolicyError):
             module.build_progress_report(
@@ -183,6 +200,7 @@ class BlockerRemediationPolicyTests(unittest.TestCase):
         self.assertIn("replacement provider acquisition", text)
         self.assertIn("explicit approval", text)
         self.assertIn("no_new_safe_progress", text)
+        self.assertIn("selected blocker class", text)
         for field in module.REPORT_FIELDS:
             self.assertIn(field, text)
 
