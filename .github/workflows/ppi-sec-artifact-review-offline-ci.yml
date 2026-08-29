@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - scripts/review_sec_universe_pilot_artifact.py
+      - tests/test_ppi_sec_universe_artifact_review.py
+      - contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json
+      - contracts/PPI-SEC-UNIVERSE-ARTIFACT-REVIEW-001-R1.json
+      - .github/workflows/ppi-sec-universe-artifact-review.yml
+      - .github/workflows/ppi-sec-artifact-review-offline-ci.yml
 
 permissions:
   contents: read
