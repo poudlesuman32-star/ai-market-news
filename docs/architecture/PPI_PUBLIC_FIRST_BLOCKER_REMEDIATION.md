@@ -227,7 +227,7 @@ Reporting rules:
 - `blocker_class` must be one frozen blocker class from the remediation contract.
 - `canonical_step` must be an integer from 1 through 26 and refers to the canonical ordered backlog, not a local PR task number.
 - `evidence` is an array of non-secret evidence identifiers or concise summaries. It may be empty only when no new evidence exists.
-- `safe_actions_taken` may contain only globally allowlisted safe-preparation action IDs from the remediation contract.
+- `safe_actions_taken` may contain only safe-preparation action IDs allowlisted globally and for the selected blocker class in the remediation contract.
 - `approval_required_for` may contain only globally fenced action IDs such as `merge_pull_request` or `provider_acquisition`.
 - `next_safe_action` must be a non-empty string.
 - If both `evidence` and `safe_actions_taken` are empty, `next_safe_action` must be exactly `no_new_safe_progress`.
