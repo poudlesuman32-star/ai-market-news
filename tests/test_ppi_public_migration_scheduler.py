@@ -173,7 +173,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertNotIn("PPI_MARKETDATA_TOKEN", text)
         self.assertNotIn("raw_provider_payload", text)
 
-    def test_r2_bootstrap_has_exact_fifteen_file_allowlist_and_noop_path(self) -> None:
+    def test_r2_bootstrap_has_exact_twenty_file_allowlist_and_noop_path(self) -> None:
         source = BOOTSTRAP_R2.read_text(encoding="utf-8")
         tree = ast.parse(source)
         assignment = next(
@@ -183,7 +183,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
             and any(isinstance(target, ast.Name) and target.id == "REQUIRED_R2_PATHS" for target in node.targets)
         )
         paths = ast.literal_eval(assignment.value)
-        self.assertEqual(len(paths), 15)
+        self.assertEqual(len(paths), 20)
         self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json", paths)
         self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json", paths)
         self.assertIn("contracts/PPI-PUBLIC-COLLECTOR-003-R1.json", paths)
