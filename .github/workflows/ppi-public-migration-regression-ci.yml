@@ -1,0 +1,46 @@
+name: PPI public migration regression CI
+
+on:
+  push:
+    branches:
+      - agent/fix-provider-cooldown-test
+  pull_request:
+    branches:
+      - main
+    paths:
+      - tests/test_ppi_public_migration_scheduler.py
+      - scripts/ppi_migration_autopilot.py
+      - scripts/ppi_migration_autopilot_v2.py
+      - scripts/ppi_migration_autopilot_v3.py
+      - scripts/ppi_migration_autopilot_v4.py
+      - scripts/ppi_migration_autopilot_v5.py
+      - scripts/bootstrap_ppi_data_acquisition_r2.py
+      - scripts/enrich_ppi_private_queue_diagnostics.py
+      - scripts/prepare_ppi_target_update_branch.py
+      - scripts/publish_ppi_autopilot_status.py
+      - config/ppi_public_migration_schedule.json
+      - .github/workflows/ppi-public-migration-scheduler.yml
+      - .github/workflows/ppi-public-migration-regression-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-autopilot-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out pull-request revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run zero-network public migration regression tests
+        env:
+          NO_PROXY: '*'
+        run: |
+          export no_proxy="$NO_PROXY"
+          python -m unittest tests.test_ppi_public_migration_scheduler -v

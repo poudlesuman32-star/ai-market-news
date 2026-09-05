@@ -105,7 +105,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn('"r12": False', text)
         self.assertNotIn("--admin", text)
 
-    def test_v2_discovers_current_target_pr_and_limits_retry_per_revision(self) -> None:
+    def test_v2_discovers_current_target_pr_and_enforces_cross_revision_provider_cooldown(self) -> None:
         text = AUTOPILOT_V2.read_text(encoding="utf-8")
         self.assertIn('"gh", "secret", "list"', text)
         self.assertIn('"--json", "name"', text)
@@ -113,7 +113,10 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertIn("current_target_pr", text)
         self.assertIn("multiple open acquisition update pull requests exist", text)
         self.assertIn("same_revision", text)
-        self.assertIn("current acquisition revision already failed in the past 24 hours", text)
+        self.assertIn("recent_terminal", text)
+        self.assertIn("provider cooldown active for 24 hours after public run", text)
+        self.assertIn("code revision does not reset provider quota window", text)
+        self.assertNotIn("current acquisition revision already failed in the past 24 hours", text)
         self.assertIn("src/fetch_yfinance_expectations.py", text)
         self.assertIn('"registry_mutation": False', text)
         self.assertIn('"production": False', text)
@@ -170,7 +173,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
         self.assertNotIn("PPI_MARKETDATA_TOKEN", text)
         self.assertNotIn("raw_provider_payload", text)
 
-    def test_r2_bootstrap_has_exact_fifteen_file_allowlist_and_noop_path(self) -> None:
+    def test_r2_bootstrap_has_exact_twenty_file_allowlist_and_noop_path(self) -> None:
         source = BOOTSTRAP_R2.read_text(encoding="utf-8")
         tree = ast.parse(source)
         assignment = next(
@@ -180,7 +183,7 @@ class PpiMigrationAutopilotTests(unittest.TestCase):
             and any(isinstance(target, ast.Name) and target.id == "REQUIRED_R2_PATHS" for target in node.targets)
         )
         paths = ast.literal_eval(assignment.value)
-        self.assertEqual(len(paths), 15)
+        self.assertEqual(len(paths), 20)
         self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R1.json", paths)
         self.assertIn("contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json", paths)
         self.assertIn("contracts/PPI-PUBLIC-COLLECTOR-003-R1.json", paths)
