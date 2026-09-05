@@ -23,7 +23,7 @@ class Step9SchemaParityTests(unittest.TestCase):
 
     def test_closed_record_shape_matches_validator(self) -> None:
         self.assertFalse(self.schema["additionalProperties"])
-        self.assertEqual(set(self.schema["required"]), validator.RECORD_KEYS)
+        self.assertEqual(set(self.schema["required"]), validator.RECORD_FIELDS)
 
     def test_identity_patterns_match_validator(self) -> None:
         expected = {
