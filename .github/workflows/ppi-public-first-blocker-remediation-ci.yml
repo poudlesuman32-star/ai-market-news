@@ -1,6 +1,9 @@
 name: PPI public-first blocker remediation CI
 
 on:
+  push:
+    branches:
+      - automation/ppi-blocker-remediation-framework-20260827
   pull_request:
     paths:
       - 'docs/architecture/PPI_PUBLIC_FIRST_BLOCKER_REMEDIATION.md'
@@ -17,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Compile blocker policy classifier and progress-report validator
@@ -28,5 +31,6 @@ jobs:
       - name: Run zero-network blocker policy and progress-report tests
         env:
           NO_PROXY: '*'
-          no_proxy: '*'
-        run: python -m unittest tests.test_ppi_public_first_blocker_remediation -v
+        run: |
+          export no_proxy="$NO_PROXY"
+          python -m unittest tests.test_ppi_public_first_blocker_remediation -v
