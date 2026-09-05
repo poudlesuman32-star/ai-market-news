@@ -1,0 +1,86 @@
+name: PPI public-first chain-depth bridge
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: ppi-public-first-chain-depth-bridge
+  cancel-in-progress: false
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate latest successful OpenFIGI review
+        id: review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-openfigi-mapping-artifact-review.yml/runs?event=workflow_run&branch=main&status=success&per_page=20")"
+          review_id="$(jq -r '.workflow_runs[0].id // empty' <<<"$runs")"
+          review_attempt="$(jq -r '.workflow_runs[0].run_attempt // empty' <<<"$runs")"
+          if [[ ! "$review_id" =~ ^[0-9]+$ || ! "$review_attempt" =~ ^[0-9]+$ ]]; then
+            echo 'No successful OpenFIGI review run is available.'
+            exit 0
+          fi
+          printf 'review_id=%s\n' "$review_id" >> "$GITHUB_OUTPUT"
+          printf 'review_attempt=%s\n' "$review_attempt" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact review receipt passed
+        id: gate
+        if: steps.review.outputs.review_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_ID: ${{ steps.review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          rm -rf downloaded-review
+          mkdir -p downloaded-review
+          artifact_name="ppi-openfigi-mapping-artifact-review-${REVIEW_ID}-${REVIEW_ATTEMPT}"
+          gh run download "$REVIEW_ID" --name "$artifact_name" --dir downloaded-review
+          jq -e '
+            .gate_passed == true and
+            .artifact_mode == "success" and
+            .candidate_count == 500 and
+            .authority.stable_instrument_id_allocation == false
+          ' downloaded-review/review.json >/dev/null
+          printf 'gate_passed=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Check whether exact stable-ID dispatch already exists
+        id: duplicate
+        if: steps.gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_ID: ${{ steps.review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          title="Stable ID allocation from OpenFIGI review ${REVIEW_ID}-${REVIEW_ATTEMPT}"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-pilot.yml/runs?branch=main&per_page=100")"
+          if jq -e --arg title "$title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch exact stable-ID allocation once
+        if: steps.gate.outputs.gate_passed == 'true' && steps.duplicate.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_ID: ${{ steps.review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          gh workflow run ppi-stable-instrument-id-allocation-pilot.yml \
+            --ref main \
+            -f review_run_id="$REVIEW_ID" \
+            -f review_run_attempt="$REVIEW_ATTEMPT"

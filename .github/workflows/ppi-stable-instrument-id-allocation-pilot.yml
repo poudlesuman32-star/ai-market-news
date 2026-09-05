@@ -1,4 +1,5 @@
 name: PPI stable instrument ID allocation pilot
+run-name: Stable ID allocation from OpenFIGI review ${{ inputs.review_run_id || github.event.workflow_run.id }}-${{ inputs.review_run_attempt || github.event.workflow_run.run_attempt }}
 
 on:
   workflow_run:
