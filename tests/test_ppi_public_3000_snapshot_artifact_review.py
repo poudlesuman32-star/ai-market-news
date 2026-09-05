@@ -108,18 +108,13 @@ class Step9ArtifactReviewTests(unittest.TestCase):
             self.fixture(root)
             allocated_path = root / "universe-instruments-3000.jsonl"
             allocated = allocated_path.read_bytes().splitlines()
-            moved = json.loads(allocated[-1])
-            moved["disposition"] = "deferred_unmatched"
-            moved["instrument_id"] = None
-            moved["figi"] = None
-            moved["identity_status"] = "deferred_unmatched"
-            (root / "universe-deferred-3000.jsonl").write_bytes(validator.canon(moved))
-            duplicate = dict(moved)
-            duplicate["disposition"] = "allocated"
-            duplicate["figi"] = "BBG999999999"
-            duplicate["instrument_id"] = validator.stable_instrument_id(duplicate["figi"])
-            duplicate["identity_status"] = "verified_exact_figi"
-            allocated[-1] = validator.canon(duplicate).rstrip(b"\n")
+            duplicate = json.loads(allocated[-2])
+            duplicate["disposition"] = "deferred_unmatched"
+            duplicate["instrument_id"] = None
+            duplicate["figi"] = None
+            duplicate["identity_status"] = "deferred_unmatched"
+            (root / "universe-deferred-3000.jsonl").write_bytes(validator.canon(duplicate))
+            allocated.pop()
             allocated_path.write_bytes(b"\n".join(allocated) + b"\n")
             self.refresh_metadata(root)
             with self.assertRaises(reviewer.ReviewError):
