@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "PPI-PUBLIC-3000-SNAPSHOT-001-R1",
+  "status": "draft_implementation_held",
+  "repository": "poudlesuman32-star/ai-market-news",
+  "canonical_plan_step": 9,
+  "required_total_candidate_dispositions": 3000,
+  "stable_id_rule": "PPI-STABLE-INSTRUMENT-ID-V1|FIGI|<FIGI>",
+  "success_paths": [
+    "manifest.json",
+    "receipt.json",
+    "report.md",
+    "universe-deferred-3000.jsonl",
+    "universe-instruments-3000.jsonl"
+  ],
+  "blocked_paths": [
+    "blocked.json",
+    "report.md"
+  ],
+  "classification_policy": {
+    "unresolved_status": "unresolved_asset_subtype",
+    "guessing_forbidden": true,
+    "ticker_suffix_inference_forbidden": true,
+    "issuer_country_only_inference_forbidden": true,
+    "absence_of_f6_as_common_stock_proof_forbidden": true
+  },
+  "entry_gate": {
+    "step8_review_receipt_required": true,
+    "required_gate_passed": true,
+    "required_artifact_mode": "success",
+    "required_candidate_count": 500,
+    "live_execution_authorized": false
+  },
+  "authority": {
+    "network_access": false,
+    "provider_acquisition": false,
+    "private_access": false,
+    "private_dispatch": false,
+    "billing_budget_mutation": false,
+    "registry_mutation": false,
+    "production": false,
+    "publication": false,
+    "broker": false,
+    "orders": false,
+    "trading": false
+  },
+  "authorized_actions": [
+    "contract_validation",
+    "schema_validation",
+    "fixture_validation",
+    "offline_artifact_review"
+  ]
+}
