@@ -73,7 +73,10 @@ def require_deterministic_partition(root: Path) -> None:
 
 
 def review(root: Path) -> dict:
-    validation = validator.validate_snapshot(root)
+    try:
+        validation = validator.validate_snapshot(root)
+    except validator.ContractError as exc:
+        raise ReviewError(f"snapshot contract validation failed: {exc}") from exc
     if validation["artifact_mode"] == "blocked":
         blocked = load_json(root / "blocked.json")
         if blocked.get("artifact_mode") not in {None, "blocked"}:
