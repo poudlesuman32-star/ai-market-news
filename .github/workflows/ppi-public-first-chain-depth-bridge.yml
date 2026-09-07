@@ -104,3 +104,104 @@ jobs:
                 -H 'Accept: application/vnd.github+json' \
                 "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-pilot.yml/dispatches" \
                 --input -
+
+      - name: Locate exact successful stable-ID allocation
+        id: allocation
+        if: steps.gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_ID: ${{ steps.review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          title="Stable ID allocation from OpenFIGI review ${REVIEW_ID}-${REVIEW_ATTEMPT}"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-pilot.yml/runs?branch=main&status=success&per_page=100")"
+          count="$(jq -r --arg title "$title" '[.workflow_runs[] | select(.display_title == $title and .event == "workflow_dispatch" and .conclusion == "success")] | length' <<<"$runs")"
+          if [[ "$count" == "0" ]]; then
+            echo 'Exact stable-ID allocation is not successful yet.'
+            exit 0
+          fi
+          if [[ "$count" != "1" ]]; then
+            echo 'Exact stable-ID allocation is ambiguous.' >&2
+            exit 1
+          fi
+          allocation_id="$(jq -r --arg title "$title" '.workflow_runs[] | select(.display_title == $title and .event == "workflow_dispatch" and .conclusion == "success") | .id' <<<"$runs")"
+          allocation_attempt="$(jq -r --arg title "$title" '.workflow_runs[] | select(.display_title == $title and .event == "workflow_dispatch" and .conclusion == "success") | .run_attempt' <<<"$runs")"
+          [[ "$allocation_id" =~ ^[0-9]+$ && "$allocation_attempt" =~ ^[0-9]+$ ]]
+          printf 'allocation_id=%s\n' "$allocation_id" >> "$GITHUB_OUTPUT"
+          printf 'allocation_attempt=%s\n' "$allocation_attempt" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact stable-ID allocation artifact
+        id: allocation_gate
+        if: steps.allocation.outputs.allocation_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOCATION_ID: ${{ steps.allocation.outputs.allocation_id }}
+          ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
+        run: |
+          set -euo pipefail
+          rm -rf allocation-check allocation.zip
+          mkdir -p allocation-check
+          artifact_name="ppi-stable-instrument-id-allocation-pilot-${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}"
+          artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ALLOCATION_ID}/artifacts?per_page=100")"
+          artifact_id="$(jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$artifacts")"
+          if [[ ! "$artifact_id" =~ ^[0-9]+$ ]]; then
+            echo 'Exact non-expired stable-ID allocation artifact was not uniquely resolved.' >&2
+            exit 1
+          fi
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > allocation.zip
+          unzip -q allocation.zip -d allocation-check
+          test -f allocation-check/receipt.json
+          jq -e \
+            --arg run_id "$ALLOCATION_ID" \
+            --arg attempt "$ALLOCATION_ATTEMPT" '
+            .contract_id == "PPI-STABLE-INSTRUMENT-ID-ALLOCATION-PILOT-001-R1" and
+            (.run_id | tostring) == $run_id and
+            (.run_attempt | tostring) == $attempt and
+            .network_requests_performed == 0 and
+            .private_access == false and
+            .private_dispatch == false and
+            .registry_mutation == false and
+            .production == false and
+            .publication == false and
+            .trading == false and
+            ((.stable_instrument_ids_allocated + .ambiguous_deferred + .unmatched_deferred) == 500)
+          ' allocation-check/receipt.json >/dev/null
+          printf 'gate_passed=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Check whether exact stable-ID review already exists
+        id: review_duplicate
+        if: steps.allocation_gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOCATION_ID: ${{ steps.allocation.outputs.allocation_id }}
+          ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
+        run: |
+          set -euo pipefail
+          title="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/runs?branch=main&per_page=100")"
+          if jq -e --arg title "$title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch exact stable-ID review once
+        if: steps.allocation_gate.outputs.gate_passed == 'true' && steps.review_duplicate.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOCATION_ID: ${{ steps.allocation.outputs.allocation_id }}
+          ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg source_run_id "$ALLOCATION_ID" \
+            --arg source_run_attempt "$ALLOCATION_ATTEMPT" \
+            '{ref:"main",inputs:{source_run_id:$source_run_id,source_run_attempt:$source_run_attempt}}' \
+            | gh api \
+                --method POST \
+                -H 'Accept: application/vnd.github+json' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/dispatches" \
+                --input -
