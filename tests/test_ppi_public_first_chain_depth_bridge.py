@@ -65,7 +65,10 @@ class ChainDepthBridgeTests(unittest.TestCase):
         self.assertIn(".publication == false", bridge)
         self.assertIn(".trading == false", bridge)
         self.assertIn(".stable_instrument_ids_allocated + .ambiguous_deferred + .unmatched_deferred", bridge)
-        self.assertIn("Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}", bridge)
+        self.assertIn(
+            "Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT} on ${GITHUB_SHA}",
+            bridge,
+        )
         self.assertIn("steps.review_duplicate.outputs.exists == 'false'", bridge)
         self.assertIn(
             "actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/dispatches",
@@ -73,6 +76,8 @@ class ChainDepthBridgeTests(unittest.TestCase):
         )
         self.assertIn('{ref:"main",inputs:{source_run_id:$source_run_id,source_run_attempt:$source_run_attempt}}', bridge)
         self.assertIn("run-name: Stable ID review from allocation", stable_review)
+        self.assertIn("on ${{ github.sha }}", stable_review)
+        self.assertIn("review_stable_instrument_id_allocation_hardened.py", stable_review)
 
         self.assertNotIn("sec.gov", bridge.lower())
         self.assertNotIn("openfigi.com", bridge.lower())

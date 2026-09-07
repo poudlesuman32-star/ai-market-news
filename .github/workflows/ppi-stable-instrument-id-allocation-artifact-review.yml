@@ -1,5 +1,5 @@
 name: PPI stable instrument ID allocation artifact review
-run-name: Stable ID review from allocation ${{ inputs.source_run_id || github.event.workflow_run.id }}-${{ inputs.source_run_attempt || github.event.workflow_run.run_attempt }}
+run-name: Stable ID review from allocation ${{ inputs.source_run_id || github.event.workflow_run.id }}-${{ inputs.source_run_attempt || github.event.workflow_run.run_attempt }} on ${{ github.sha }}
 
 on:
   workflow_run:
@@ -48,8 +48,12 @@ jobs:
       - name: Validate review code and boundaries
         run: |
           set -euo pipefail
-          python -m py_compile scripts/review_stable_instrument_id_allocation.py
-          python -m unittest tests.test_ppi_stable_instrument_id_allocation_artifact_review -v
+          python -m py_compile \
+            scripts/review_stable_instrument_id_allocation.py \
+            scripts/review_stable_instrument_id_allocation_hardened.py
+          python -m unittest \
+            tests.test_ppi_stable_instrument_id_allocation_artifact_review \
+            tests.test_ppi_stable_instrument_id_allocation_durable_identity -v
 
       - name: Download exact stable ID allocation artifact
         env:
@@ -69,7 +73,7 @@ jobs:
       - name: Verify exact allocation artifact and build review receipt
         run: |
           set -euo pipefail
-          python scripts/review_stable_instrument_id_allocation.py \
+          python scripts/review_stable_instrument_id_allocation_hardened.py \
             --artifact-root downloaded-artifact \
             --source-run-json source-run/run.json \
             --source-run-id "$SOURCE_RUN_ID" \

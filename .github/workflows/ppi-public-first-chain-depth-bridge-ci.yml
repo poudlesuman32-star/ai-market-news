@@ -10,8 +10,13 @@ on:
     paths:
       - .github/workflows/ppi-public-first-chain-depth-bridge.yml
       - .github/workflows/ppi-stable-instrument-id-allocation-pilot.yml
+      - .github/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml
       - .github/workflows/ppi-public-first-chain-depth-bridge-ci.yml
+      - scripts/review_stable_instrument_id_allocation.py
+      - scripts/review_stable_instrument_id_allocation_hardened.py
       - tests/test_ppi_public_first_chain_depth_bridge.py
+      - tests/test_ppi_stable_instrument_id_allocation_artifact_review.py
+      - tests/test_ppi_stable_instrument_id_allocation_durable_identity.py
 
 permissions:
   contents: read
@@ -29,9 +34,12 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Run zero-provider bridge regression tests
+      - name: Run zero-provider bridge and stable-review regression tests
         env:
           NO_PROXY: '*'
         run: |
           export no_proxy="$NO_PROXY"
-          python -m unittest tests.test_ppi_public_first_chain_depth_bridge -v
+          python -m unittest \
+            tests.test_ppi_public_first_chain_depth_bridge \
+            tests.test_ppi_stable_instrument_id_allocation_artifact_review \
+            tests.test_ppi_stable_instrument_id_allocation_durable_identity -v
