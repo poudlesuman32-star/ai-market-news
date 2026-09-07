@@ -32,6 +32,16 @@ class ChainDepthBridgeTests(unittest.TestCase):
         self.assertIn("unzip -q review.zip -d downloaded-review", bridge)
         self.assertIn("test -f downloaded-review/review.json", bridge)
 
+        # A reviewed bridge change on main may self-execute once instead of relying
+        # on GitHub's best-effort schedule. The push trigger must be restricted to
+        # main and to this workflow file only; duplicate dispatch remains guarded.
+        self.assertIn("  push:\n", bridge)
+        self.assertIn("    branches:\n      - main\n", bridge)
+        self.assertIn(
+            "    paths:\n      - .github/workflows/ppi-public-first-chain-depth-bridge.yml\n",
+            bridge,
+        )
+
         self.assertNotIn("sec.gov", bridge.lower())
         self.assertNotIn("openfigi.com", bridge.lower())
         self.assertNotIn("secrets.", bridge)
