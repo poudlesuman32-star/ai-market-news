@@ -1,4 +1,5 @@
 name: PPI stable instrument ID allocation artifact review
+run-name: Stable ID review from allocation ${{ inputs.source_run_id || github.event.workflow_run.id }}-${{ inputs.source_run_attempt || github.event.workflow_run.run_attempt }}
 
 on:
   workflow_run:
