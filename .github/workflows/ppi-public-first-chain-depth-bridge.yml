@@ -180,7 +180,7 @@ jobs:
           ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
         run: |
           set -euo pipefail
-          title="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}"
+          title="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT} on ${GITHUB_SHA}"
           runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/runs?branch=main&per_page=100")"
           if jq -e --arg title "$title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
             printf 'exists=true\n' >> "$GITHUB_OUTPUT"
