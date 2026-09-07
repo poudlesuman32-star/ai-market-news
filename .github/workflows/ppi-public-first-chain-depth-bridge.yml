@@ -180,9 +180,12 @@ jobs:
           ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
         run: |
           set -euo pipefail
-          title="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT} on ${GITHUB_SHA}"
+          prefix="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT} on "
+          current_title="${prefix}${GITHUB_SHA}"
           runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/runs?branch=main&per_page=100")"
-          if jq -e --arg title "$title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
+          if jq -e --arg prefix "$prefix" '.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          elif jq -e --arg title "$current_title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
             printf 'exists=true\n' >> "$GITHUB_OUTPUT"
           else
             printf 'exists=false\n' >> "$GITHUB_OUTPUT"
@@ -204,4 +207,121 @@ jobs:
                 --method POST \
                 -H 'Accept: application/vnd.github+json' \
                 "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/dispatches" \
+                --input -
+
+      - name: Locate exact successful stable-ID review
+        id: stable_review
+        if: steps.allocation_gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOCATION_ID: ${{ steps.allocation.outputs.allocation_id }}
+          ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
+        run: |
+          set -euo pipefail
+          prefix="Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT} on "
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/runs?branch=main&status=success&per_page=100")"
+          count="$(jq -r --arg prefix "$prefix" '[.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success")] | length' <<<"$runs")"
+          if [[ "$count" == "0" ]]; then
+            echo 'Exact stable-ID review is not successful yet.'
+            exit 0
+          fi
+          if [[ "$count" != "1" ]]; then
+            echo 'Exact stable-ID review is ambiguous.' >&2
+            exit 1
+          fi
+          stable_review_id="$(jq -r --arg prefix "$prefix" '.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success") | .id' <<<"$runs")"
+          stable_review_attempt="$(jq -r --arg prefix "$prefix" '.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success") | .run_attempt' <<<"$runs")"
+          [[ "$stable_review_id" =~ ^[0-9]+$ && "$stable_review_attempt" =~ ^[0-9]+$ ]]
+          printf 'stable_review_id=%s\n' "$stable_review_id" >> "$GITHUB_OUTPUT"
+          printf 'stable_review_attempt=%s\n' "$stable_review_attempt" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact stable-ID review receipt
+        id: stable_review_gate
+        if: steps.stable_review.outputs.stable_review_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_REVIEW_ID: ${{ steps.stable_review.outputs.stable_review_id }}
+          STABLE_REVIEW_ATTEMPT: ${{ steps.stable_review.outputs.stable_review_attempt }}
+          ALLOCATION_ID: ${{ steps.allocation.outputs.allocation_id }}
+          ALLOCATION_ATTEMPT: ${{ steps.allocation.outputs.allocation_attempt }}
+        run: |
+          set -euo pipefail
+          rm -rf stable-review-check stable-review.zip
+          mkdir -p stable-review-check
+          artifact_name="ppi-stable-instrument-id-allocation-artifact-review-${STABLE_REVIEW_ID}-${STABLE_REVIEW_ATTEMPT}"
+          artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${STABLE_REVIEW_ID}/artifacts?per_page=100")"
+          artifact_id="$(jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$artifacts")"
+          if [[ ! "$artifact_id" =~ ^[0-9]+$ ]]; then
+            echo 'Exact non-expired stable-ID review artifact was not uniquely resolved.' >&2
+            exit 1
+          fi
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > stable-review.zip
+          unzip -q stable-review.zip -d stable-review-check
+          test -f stable-review-check/review.json
+          allocated="$(jq -r '.stable_instrument_ids_allocated' allocation-check/receipt.json)"
+          ambiguous="$(jq -r '.ambiguous_deferred' allocation-check/receipt.json)"
+          unmatched="$(jq -r '.unmatched_deferred' allocation-check/receipt.json)"
+          jq -e \
+            --arg allocation_id "$ALLOCATION_ID" \
+            --arg allocation_attempt "$ALLOCATION_ATTEMPT" \
+            --argjson allocated "$allocated" \
+            --argjson ambiguous "$ambiguous" \
+            --argjson unmatched "$unmatched" '
+            .gate_passed == true and
+            .artifact_mode == "success" and
+            .candidate_count == 500 and
+            (.source_run_id | tostring) == $allocation_id and
+            (.source_run_attempt | tostring) == $allocation_attempt and
+            .allocation_counts.allocated == $allocated and
+            .allocation_counts.deferred_ambiguous == $ambiguous and
+            .allocation_counts.deferred_unmatched == $unmatched and
+            .authority.universe_snapshot_assembly == false and
+            .authority.private_access == false and
+            .authority.private_dispatch == false and
+            .authority.registry_mutation == false and
+            .authority.production == false and
+            .authority.publication == false and
+            .authority.trading == false and
+            (.review_core_sha256 | test("^[a-f0-9]{64}$"))
+          ' stable-review-check/review.json >/dev/null
+          printf 'gate_passed=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Check whether exact immutable snapshot already exists
+        id: snapshot_duplicate
+        if: steps.stable_review_gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_REVIEW_ID: ${{ steps.stable_review.outputs.stable_review_id }}
+          STABLE_REVIEW_ATTEMPT: ${{ steps.stable_review.outputs.stable_review_attempt }}
+        run: |
+          set -euo pipefail
+          prefix="Immutable snapshot from stable ID review ${STABLE_REVIEW_ID}-${STABLE_REVIEW_ATTEMPT} on "
+          current_title="${prefix}${GITHUB_SHA}"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-immutable-universe-snapshot-pilot.yml/runs?branch=main&per_page=100")"
+          if jq -e --arg prefix "$prefix" '.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          elif jq -e --arg title "$current_title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch exact immutable snapshot once
+        if: steps.stable_review_gate.outputs.gate_passed == 'true' && steps.snapshot_duplicate.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_REVIEW_ID: ${{ steps.stable_review.outputs.stable_review_id }}
+          STABLE_REVIEW_ATTEMPT: ${{ steps.stable_review.outputs.stable_review_attempt }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg review_run_id "$STABLE_REVIEW_ID" \
+            --arg review_run_attempt "$STABLE_REVIEW_ATTEMPT" \
+            '{ref:"main",inputs:{review_run_id:$review_run_id,review_run_attempt:$review_run_attempt}}' \
+            | gh api \
+                --method POST \
+                -H 'Accept: application/vnd.github+json' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-immutable-universe-snapshot-pilot.yml/dispatches" \
                 --input -
