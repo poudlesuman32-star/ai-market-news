@@ -26,8 +26,14 @@ def validate_source_run(value: dict, run_id: str, attempt: str) -> dict:
     return checks
 
 
-base.validate_source_run = validate_source_run
+def main() -> int:
+    original = base.validate_source_run
+    base.validate_source_run = validate_source_run
+    try:
+        return base.main()
+    finally:
+        base.validate_source_run = original
 
 
 if __name__ == "__main__":
-    raise SystemExit(base.main())
+    raise SystemExit(main())
