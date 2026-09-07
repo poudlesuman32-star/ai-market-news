@@ -19,18 +19,26 @@ class ChainDepthBridgeTests(unittest.TestCase):
         self.assertIn(".authority.stable_instrument_id_allocation == false", bridge)
         self.assertIn("ppi-stable-instrument-id-allocation-pilot.yml", bridge)
         self.assertIn("steps.duplicate.outputs.exists == 'false'", bridge)
-        self.assertIn("review_run_id=\"$REVIEW_ID\"", bridge)
-        self.assertIn("review_run_attempt=\"$REVIEW_ATTEMPT\"", bridge)
+        self.assertIn("review_run_id", bridge)
+        self.assertIn("review_run_attempt", bridge)
 
-        # The scheduled bridge does not check out the repository. Artifact retrieval
-        # must therefore use repository-independent Actions REST endpoints rather
-        # than `gh run download`, which requires git repository context.
+        # The bridge intentionally does not check out the repository. Artifact
+        # retrieval and workflow dispatch must therefore use repository-scoped
+        # Actions REST endpoints instead of gh commands that infer git context.
         self.assertNotIn("gh run download", bridge)
+        self.assertNotIn("gh workflow run", bridge)
         self.assertIn("actions/runs/${REVIEW_ID}/artifacts", bridge)
         self.assertIn(".expired == false", bridge)
         self.assertIn("actions/artifacts/${artifact_id}/zip", bridge)
         self.assertIn("unzip -q review.zip -d downloaded-review", bridge)
         self.assertIn("test -f downloaded-review/review.json", bridge)
+        self.assertIn("--method POST", bridge)
+        self.assertIn(
+            "actions/workflows/ppi-stable-instrument-id-allocation-pilot.yml/dispatches",
+            bridge,
+        )
+        self.assertIn('{ref:"main",inputs:{review_run_id:$review_run_id,review_run_attempt:$review_run_attempt}}', bridge)
+        self.assertIn("--input -", bridge)
 
         # A reviewed bridge change on main may self-execute once instead of relying
         # on GitHub's best-effort schedule. The push trigger must be restricted to

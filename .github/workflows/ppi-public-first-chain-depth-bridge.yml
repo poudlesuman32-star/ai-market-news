@@ -95,7 +95,12 @@ jobs:
           REVIEW_ATTEMPT: ${{ steps.review.outputs.review_attempt }}
         run: |
           set -euo pipefail
-          gh workflow run ppi-stable-instrument-id-allocation-pilot.yml \
-            --ref main \
-            -f review_run_id="$REVIEW_ID" \
-            -f review_run_attempt="$REVIEW_ATTEMPT"
+          jq -n \
+            --arg review_run_id "$REVIEW_ID" \
+            --arg review_run_attempt "$REVIEW_ATTEMPT" \
+            '{ref:"main",inputs:{review_run_id:$review_run_id,review_run_attempt:$review_run_attempt}}' \
+            | gh api \
+                --method POST \
+                -H 'Accept: application/vnd.github+json' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-pilot.yml/dispatches" \
+                --input -
