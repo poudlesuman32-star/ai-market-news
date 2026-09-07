@@ -10,6 +10,9 @@ class ChainDepthBridgeTests(unittest.TestCase):
         stable = Path(
             ".github/workflows/ppi-stable-instrument-id-allocation-pilot.yml"
         ).read_text(encoding="utf-8")
+        stable_review = Path(
+            ".github/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml"
+        ).read_text(encoding="utf-8")
 
         self.assertIn("actions: write", bridge)
         self.assertIn("contents: read", bridge)
@@ -50,10 +53,31 @@ class ChainDepthBridgeTests(unittest.TestCase):
             bridge,
         )
 
+        # Successful zero-provider allocations may be handed to the independent
+        # stable-ID reviewer only after the exact safe artifact is uniquely resolved.
+        self.assertIn("Locate exact successful stable-ID allocation", bridge)
+        self.assertIn("ppi-stable-instrument-id-allocation-pilot-${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}", bridge)
+        self.assertIn("PPI-STABLE-INSTRUMENT-ID-ALLOCATION-PILOT-001-R1", bridge)
+        self.assertIn(".network_requests_performed == 0", bridge)
+        self.assertIn(".private_access == false", bridge)
+        self.assertIn(".registry_mutation == false", bridge)
+        self.assertIn(".production == false", bridge)
+        self.assertIn(".publication == false", bridge)
+        self.assertIn(".trading == false", bridge)
+        self.assertIn(".stable_instrument_ids_allocated + .ambiguous_deferred + .unmatched_deferred", bridge)
+        self.assertIn("Stable ID review from allocation ${ALLOCATION_ID}-${ALLOCATION_ATTEMPT}", bridge)
+        self.assertIn("steps.review_duplicate.outputs.exists == 'false'", bridge)
+        self.assertIn(
+            "actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/dispatches",
+            bridge,
+        )
+        self.assertIn('{ref:"main",inputs:{source_run_id:$source_run_id,source_run_attempt:$source_run_attempt}}', bridge)
+        self.assertIn("run-name: Stable ID review from allocation", stable_review)
+
         self.assertNotIn("sec.gov", bridge.lower())
         self.assertNotIn("openfigi.com", bridge.lower())
         self.assertNotIn("secrets.", bridge)
-        self.assertNotIn("registry", bridge.lower())
+        self.assertNotIn("registry_mutation == true", bridge)
         self.assertNotIn("ai-signal-engine", bridge)
         self.assertIn(
             "run-name: Stable ID allocation from OpenFIGI review",
