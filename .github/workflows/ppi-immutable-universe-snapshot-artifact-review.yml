@@ -1,4 +1,5 @@
 name: PPI immutable universe snapshot artifact review
+run-name: Immutable snapshot review from snapshot ${{ inputs.source_run_id || github.event.workflow_run.id }}-${{ inputs.source_run_attempt || github.event.workflow_run.run_attempt }} on ${{ github.sha }}
 
 on:
   workflow_run:
@@ -49,8 +50,12 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/assemble_immutable_universe_snapshot.py \
-            scripts/review_immutable_universe_snapshot.py
-          python -m unittest tests.test_ppi_immutable_universe_snapshot_artifact_review -v
+            scripts/assemble_immutable_universe_snapshot_hardened.py \
+            scripts/review_immutable_universe_snapshot.py \
+            scripts/review_immutable_universe_snapshot_hardened.py
+          python -m unittest \
+            tests.test_ppi_immutable_universe_snapshot_artifact_review \
+            tests.test_ppi_immutable_durable_workflow_identity -v
 
       - name: Download exact immutable universe snapshot artifact
         env:
@@ -70,7 +75,7 @@ jobs:
       - name: Verify exact snapshot artifact and build review receipt
         run: |
           set -euo pipefail
-          python scripts/review_immutable_universe_snapshot.py \
+          python scripts/review_immutable_universe_snapshot_hardened.py \
             --artifact-root downloaded-artifact \
             --source-run-json source-run/run.json \
             --source-run-id "$SOURCE_RUN_ID" \
