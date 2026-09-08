@@ -1,0 +1,195 @@
+name: PPI immutable snapshot review bridge
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ppi-immutable-snapshot-review-bridge.yml
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: ppi-immutable-snapshot-review-bridge
+  cancel-in-progress: false
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate exact successful stable-ID review
+        id: stable_review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-stable-instrument-id-allocation-artifact-review.yml/runs?branch=main&status=success&per_page=100")"
+          matches="$(jq '[.workflow_runs[] | select((.display_title | startswith("Stable ID review from allocation ")) and .event == "workflow_dispatch" and .conclusion == "success")]' <<<"$runs")"
+          count="$(jq -r 'length' <<<"$matches")"
+          if [[ "$count" == "0" ]]; then
+            echo 'No successful stable-ID review is available.'
+            exit 0
+          fi
+          if [[ "$count" != "1" ]]; then
+            echo 'Successful stable-ID review lineage is ambiguous.' >&2
+            exit 1
+          fi
+          review_id="$(jq -r '.[0].id' <<<"$matches")"
+          review_attempt="$(jq -r '.[0].run_attempt' <<<"$matches")"
+          [[ "$review_id" =~ ^[0-9]+$ && "$review_attempt" =~ ^[0-9]+$ ]]
+          printf 'review_id=%s\n' "$review_id" >> "$GITHUB_OUTPUT"
+          printf 'review_attempt=%s\n' "$review_attempt" >> "$GITHUB_OUTPUT"
+
+      - name: Locate exact successful immutable snapshot
+        id: snapshot
+        if: steps.stable_review.outputs.review_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_ID: ${{ steps.stable_review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.stable_review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          prefix="Immutable snapshot from stable ID review ${REVIEW_ID}-${REVIEW_ATTEMPT} on "
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-immutable-universe-snapshot-pilot.yml/runs?branch=main&status=success&per_page=100")"
+          matches="$(jq --arg prefix "$prefix" '[.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success")]' <<<"$runs")"
+          count="$(jq -r 'length' <<<"$matches")"
+          if [[ "$count" == "0" ]]; then
+            echo 'Exact immutable snapshot is not successful yet.'
+            exit 0
+          fi
+          if [[ "$count" != "1" ]]; then
+            echo 'Exact immutable snapshot lineage is ambiguous.' >&2
+            exit 1
+          fi
+          snapshot_id="$(jq -r '.[0].id' <<<"$matches")"
+          snapshot_attempt="$(jq -r '.[0].run_attempt' <<<"$matches")"
+          [[ "$snapshot_id" =~ ^[0-9]+$ && "$snapshot_attempt" =~ ^[0-9]+$ ]]
+          printf 'snapshot_id=%s\n' "$snapshot_id" >> "$GITHUB_OUTPUT"
+          printf 'snapshot_attempt=%s\n' "$snapshot_attempt" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact immutable snapshot artifact
+        id: gate
+        if: steps.snapshot.outputs.snapshot_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SNAPSHOT_ID: ${{ steps.snapshot.outputs.snapshot_id }}
+          SNAPSHOT_ATTEMPT: ${{ steps.snapshot.outputs.snapshot_attempt }}
+          REVIEW_ID: ${{ steps.stable_review.outputs.review_id }}
+          REVIEW_ATTEMPT: ${{ steps.stable_review.outputs.review_attempt }}
+        run: |
+          set -euo pipefail
+          rm -rf snapshot-check snapshot.zip
+          mkdir -p snapshot-check
+          artifact_name="ppi-immutable-universe-snapshot-pilot-${SNAPSHOT_ID}-${SNAPSHOT_ATTEMPT}"
+          artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SNAPSHOT_ID}/artifacts?per_page=100")"
+          artifact_id="$(jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$artifacts")"
+          if [[ ! "$artifact_id" =~ ^[0-9]+$ ]]; then
+            echo 'Exact non-expired immutable snapshot artifact was not uniquely resolved.' >&2
+            exit 1
+          fi
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > snapshot.zip
+          unzip -q snapshot.zip -d snapshot-check
+          SNAPSHOT_ID="$SNAPSHOT_ID" SNAPSHOT_ATTEMPT="$SNAPSHOT_ATTEMPT" REVIEW_ID="$REVIEW_ID" REVIEW_ATTEMPT="$REVIEW_ATTEMPT" python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("snapshot-check")
+          expected = {
+              "manifest.json",
+              "receipt.json",
+              "report.md",
+              "universe-deferred.jsonl",
+              "universe-instruments.jsonl",
+          }
+          actual = {p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()}
+          if actual != expected:
+              raise SystemExit("Immutable snapshot artifact paths are not exact")
+
+          def sha(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+          def canon(value: object) -> bytes:
+              return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
+
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          receipt = json.loads((root / "receipt.json").read_text(encoding="utf-8"))
+          instruments_raw = (root / "universe-instruments.jsonl").read_bytes()
+          deferred_raw = (root / "universe-deferred.jsonl").read_bytes()
+          instruments = [json.loads(line) for line in instruments_raw.splitlines()]
+          deferred = [json.loads(line) for line in deferred_raw.splitlines()]
+
+          checks = {
+              "manifest_contract": manifest.get("contract_id") == "PPI-IMMUTABLE-UNIVERSE-SNAPSHOT-PILOT-001-R1",
+              "candidate_count": manifest.get("candidate_count") == 500,
+              "counts": manifest.get("instrument_count") == len(instruments) and manifest.get("deferred_count") == len(deferred) and len(instruments) + len(deferred) == 500,
+              "classification_unresolved": manifest.get("classification_status") == "unresolved_asset_subtype" and all(item.get("classification_status") == "unresolved_asset_subtype" for item in instruments),
+              "instrument_hash": sha(instruments_raw) == manifest.get("universe_instruments_sha256"),
+              "deferred_hash": sha(deferred_raw) == manifest.get("universe_deferred_sha256"),
+              "manifest_core": sha(canon({k: v for k, v in manifest.items() if k != "manifest_core_sha256"})) == manifest.get("manifest_core_sha256"),
+              "unique_instruments": len({item.get("instrument_id") for item in instruments}) == len(instruments),
+              "unique_deferred": len({item.get("candidate_id") for item in deferred}) == len(deferred),
+              "no_candidate_overlap": not ({item.get("source_candidate_id") for item in instruments} & {item.get("candidate_id") for item in deferred}),
+              "receipt_contract": receipt.get("contract_id") == "PPI-IMMUTABLE-UNIVERSE-SNAPSHOT-PILOT-001-R1",
+              "receipt_run": str(receipt.get("run_id")) == os.environ["SNAPSHOT_ID"] and str(receipt.get("run_attempt")) == os.environ["SNAPSHOT_ATTEMPT"],
+              "review_lineage": str(receipt.get("source_review_run_id")) == os.environ["REVIEW_ID"] and str(receipt.get("source_review_run_attempt")) == os.environ["REVIEW_ATTEMPT"],
+              "receipt_counts": receipt.get("universe_instruments_assembled") == len(instruments) and receipt.get("deferred_candidates_preserved") == len(deferred),
+              "zero_network": receipt.get("network_requests_performed") == 0,
+              "no_private": receipt.get("private_access") is False and receipt.get("private_dispatch") is False,
+              "no_registry": receipt.get("registry_mutation") is False,
+              "no_production": receipt.get("production") is False and receipt.get("publication") is False,
+              "no_trading": receipt.get("trading") is False,
+              "no_billing": receipt.get("billing_budget_mutation") is False,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("Immutable snapshot artifact gate failed: " + ", ".join(failed))
+          PY
+          printf 'gate_passed=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Check whether exact immutable review already exists
+        id: duplicate
+        if: steps.gate.outputs.gate_passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SNAPSHOT_ID: ${{ steps.snapshot.outputs.snapshot_id }}
+          SNAPSHOT_ATTEMPT: ${{ steps.snapshot.outputs.snapshot_attempt }}
+        run: |
+          set -euo pipefail
+          prefix="Immutable snapshot review from snapshot ${SNAPSHOT_ID}-${SNAPSHOT_ATTEMPT} on "
+          current_title="${prefix}${GITHUB_SHA}"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-immutable-universe-snapshot-artifact-review.yml/runs?branch=main&per_page=100")"
+          if jq -e --arg prefix "$prefix" '.workflow_runs[] | select((.display_title | startswith($prefix)) and .event == "workflow_dispatch" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          elif jq -e --arg title "$current_title" '.workflow_runs[] | select(.display_title == $title)' <<<"$runs" >/dev/null; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch exact immutable snapshot review once
+        if: steps.gate.outputs.gate_passed == 'true' && steps.duplicate.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SNAPSHOT_ID: ${{ steps.snapshot.outputs.snapshot_id }}
+          SNAPSHOT_ATTEMPT: ${{ steps.snapshot.outputs.snapshot_attempt }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg source_run_id "$SNAPSHOT_ID" \
+            --arg source_run_attempt "$SNAPSHOT_ATTEMPT" \
+            '{ref:"main",inputs:{source_run_id:$source_run_id,source_run_attempt:$source_run_attempt}}' \
+            | gh api \
+                --method POST \
+                -H 'Accept: application/vnd.github+json' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ppi-immutable-universe-snapshot-artifact-review.yml/dispatches" \
+                --input -
