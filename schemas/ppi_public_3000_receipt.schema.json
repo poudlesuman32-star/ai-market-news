@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/ppi_public_3000_receipt.schema.json",
+  "title": "PPI public 3,000 snapshot receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id",
+    "artifact_mode",
+    "gate_passed",
+    "total_candidate_dispositions",
+    "combined_snapshot_sha256"
+  ],
+  "properties": {
+    "contract_id": {"const": "PPI-PUBLIC-3000-SNAPSHOT-001-R1"},
+    "artifact_mode": {"const": "success"},
+    "gate_passed": {"const": true},
+    "total_candidate_dispositions": {"const": 3000},
+    "combined_snapshot_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

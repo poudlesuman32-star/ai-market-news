@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/ppi_public_3000_manifest.schema.json",
+  "title": "PPI public 3,000 snapshot manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id",
+    "artifact_mode",
+    "data_file_sha256",
+    "combined_snapshot_sha256",
+    "step8_source"
+  ],
+  "properties": {
+    "contract_id": {"const": "PPI-PUBLIC-3000-SNAPSHOT-001-R1"},
+    "artifact_mode": {"const": "success"},
+    "data_file_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "universe-instruments-3000.jsonl",
+        "universe-deferred-3000.jsonl"
+      ],
+      "properties": {
+        "universe-instruments-3000.jsonl": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "universe-deferred-3000.jsonl": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "combined_snapshot_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "step8_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_run_id",
+        "review_run_attempt",
+        "review_artifact_id",
+        "review_receipt_sha256"
+      ],
+      "properties": {
+        "review_run_id": {"type": "integer", "minimum": 1},
+        "review_run_attempt": {"type": "integer", "minimum": 1},
+        "review_artifact_id": {"type": "integer", "minimum": 1},
+        "review_receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}

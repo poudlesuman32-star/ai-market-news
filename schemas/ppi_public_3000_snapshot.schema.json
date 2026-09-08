@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/poudlesuman32-star/ai-market-news/schemas/ppi_public_3000_snapshot.schema.json",
+  "title": "PPI public 3,000-instrument snapshot disposition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "cik",
+    "ticker",
+    "exchange",
+    "disposition",
+    "instrument_id",
+    "figi",
+    "identity_status",
+    "classification_status",
+    "source_row_sha256"
+  ],
+  "properties": {
+    "candidate_id": {"type": "string", "pattern": "^ppi-sec-seed-[a-f0-9]{24}$"},
+    "cik": {"type": "string", "pattern": "^[0-9]{10}$"},
+    "ticker": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9.\\-]{0,14}$"},
+    "exchange": {"enum": ["NYSE", "NASDAQ", "NYSE_AMERICAN"]},
+    "disposition": {"enum": ["allocated", "deferred_ambiguous", "deferred_unmatched"]},
+    "instrument_id": {"type": ["string", "null"], "pattern": "^ppi-us-equity-[a-f0-9]{24}$"},
+    "figi": {"type": ["string", "null"], "pattern": "^[A-Z0-9]{12}$"},
+    "identity_status": {"enum": ["verified_exact_figi", "deferred_ambiguous", "deferred_unmatched"]},
+    "classification_status": {"const": "unresolved_asset_subtype"},
+    "source_row_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"disposition": {"const": "allocated"}}},
+      "then": {
+        "properties": {
+          "instrument_id": {"type": "string", "pattern": "^ppi-us-equity-[a-f0-9]{24}$"},
+          "figi": {"type": "string", "pattern": "^[A-Z0-9]{12}$"},
+          "identity_status": {"const": "verified_exact_figi"}
+        }
+      },
+      "else": {
+        "properties": {
+          "instrument_id": {"type": "null"}
+        }
+      }
+    }
+  ]
+}
