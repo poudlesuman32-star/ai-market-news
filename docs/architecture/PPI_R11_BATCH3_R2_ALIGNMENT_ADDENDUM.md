@@ -122,7 +122,7 @@ The immediate producer-side change must remain fail closed. The reviewable corre
 6. add adversarial regressions for safe ANSI formatting, an ANSI-fragmented secret, an ANSI-fragmented authorization header, and the workflow download flag; and
 7. require a later authorized manual R2 run to produce a passing retained job-log-scan receipt before this blocker is considered finished.
 
-A fresh remediation branch was attempted from exact failing producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` as `codex/ppi-r11-log-scan-ansi-20260908`. The connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. No producer code was written directly to `main`.
+A fresh remediation branch was attempted from exact failing producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` as `codex/ppi-r11-log-scan-ansi-20260908`. The connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. The older producer review branch `codex/ppi-r11-r2-producer-evidence-20260801` was then rechecked live; it remains at August commit `451d442f4b16768ba77050cf7026300813ca9a6d`. A non-force fast-forward of that branch to current producer `main` `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` was attempted and also returned HTTP 403 `Resource not accessible by integration`. No producer code was written directly to `main`, and the stale branch must not be used as-is.
 
 ## Required producer identity correction before fresh pilot
 
