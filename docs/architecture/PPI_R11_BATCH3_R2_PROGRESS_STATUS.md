@@ -79,7 +79,7 @@ The reviewable producer correction should be based on exact failing head `2bbef4
 6. add focused regressions for an ordinary ANSI-formatted safe log, a secret fragmented by ANSI CSI bytes, an ANSI-fragmented authorization header, and the workflow `--allow-escape-sequences` wiring; and
 7. require a later manual R2 run to retain a passing `job-log-scan-receipt.json` before this item moves to finished.
 
-A fresh producer branch from the exact failing head was attempted as `codex/ppi-r11-log-scan-ansi-20260908`, but the connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. The older manually created producer branch is based on August code and must not be reused without first aligning it to current `main`, because doing so could discard merged resumability/log-evidence hardening.
+A fresh producer branch from the exact failing head was attempted as `codex/ppi-r11-log-scan-ansi-20260908`, but the connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. The older manually created producer branch `codex/ppi-r11-r2-producer-evidence-20260801` still exists at `451d442f4b16768ba77050cf7026300813ca9a6d`. On this inspection it was explicitly checked against current `main` `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`; a non-force fast-forward of that review branch to current `main` was attempted and GitHub again returned HTTP 403 `Resource not accessible by integration`. Therefore no safe producer branch can currently be aligned or written through this connector, and the stale August branch must not be used as-is.
 
 ## Remaining before a countable batch-3 result
 
