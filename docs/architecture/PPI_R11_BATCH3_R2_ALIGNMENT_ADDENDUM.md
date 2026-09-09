@@ -54,7 +54,9 @@ The new batch-3 candidates remain:
 
 ## Trust boundary
 
-`MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`) is the only provider-execution plane. It may collect, retry, validate objective structure, package, hash, attest, and hand off evidence. It may not score, approve, publish trading signals, mutate the private registry, or start private analysis automatically.
+`MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`) is the only approved producer-execution plane. All producer contracts, configuration, receipts, handoff metadata, attestation policy, and documentation used for a fresh countable pilot must identify that canonical repository consistently. The historical `spoudel2010-ux/ppi-data-acquisition` slug must not appear in fresh producer-generated identity metadata.
+
+The producer may collect, retry, validate objective structure, package, hash, attest, and hand off evidence. It may not score, approve, publish trading signals, mutate the private registry, or start private analysis automatically.
 
 `musksuman3/ai-signal-engine` may accept an R2 package only after a fail-closed trust gate verifies repository and workflow identity, materialized run identity, exact provider operations, exact package shape, hashes, attestation, safe extraction, and disabled downstream authorities.
 
@@ -122,22 +124,32 @@ The immediate producer-side change must remain fail closed. The reviewable corre
 
 A fresh remediation branch was attempted from exact failing producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` as `codex/ppi-r11-log-scan-ansi-20260908`. The connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. No producer code was written directly to `main`.
 
+## Required producer identity correction before fresh pilot
+
+Current producer `main` still contains the former repository slug `spoudel2010-ux/ppi-data-acquisition` in identity-bearing surfaces despite the canonical repository being `MarketMakingLFG/ppi-data-acquisition` with stable repository ID `1312286476`:
+
+- `contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json` field `repository`;
+- `contracts/PPI-PUBLIC-COLLECTOR-003-R2.json` field `repository`;
+- `config/provider_licensing_dispositions.json` field `public_repository`;
+- `src/publish_private_handoff.py` private-release body text; and
+- `README.md`.
+
+These references must be corrected together on a reviewable producer change, with focused tests that fail if canonical producer identity diverges across frozen contracts, licensing configuration, generated handoff metadata, and documentation relevant to operator execution. This correction is required before a fresh countable pilot; updating the README alone is insufficient.
+
 ## Remaining sequence after log-scan repair
 
 The remediation queue remains sequential:
 
 1. validate the producer log-scan correction in focused tests and then in a later successful manual R2 workflow run;
 2. bind the provider-bearing acquisition job to a reviewed protected GitHub environment and verify the environment protections, without changing repository secrets/environments absent explicit approval;
-3. correct the stale producer README to the canonical repository identity, R2 contracts, four-shard resumability, attestation, and retention model;
+3. correct all stale producer identity surfaces listed above, including the README, and prove identity consistency;
 4. obtain a fresh completely successful manual R2 acquisition evidence set;
 5. perform private exact-run materialization and analysis only when explicitly authorized;
 6. validate the complete immutable pilot evidence dossier;
 7. generate/review the one-file registry proposal without automatic merge; and
 8. register batch 3 only if every countability and governance gate passes.
 
-## Remaining documentation and configuration work
-
-`MarketMakingLFG/ppi-data-acquisition/README.md` is stale: it still names the former repository owner, declares R1 public acquisition/collector lineage, and describes the obsolete three-shard design. It must be updated on a review branch after the higher-priority protected-environment binding task.
+## Protected credential environment remains unproven
 
 The provider-bearing producer job does not currently declare a protected GitHub `environment:`. A protected credential environment therefore remains not proven as a live runtime control. Adding or changing the repository environment itself requires explicit approval; no such mutation is authorized by this addendum.
 
