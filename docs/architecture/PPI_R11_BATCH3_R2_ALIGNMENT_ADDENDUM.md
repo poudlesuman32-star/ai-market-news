@@ -76,54 +76,84 @@ As of September 8, 2026, the following architecture items are implemented in the
 - replay and duplicate-credit protection;
 - review-only registry proposal generation rather than automatic pilot registry merge;
 - full pilot evidence-dossier validation before registration;
-- public package secret scanning and a dedicated producer job-log leak-scan stage;
+- public package secret scanning and a dedicated producer completed-job-log leak-scan stage;
 - separate success/failure retention and cleanup paths; and
 - adversarial validation coverage across the public/private trust boundary.
 
 The authoritative private R11 registry remains unchanged until a complete batch-3 pilot passes all gates and the separate governance step accepts the proposal.
 
-## Current pilot state
+## Current pilot state and exact blocker evidence
 
-The first R2 acquisition remains manual-only and requires the exact confirmation:
+The R2 acquisition remains manual-only and requires the exact confirmation:
 
 `COLLECT-R11-BATCH-3`
 
-The latest inspected manual public run, GitHub Actions run `34265097209` on producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed the main `collect-and-handoff` job successfully. That job completed collection/reuse of all four shards, package secret scanning, package provenance generation, private publication of the attested package, public safe-receipt construction, checkpoint cleanup, and the public raw-upload assertion.
+The latest inspected manual public run is GitHub Actions run `34265097209` on producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`.
 
-The workflow nevertheless concluded `failure` because the separate `scan completed producer job log` job failed while downloading the completed job log. The GitHub CLI rejected terminal escape sequences in the downloaded log before the credential-leak scanner ran. The safe success metadata artifact was still retained, but the mandatory job-log leak-scan proof was not produced.
+Its main `collect-and-handoff` job, job ID `102192347121`, completed successfully. It completed collection/reuse of all four shards, retained-package secret scanning, exact-package provenance generation, private publication of the attested package, public safe-receipt construction, checkpoint cleanup, and the public raw-upload assertion.
 
-Therefore this run is **not countable** and must not advance the private registry.
+The run retained safe-success artifact `ppi-r11-public-success-34265097209-1`, artifact ID `10071593777`, with GitHub artifact digest `sha256:8721f7ce848bb75be653f602ae1eb2ebf8f967bdbb8ee211ac14516fbbd4a9d5`.
 
-## Current blocker and required correction
+The overall workflow concluded `failure` because the separate `scan completed producer job log` job, job ID `102193467150`, failed at `Download completed collect job log`. The current workflow uses:
 
-The immediate producer-side correction is to make the job-log download step robust to terminal escape sequences while retaining fail-closed leak scanning. The current failure text indicates that the GitHub CLI log download needs explicit escape-sequence handling or an equivalent binary-safe download path.
+```text
+gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${job_id}/logs" > "$RUNNER_TEMP/collect-and-handoff.log"
+```
 
-After that correction, a new manual R2 run must complete with:
+GitHub CLI exited with:
 
-1. a successful collection/handoff job;
-2. a successful completed-job-log leak scan and retained safe receipt;
-3. a complete public success receipt and private handoff;
-4. private materialization, attestation, trust-gate, safe-extraction, semantic-review, scoring, and countability evidence;
-5. a complete pilot evidence dossier; and
-6. a separate review-only registry proposal and governance decision.
+```text
+the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway
+```
+
+The credential scanner was skipped and no job-log-scan receipt was retained. Therefore run `34265097209` is **not countable** and must not advance private analysis or the registry as a pilot result.
+
+## Required producer correction
+
+The immediate producer-side change must remain fail closed. The reviewable correction should:
+
+1. enable binary/escape-bearing log output from the GitHub CLI, such as `gh api --allow-escape-sequences .../actions/jobs/${job_id}/logs`;
+2. feed the resulting file directly to the scanner rather than echoing it back into workflow output;
+3. scan both raw log bytes and a safely ANSI-normalized byte view so formatting bytes cannot split and conceal a credential;
+4. reject unsupported escape material or otherwise prove normalization cannot suppress credential evidence;
+5. retain exact, encoded, authorization-header, and credential-query leak detection;
+6. add adversarial regressions for safe ANSI formatting, an ANSI-fragmented secret, an ANSI-fragmented authorization header, and the workflow download flag; and
+7. require a later authorized manual R2 run to produce a passing retained job-log-scan receipt before this blocker is considered finished.
+
+A fresh remediation branch was attempted from exact failing producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` as `codex/ppi-r11-log-scan-ansi-20260908`. The connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. No producer code was written directly to `main`.
+
+## Remaining sequence after log-scan repair
+
+The remediation queue remains sequential:
+
+1. validate the producer log-scan correction in focused tests and then in a later successful manual R2 workflow run;
+2. bind the provider-bearing acquisition job to a reviewed protected GitHub environment and verify the environment protections, without changing repository secrets/environments absent explicit approval;
+3. correct the stale producer README to the canonical repository identity, R2 contracts, four-shard resumability, attestation, and retention model;
+4. obtain a fresh completely successful manual R2 acquisition evidence set;
+5. perform private exact-run materialization and analysis only when explicitly authorized;
+6. validate the complete immutable pilot evidence dossier;
+7. generate/review the one-file registry proposal without automatic merge; and
+8. register batch 3 only if every countability and governance gate passes.
 
 ## Remaining documentation and configuration work
 
-The following items remain open even though the corresponding runtime architecture is substantially implemented:
+`MarketMakingLFG/ppi-data-acquisition/README.md` is stale: it still names the former repository owner, declares R1 public acquisition/collector lineage, and describes the obsolete three-shard design. It must be updated on a review branch after the higher-priority protected-environment binding task.
 
-- `MarketMakingLFG/ppi-data-acquisition/README.md` is stale: it still names the former repository owner, declares the R1 public acquisition/collector lineage, and describes the obsolete three-shard layout. It must be updated to the canonical repository name, R2 lineage, and current four-shard/resumable/attested workflow.
-- The producer-bearing job does not currently declare a protected GitHub `environment:` in the workflow. A protected credential environment therefore remains not proven as a live runtime control and should be added/reviewed before treating that control as satisfied.
-- The batch-3 pilot must obtain one complete successful end-to-end evidence dossier after the producer log-scan defect is fixed.
+The provider-bearing producer job does not currently declare a protected GitHub `environment:`. A protected credential environment therefore remains not proven as a live runtime control. Adding or changing the repository environment itself requires explicit approval; no such mutation is authorized by this addendum.
 
-## R11 program state
+## Live R11 registry state
 
-The authoritative private registry remains:
+The authoritative registry `musksuman3/ai-signal-engine/audit/r11_shadow_validation_registry.json` remains:
 
-- accepted countable batches: `2 / 20`;
-- approved active tickers: `8 / 80`;
-- approved tickers: `AAPL, MU, NVDA, AMD, AVGO, INTC, TSM, ARM`.
+- status `collecting`;
+- accepted countable batches `2 / 20`;
+- approved active tickers `8 / 80`;
+- approved tickers `AAPL, MU, NVDA, AMD, AVGO, INTC, TSM, ARM`;
+- only batch sequences 1 and 2 registered;
+- formal closure not committed; and
+- `r12_authorized: false`.
 
-Batch 3 will move the program toward `3 / 20` and `12 / 80` only after the full countability and governance sequence succeeds. No partial credit is granted.
+QCOM, MRVL, GFS, and TXN have not received batch-3 registry credit. No partial credit is granted.
 
 ## Required acquisition secrets
 
