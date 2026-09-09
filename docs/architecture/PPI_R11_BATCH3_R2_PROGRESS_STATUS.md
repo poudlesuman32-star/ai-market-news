@@ -11,7 +11,7 @@ This file is the operational status companion to the R2 alignment addendum. It d
 | Area | Status | Evidence/state |
 |---|---|---|
 | Three-repository responsibility split | Finished | Public source/contract plane, public acquisition plane, private analysis/governance plane are separated. |
-| Canonical producer identity | Finished | `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`. |
+| Canonical producer identity | Finished as architecture decision | Canonical runtime identity is `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`; stale producer files listed below still require correction before a fresh pilot. |
 | R2 public acquisition lineage | Finished | `PPI-R11-PUBLIC-ACQUISITION-003-R2`. |
 | R2 collector lineage | Finished | `PPI-PUBLIC-COLLECTOR-003-R2`. |
 | Private analytical lineage | Finished | Remains `PPI-R11-BATCH-EVIDENCE-003-R1`. |
@@ -87,16 +87,24 @@ A fresh producer branch from the exact failing head was attempted as `codex/ppi-
 |---:|---|---|
 | 1 | Repair producer job-log download/scanning plumbing | Escape-bearing logs download safely; raw + normalized credential scanning remains fail closed; focused negative tests pass; a later authorized manual run retains a passing safe scan receipt. |
 | 2 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and repository environment protections are verified. No secret/environment mutation occurs without explicit approval. |
-| 3 | Correct the stale producer README | README names `MarketMakingLFG/ppi-data-acquisition`, R2 contracts, four shards, resumability, attestation, and current retention behavior. |
+| 3 | Correct all stale producer identity/documentation references | Before a fresh pilot, replace the former `spoudel2010-ux/ppi-data-acquisition` slug with canonical `MarketMakingLFG/ppi-data-acquisition` wherever producer runtime/contracts emit or govern identity, including both R2 contract JSON files, provider licensing dispositions, handoff release-body generation, and README; add focused identity-consistency coverage. |
 | 4 | Execute a fresh manual public R2 run | Entire producer workflow, including job-log scan, concludes success and retains the required safe metadata. |
 | 5 | Execute private final analysis for that exact successful public run | Materialization, attestation, R2 trust gate, safe extraction, semantic review, no-network scoring, and countability all pass for the same immutable run identity. |
 | 6 | Complete the immutable pilot evidence dossier | All required public/private receipts, hashes, run identities, scans, attestation, score, countability and replay proofs validate together. |
 | 7 | Review the one-file registry proposal | Human/review governance confirms exact append-only change. Do not auto-merge from the analysis job. |
 | 8 | Register batch 3 only if countable | Registry moves from `2 / 20`, `8 / 80` to `3 / 20`, `12 / 80`; otherwise remains unchanged with explicit non-counting disposition. |
 
-## Documentation drift requiring correction
+## Producer identity drift requiring correction
 
-`MarketMakingLFG/ppi-data-acquisition/README.md` is currently inconsistent with runtime reality. It still records the former `spoudel2010-ux/ppi-data-acquisition` owner, R1 public/collector identities, and an old three-shard design. This connector cannot currently create a review branch in that producer repository, so the correction remains blocked on producer repository write authorization rather than being written directly to `main`.
+The canonical producer is `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`, but current producer `main` still contains the former slug `spoudel2010-ux/ppi-data-acquisition` in multiple authoritative/runtime-facing locations:
+
+- `contracts/PPI-R11-PUBLIC-ACQUISITION-003-R2.json` field `repository`;
+- `contracts/PPI-PUBLIC-COLLECTOR-003-R2.json` field `repository`;
+- `config/provider_licensing_dispositions.json` field `public_repository`;
+- `src/publish_private_handoff.py` private-release body text; and
+- `README.md` documentation.
+
+This is not merely README drift. A fresh countable pilot must not proceed until these identity-bearing surfaces consistently name the canonical producer and focused tests prove that the generated contract/handoff metadata agrees with the trusted repository identity. The repository ID remains stable at `1312286476`, but slug consistency is still required by the trust contract.
 
 The R2 alignment addendum in this repository is refreshed alongside this status file so controls already merged in August are no longer listed as unfinished.
 
