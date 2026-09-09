@@ -32,11 +32,11 @@ This file is the operational status companion to the R2 alignment addendum. It d
 | Pilot evidence-dossier validator | Finished | Complete evidence classes must agree before registration. |
 | Adversarial trust-boundary tests | Finished | Exact-head private suite reached 70 passing tests; public hardening suites reached 97/103 passing tests in the merged producer PRs. |
 
-## Current live blocker
+## Current live blocker: completed-job-log scan plumbing
 
 The latest inspected manual producer run is GitHub Actions run `34265097209`, producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`.
 
-The main `collect-and-handoff` job succeeded. It completed:
+The main `collect-and-handoff` job, job ID `102192347121`, succeeded. It completed:
 
 - public boundary/secret checks;
 - checkpoint restoration;
@@ -49,28 +49,68 @@ The main `collect-and-handoff` job succeeded. It completed:
 - checkpoint cleanup; and
 - the public raw-upload prohibition assertion.
 
-The overall workflow failed only in the separate `scan completed producer job log` job. Its `Download completed collect job log` step called the GitHub CLI log endpoint and GitHub CLI exited because the response contained terminal escape sequences. The scanner itself was therefore skipped, and no successful job-log leak-scan proof was retained.
+The successful job retained artifact `ppi-r11-public-success-34265097209-1`, artifact ID `10071593777`, with GitHub artifact digest `sha256:8721f7ce848bb75be653f602ae1eb2ebf8f967bdbb8ee211ac14516fbbd4a9d5`.
+
+The overall workflow failed in the separate `scan completed producer job log` job, job ID `102193467150`. Its `Download completed collect job log` step executed:
+
+```text
+gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${job_id}/logs" > "$RUNNER_TEMP/collect-and-handoff.log"
+```
+
+GitHub CLI then terminated with:
+
+```text
+the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway
+```
+
+The credential scanner did not execute, and the retention step reported that no job-log-scan receipt existed. Therefore the run lacks mandatory completed-job-log credential-leak evidence.
 
 **Disposition:** the acquisition payload is not accepted as a counted pilot because the evidence dossier is incomplete. A red workflow conclusion is correct under the fail-closed policy even though provider collection/handoff itself succeeded.
+
+### Prepared remediation and acceptance tests
+
+The reviewable producer correction should be based on exact failing head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88` and must preserve fail-closed scanning:
+
+1. download the log with GitHub CLI escape-sequence output explicitly enabled, for example `gh api --allow-escape-sequences .../actions/jobs/${job_id}/logs`;
+2. retain the downloaded bytes as scanner input rather than rendering them back into the workflow log;
+3. scan the raw bytes and an ANSI-normalized byte view so terminal formatting cannot split a credential and evade matching;
+4. reject unsupported/unhandled escape sequences or otherwise prove normalization cannot hide credential material;
+5. keep exact, base64, URL-encoded, authorization-header, and credential-query detection fail closed;
+6. add focused regressions for an ordinary ANSI-formatted safe log, a secret fragmented by ANSI CSI bytes, an ANSI-fragmented authorization header, and the workflow `--allow-escape-sequences` wiring; and
+7. require a later manual R2 run to retain a passing `job-log-scan-receipt.json` before this item moves to finished.
+
+A fresh producer branch from the exact failing head was attempted as `codex/ppi-r11-log-scan-ansi-20260908`, but the connected GitHub App returned HTTP 403 `Resource not accessible by integration` on ref creation. The older manually created producer branch is based on August code and must not be reused without first aligning it to current `main`, because doing so could discard merged resumability/log-evidence hardening.
 
 ## Remaining before a countable batch-3 result
 
 | Priority | Remaining item | Completion condition |
 |---:|---|---|
-| 1 | Repair producer job-log download plumbing | Log download handles terminal escape sequences/binary log content safely; credential scanner executes; safe scan receipt is retained; negative leak tests still fail closed. |
-| 2 | Correct the stale producer README | README names `MarketMakingLFG/ppi-data-acquisition`, R2 contracts, four shards, resumability, attestation, and current retention behavior. |
-| 3 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and repository environment protections are verified. |
+| 1 | Repair producer job-log download/scanning plumbing | Escape-bearing logs download safely; raw + normalized credential scanning remains fail closed; focused negative tests pass; a later authorized manual run retains a passing safe scan receipt. |
+| 2 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and repository environment protections are verified. No secret/environment mutation occurs without explicit approval. |
+| 3 | Correct the stale producer README | README names `MarketMakingLFG/ppi-data-acquisition`, R2 contracts, four shards, resumability, attestation, and current retention behavior. |
 | 4 | Execute a fresh manual public R2 run | Entire producer workflow, including job-log scan, concludes success and retains the required safe metadata. |
 | 5 | Execute private final analysis for that exact successful public run | Materialization, attestation, R2 trust gate, safe extraction, semantic review, no-network scoring, and countability all pass for the same immutable run identity. |
 | 6 | Complete the immutable pilot evidence dossier | All required public/private receipts, hashes, run identities, scans, attestation, score, countability and replay proofs validate together. |
 | 7 | Review the one-file registry proposal | Human/review governance confirms exact append-only change. Do not auto-merge from the analysis job. |
-| 8 | Register batch 3 if countable | Registry moves from `2 / 20`, `8 / 80` to `3 / 20`, `12 / 80`; otherwise remains unchanged with explicit non-counting disposition. |
+| 8 | Register batch 3 only if countable | Registry moves from `2 / 20`, `8 / 80` to `3 / 20`, `12 / 80`; otherwise remains unchanged with explicit non-counting disposition. |
 
 ## Documentation drift requiring correction
 
-`MarketMakingLFG/ppi-data-acquisition/README.md` is currently inconsistent with runtime reality. It still records the former `spoudel2010-ux/ppi-data-acquisition` owner, R1 public/collector identities, and an old three-shard design. This connector cannot currently create a review branch in that producer repository, so the correction remains an owner-side/repository-permission action rather than a direct `main` edit.
+`MarketMakingLFG/ppi-data-acquisition/README.md` is currently inconsistent with runtime reality. It still records the former `spoudel2010-ux/ppi-data-acquisition` owner, R1 public/collector identities, and an old three-shard design. This connector cannot currently create a review branch in that producer repository, so the correction remains blocked on producer repository write authorization rather than being written directly to `main`.
 
-The R2 alignment addendum in this repository has been refreshed alongside this status file so that controls already merged in August are no longer listed as unfinished.
+The R2 alignment addendum in this repository is refreshed alongside this status file so controls already merged in August are no longer listed as unfinished.
+
+## Live registry verification
+
+The private registry at `musksuman3/ai-signal-engine/audit/r11_shadow_validation_registry.json` remains `status: collecting` with:
+
+- `accepted_run_count: 2`;
+- `accepted_ticker_count: 8`;
+- approved tickers `AAPL, MU, NVDA, AMD, AVGO, INTC, TSM, ARM`;
+- only batch sequences 1 and 2 in `accepted_runs`; and
+- `formal_closure.committed: false` and `r12_authorized: false`.
+
+No batch-3 registry mutation has occurred.
 
 ## Program state and end goal
 
