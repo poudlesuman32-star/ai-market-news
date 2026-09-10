@@ -37,7 +37,7 @@ The latest inspected producer evidence remains:
 - `collect-and-handoff` job `102657604678`: `success`;
 - `scan completed producer job log` job `102658500652`: `failure`.
 
-The collection job completed its deterministic provider boundary, four shards, checkpoint persistence/cleanup, retained-package secret scan, exact-package attestation/handoff, public safe-success receipt, and raw-public-upload prohibition. The run retained only safe-success artifact `10126430126`, `ppi-r11-public-success-34408644594-1`, unexpired through `2026-10-09`, with GitHub artifact digest:
+The run retained only safe-success artifact `10126430126`, `ppi-r11-public-success-34408644594-1`, unexpired through `2026-10-09`, with GitHub artifact digest:
 
 `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`
 
@@ -53,23 +53,11 @@ The retained shard receipt records four complete shards and `49` provider calls/
 
 ### Exact regression reproduced
 
-The completed-job-log evidence path failed exactly as before. The `Download completed collect job log` step ran:
+The completed-job-log download failed before credential scanning because `gh api .../actions/jobs/${job_id}/logs` rejected terminal escape sequences without `--allow-escape-sequences`. The retention step then found no job-log-scan files, so **no passing exact job-log-scan receipt artifact exists**.
 
-```text
-gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${job_id}/logs" > "$RUNNER_TEMP/collect-and-handoff.log"
-```
+**Disposition:** run `34408644594-1` is **not accepted/countable pilot evidence and grants no registry credit**. Its successful collection/private handoff does not satisfy the R11 program gate. This automation did not initiate or retry that run.
 
-GitHub CLI terminated with:
-
-```text
-the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway
-```
-
-Therefore the credential scanner did not execute. The later artifact-retention step warned that no files existed under the job-log-scan path, so **no `ppi-r11-public-job-log-scan-34408644594-1` receipt artifact exists**.
-
-**Disposition:** run `34408644594-1` is **not accepted/countable pilot evidence and grants no registry credit**. Its successful provider collection/private handoff does not satisfy the R11 program gate. This automation did not initiate or retry that run.
-
-The earlier run `34265097209-1` remains historical exact regression evidence with safe-success artifact `10071593777` and digest `sha256:8721f7ce848bb75be653f602ae1eb2ebf8f967bdbb8ee211ac14516fbbd4a9d5`; it is likewise non-countable.
+Historical run `34265097209-1` remains earlier exact regression evidence with safe-success artifact `10071593777` and digest `sha256:8721f7ce848bb75be653f602ae1eb2ebf8f967bdbb8ee211ac14516fbbd4a9d5`; it is likewise non-countable.
 
 ## REMAINING before any batch-3 pilot can be accepted
 
@@ -108,11 +96,9 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The issue body was last evaluated at `2026-09-10T17:02:08Z`. Its read-only watch records public verification `34505336885-1` as `completed/failure` at `2026-09-10T16:58:20Z`; automation-health records public verification `34506010252-1`, attempt `1`, event `workflow_dispatch`, and activation evaluation `34506332272-1`, attempt `1`, event `schedule`. Automation health remains `stalled` because expected schedule slots are late/unbound. These R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
+The issue body was last evaluated at `2026-09-10T21:41:32Z`. Its read-only watch records public verification `34532977682`, attempt `1`, as `completed/failure` at `2026-09-10T21:35:01Z`; latest activation evaluation remains `34506332272`, attempt `1`, `completed/success` at `2026-09-10T17:08:04Z`. The accepted source-period sequence is `not accepted`, matching private validation is `unavailable`, and the watch remains read-only. These R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
 
-Newer repository-level public verification `34507637186-1`, attempt `1`, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-10T17:21:03Z`. Latest observed activation control-plane run remains `34509903444-1`, attempt `1`, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-10T17:43:11Z`. Both are control-plane observations only.
-
-The latest producer remediation-controller run is now `34514709427`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T18:30:09Z`. Its reconcile job `102997136493` found the remediation branch not ahead of `main` and recorded merge performed `false`, acquisition executed `false`, and publication executed `false`. This does not supersede producer evidence run `34408644594-1` or make that run countable.
+The latest producer remediation-controller run is `34533349929`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T21:39:24Z`. Reconcile job `103059101611` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`. This does not supersede producer evidence run `34408644594-1` or make that run countable.
 
 ## Documentation / merge gate
 
