@@ -106,7 +106,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The current controller body reports public verification `34443044116-1` failed at `2026-09-10T05:55:52Z`, activation evaluation `34409464729-1` remains the latest activation run and is bound to a late schedule slot, and automation health remains `stalled`. These are read-only R10 observations and create no R11 pilot evidence or registry credit.
+The current controller body reports latest public verification `34445208042-1`, event `workflow_dispatch`, completed `failure` at `2026-09-10T06:26:30Z`; latest activation evaluation `34445924462-1`, event `schedule`, started at `2026-09-10T06:35:57Z`; automation health remains `stalled` because the expected schedule slots were missed and these later observations cannot retroactively bind them. These are read-only R10 observations and create no R11 pilot evidence or registry credit.
 
 ## Documentation / merge gate
 
