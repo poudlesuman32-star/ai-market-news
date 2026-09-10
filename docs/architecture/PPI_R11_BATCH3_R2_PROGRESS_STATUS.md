@@ -26,7 +26,7 @@ PR `#122` was merged only after the prerequisite chain was proven; its exact pre
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
-A newer manual producer run now supersedes the earlier run as the latest inspected evidence:
+The latest inspected producer evidence remains:
 
 - workflow run `34408644594`, attempt `1`;
 - repository `MarketMakingLFG/ppi-data-acquisition`;
@@ -106,11 +106,13 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The controller was last evaluated at `2026-09-10T12:16:27Z`. Its current read-only watch records public verification `34475375568-1` as `completed/failure` at `2026-09-10T12:12:00Z`, while the automation-health section records a newer public verification `34476116173-1`, event `workflow_dispatch`, `completed/failure` at `2026-09-10T12:19:50Z`, and a newer activation evaluation `34476210660-1`, event `schedule`, at `2026-09-10T12:20:50Z`. Automation health remains `stalled` because the expected schedule slots are late/unbound. These read-only R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
+The controller was last evaluated at `2026-09-10T17:02:08Z`. Its current read-only watch records public verification `34505336885-1` as `completed/failure` at `2026-09-10T16:58:20Z`; its automation-health section records newer public verification `34506010252-1`, event `workflow_dispatch`, `completed/failure` at `2026-09-10T17:04:57Z`, and activation evaluation `34506332272-1`, event `schedule`, at `2026-09-10T17:08:04Z`. Automation health remains `stalled` because the expected schedule slots are late/unbound. These read-only R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
 
-The latest repository-level public verification observed after that issue-body evaluation is `34476543720-1`, `PPI primary-source live coverage verification`, exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`, `completed/failure` at `2026-09-10T12:24:50Z`. This newer observation likewise changes no R11 evidence or authority.
+A still newer repository-level public verification is `34507637186-1`, `PPI primary-source live coverage verification`, exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`, `completed/failure` at `2026-09-10T17:21:03Z`. This newer observation likewise changes no R11 evidence or authority.
 
-The latest producer remediation-controller run is `34462497917-1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T09:46:38Z`. It is control-plane state only and does not supersede the latest inspected producer evidence run `34408644594-1` or make that run countable.
+The latest observed activation control-plane run is `34509903444-1`, `Back up R10 activation schedule slot`, exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd`, `completed/success` at `2026-09-10T17:43:11Z`. It is read-only control-plane evidence and changes no R11 credit.
+
+The latest producer remediation-controller run is `34489243652-1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T14:28:13Z`. It is control-plane state only and does not supersede the latest inspected producer evidence run `34408644594-1` or make that run countable.
 
 ## Documentation / merge gate
 
