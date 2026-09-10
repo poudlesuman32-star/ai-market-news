@@ -1,6 +1,6 @@
 # PPI R11 Batch-3 R2 Progress Status
 
-**Status date:** September 9, 2026  
+**Status date:** September 10, 2026  
 **Program:** PPI R11 cumulative shadow validation  
 **Current authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
@@ -106,7 +106,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The current controller body also reports newer R10 health observations: public verification `34409119199-1` failed, activation evaluation `34409464729-1` came from a late schedule slot, and automation health remains `stalled`. These are read-only R10 observations and create no R11 pilot evidence or registry credit.
+The current controller body reports public verification `34443044116-1` failed at `2026-09-10T05:55:52Z`, activation evaluation `34409464729-1` remains the latest activation run and is bound to a late schedule slot, and automation health remains `stalled`. These are read-only R10 observations and create no R11 pilot evidence or registry credit.
 
 ## Documentation / merge gate
 
