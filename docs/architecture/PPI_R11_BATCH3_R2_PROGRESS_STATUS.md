@@ -106,7 +106,11 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The controller body still records public verification `34445208042-1` and activation evaluation `34445924462-1`, with automation health `stalled`. Newer read-only control-plane observations have occurred without changing R11 truth: public schedule-backup run `34446411152-1` completed `failure` at `2026-09-10T06:42:35Z`; public primary-source verification run `34446422211-1` completed `failure` at `2026-09-10T06:42:50Z`; and private activation schedule-backup run `34449405054-1` completed `success` at `2026-09-10T07:19:56Z`. These observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
+The controller was last evaluated at `2026-09-10T12:16:27Z`. Its current read-only watch records public verification `34475375568-1` as `completed/failure` at `2026-09-10T12:12:00Z`, while the automation-health section records a newer public verification `34476116173-1`, event `workflow_dispatch`, `completed/failure` at `2026-09-10T12:19:50Z`, and a newer activation evaluation `34476210660-1`, event `schedule`, at `2026-09-10T12:20:50Z`. Automation health remains `stalled` because the expected schedule slots are late/unbound. These read-only R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
+
+The latest repository-level public verification observed after that issue-body evaluation is `34476543720-1`, `PPI primary-source live coverage verification`, exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`, `completed/failure` at `2026-09-10T12:24:50Z`. This newer observation likewise changes no R11 evidence or authority.
+
+The latest producer remediation-controller run is `34462497917-1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T09:46:38Z`. It is control-plane state only and does not supersede the latest inspected producer evidence run `34408644594-1` or make that run countable.
 
 ## Documentation / merge gate
 
