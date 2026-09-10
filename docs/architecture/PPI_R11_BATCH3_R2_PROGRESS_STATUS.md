@@ -24,6 +24,8 @@ This file is the operational status companion to the R2 alignment addendum. It d
 
 PR `#122` was merged only after the prerequisite chain was proven; its exact pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green, and the merge commit is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
+Fresh read-only prerequisite revalidation remains healthy: public-first chain-depth bridge run `34513184144`, attempt `1`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-10T18:15:30Z`; immutable snapshot review bridge run `34519138207`, attempt `1`, completed `success` on that same exact main at `2026-09-10T19:13:54Z`. These bridge observations create no new pilot evidence or registry credit.
+
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
 The latest inspected producer evidence remains:
@@ -106,13 +108,11 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The controller was last evaluated at `2026-09-10T17:02:08Z`. Its current read-only watch records public verification `34505336885-1` as `completed/failure` at `2026-09-10T16:58:20Z`; its automation-health section records newer public verification `34506010252-1`, event `workflow_dispatch`, `completed/failure` at `2026-09-10T17:04:57Z`, and activation evaluation `34506332272-1`, event `schedule`, at `2026-09-10T17:08:04Z`. Automation health remains `stalled` because the expected schedule slots are late/unbound. These read-only R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
+The issue body was last evaluated at `2026-09-10T17:02:08Z`. Its read-only watch records public verification `34505336885-1` as `completed/failure` at `2026-09-10T16:58:20Z`; automation-health records public verification `34506010252-1`, attempt `1`, event `workflow_dispatch`, and activation evaluation `34506332272-1`, attempt `1`, event `schedule`. Automation health remains `stalled` because expected schedule slots are late/unbound. These R10 observations do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
 
-A still newer repository-level public verification is `34507637186-1`, `PPI primary-source live coverage verification`, exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`, `completed/failure` at `2026-09-10T17:21:03Z`. This newer observation likewise changes no R11 evidence or authority.
+Newer repository-level public verification `34507637186-1`, attempt `1`, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-10T17:21:03Z`. Latest observed activation control-plane run remains `34509903444-1`, attempt `1`, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-10T17:43:11Z`. Both are control-plane observations only.
 
-The latest observed activation control-plane run is `34509903444-1`, `Back up R10 activation schedule slot`, exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd`, `completed/success` at `2026-09-10T17:43:11Z`. It is read-only control-plane evidence and changes no R11 credit.
-
-The latest producer remediation-controller run is `34489243652-1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T14:28:13Z`. It is control-plane state only and does not supersede the latest inspected producer evidence run `34408644594-1` or make that run countable.
+The latest producer remediation-controller run is now `34514709427`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T18:30:09Z`. Its reconcile job `102997136493` found the remediation branch not ahead of `main` and recorded merge performed `false`, acquisition executed `false`, and publication executed `false`. This does not supersede producer evidence run `34408644594-1` or make that run countable.
 
 ## Documentation / merge gate
 
