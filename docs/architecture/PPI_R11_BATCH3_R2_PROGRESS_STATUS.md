@@ -88,13 +88,15 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The issue body was evaluated at `2026-09-11T06:07:40Z`. Its read-only automation watch records public verification run `34567829893`, attempt `1`, completed `failure` at `2026-09-11T05:55:32Z`; accepted source-period sequence remains `not accepted`; matching private validation remains `unavailable`; latest activation evaluation remains run `34534170168`, attempt `1`, completed `success` at `2026-09-10T21:48:31Z`. These R10 observations do not create R11 pilot evidence or registry credit.
+The issue was updated at `2026-09-11T06:38:29Z` while its controller header remains evaluated at `2026-09-11T06:07:40Z`. Its read-only automation-health section now records public verification run `34570114313`, attempt `1`, event `workflow_dispatch`, completed `failure` at `2026-09-11T06:29:05Z`, and activation evaluation run `34570594605`, attempt `1`, event `schedule`, at `2026-09-11T06:35:39Z`; both schedule slots remain late/unbound and overall automation health remains `stalled`. Its novelty section likewise records `34570114313-1` as failed with matching private validation unavailable. These R10 observations do not create R11 pilot evidence or registry credit.
 
-The newest producer remediation-controller run is `34563256119`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103150123997` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`.
+A still newer repository-level public verification run `34570777787`, attempt `1`, event `workflow_dispatch`, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T06:38:34Z`. The issue body had not yet incorporated that run when read. This repository-level observation also creates no R11 pilot evidence or registry credit.
+
+The newest producer remediation-controller run remains `34563256119`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103150123997` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`.
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. Before this refresh its exact head `285c5f5e19e44f1fa962020154af7ce9168ce5dc` was mergeable and non-draft but had zero pull-request workflow runs and zero commit-status contexts. This commit changes the exact head, so mergeability, review cleanliness, and exact-head CI must be re-evaluated again. Do not merge merely because the content is documentation; exact-head CI must be green under the authorized merge policy.
+PR `#144` is the current documentation branch. Before this refresh its exact head `9d9e7e43dece283dae5d3355a607c68941bb00f3` was mergeable and non-draft but had zero pull-request workflow runs and zero commit-status contexts. This commit changes the exact head, so mergeability, review cleanliness, and exact-head CI must be re-evaluated again. Do not merge merely because the content is documentation; exact-head CI must be green under the authorized merge policy.
 
 ## Authority boundary
 
