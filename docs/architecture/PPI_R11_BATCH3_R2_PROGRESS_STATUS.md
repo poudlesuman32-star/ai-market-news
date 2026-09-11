@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite observations: public-first chain-depth bridge run `34611182391`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T14:37:11Z`. This supersedes the earlier bridge observations only as the newest control-plane check; it creates no pilot evidence and no registry credit.
+Fresh read-only prerequisite observation: public-first chain-depth bridge run `34611182391`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T14:37:11Z`. This remains a prerequisite/control-plane observation only; it creates no pilot evidence and no registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
@@ -45,7 +45,7 @@ Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact
 
 ## Live controller / registry truth
 
-Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evaluated at `2026-09-11T12:14:50Z`:
+Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is now evaluated at `2026-09-11T17:03:01Z`:
 
 - controller state `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -56,9 +56,9 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 - automation health `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
-The issue body records public verification `34597572154-1` failure in the R10 watch, while its automation-health block observes public verification `34598247557-1` failure and activation evaluation `34598331437-1` from a late/unbound schedule slot. These are read-only control-plane observations and create no R11 evidence or registry credit.
+The issue-body R10 watch records public verification `34625191960`, attempt `1`, completed `failure` at `2026-09-11T17:00:05Z`. Its automation-health/novelty blocks observe public verification `34625712192`, attempt `1`, `workflow_dispatch`, completed `failure` at `2026-09-11T17:05:22Z`, and activation evaluation `34626051834`, attempt `1`, schedule event, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-11T17:09:02Z`. Both relevant schedule slots remain late/unbound. These observations are read-only and create no R11 evidence or registry credit.
 
-A newer repository-level activation schedule-backup run `34600992321`, attempt `1`, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-11T12:50:28Z`. This is a control-plane observation only and creates no R11 pilot evidence or registry credit.
+A still newer repository-level public verification run `34627267753`, attempt `1`, `workflow_dispatch`, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T17:22:18Z`. It supersedes the issue-body public-verification observation only as the newest repository-level R10 check; it does not create R11 pilot evidence, registry credit, or downstream authority.
 
 Newest producer remediation-controller run is `34610215769`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103298518181` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`.
 
