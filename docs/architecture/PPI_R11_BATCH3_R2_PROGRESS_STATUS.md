@@ -60,7 +60,7 @@ The issue-body R10 watch records public verification `34625191960`, attempt `1`,
 
 Newer repository-level control-plane observations supersede the issue body only for freshness: public-first chain-depth bridge run `34630288095`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T17:54:25Z`; activation schedule-backup run `34629479027`, attempt `1`, schedule event, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-11T17:45:38Z`. They create no R11 pilot evidence, registry credit, or downstream authority.
 
-Newest producer remediation-controller run remains `34610215769`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103298518181` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`.
+Newest producer remediation-controller run is `34634060718`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-11T18:34:55Z`. Reconcile job `103377579151` exited because remediation branch `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`. This is a dependency-safe no-op control-plane observation and does not change R11 evidence or credit.
 
 ## Closed tracker #117
 
