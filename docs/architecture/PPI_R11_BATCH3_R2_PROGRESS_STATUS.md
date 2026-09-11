@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite observation: public-first chain-depth bridge run `34589817658`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T10:33:56Z`. This creates no pilot evidence and no registry credit.
+Fresh read-only prerequisite observations: public-first chain-depth bridge run `34589817658`, attempt `1`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`; newer immutable-snapshot-review bridge run `34604709623`, attempt `1`, schedule event, completed `success` on the same exact main at `2026-09-11T13:30:45Z`. These observations create no pilot evidence and no registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
@@ -45,7 +45,7 @@ Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact
 
 ## Live controller / registry truth
 
-Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is now evaluated at `2026-09-11T12:14:50Z`:
+Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evaluated at `2026-09-11T12:14:50Z`:
 
 - controller state `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -58,7 +58,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is now e
 
 The issue body records public verification `34597572154-1` failure in the R10 watch, while its automation-health block observes public verification `34598247557-1` failure and activation evaluation `34598331437-1` from a late/unbound schedule slot. These are read-only control-plane observations and create no R11 evidence or registry credit.
 
-A still newer repository-level public verification run `34598621739`, attempt `1`, workflow-dispatch event, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T12:23:16Z`. This post-dates the current issue-body evaluation and likewise creates no R11 pilot evidence or registry credit.
+A newer repository-level activation schedule-backup run `34600992321`, attempt `1`, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-11T12:50:28Z`. This is a control-plane observation only and creates no R11 pilot evidence or registry credit.
 
 Newest producer remediation-controller run remains `34585621694`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103219032102` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`.
 
@@ -68,7 +68,7 @@ Newest producer remediation-controller run remains `34585621694`, attempt `1`, s
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. Before this refresh, exact head `edbc2272ca0cc192eb30568eae901163d0ded991` was open and non-draft; that exact SHA had zero pull-request workflow runs and zero commit-status contexts, and submitted reviews were COMMENTED-only against older heads. This documentation write creates a new exact head, so mergeability, current-head review cleanliness and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
+PR `#144` is the current documentation branch. Before this refresh, exact head `03a5c5dd956854cf389b02710d3bbdf1c71aef94` was open, non-draft, and mergeable; that exact SHA had no proven exact-head green CI. This documentation write creates a new exact head, so mergeability, current-head review cleanliness and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
 
 ## Authority boundary
 
