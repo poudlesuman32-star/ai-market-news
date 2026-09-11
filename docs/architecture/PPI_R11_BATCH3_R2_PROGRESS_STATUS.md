@@ -45,7 +45,7 @@ Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact
 
 ## Live controller / registry truth
 
-Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body remains evaluated at `2026-09-11T06:07:40Z`:
+Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is now evaluated at `2026-09-11T12:14:50Z`:
 
 - controller state `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -56,11 +56,11 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body remains 
 - automation health `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
-The issue body records public verification `34570114313-1` failure and activation evaluation `34570594605-1`; those are stale relative to newer repository-level observations but remain read-only control-plane evidence.
+The issue body records public verification `34597572154-1` failure in the R10 watch, while its automation-health block observes public verification `34598247557-1` failure and activation evaluation `34598331437-1` from a late/unbound schedule slot. These are read-only control-plane observations and create no R11 evidence or registry credit.
 
-Latest verified repository-level control observations remain activation schedule-backup run `34573751423`, attempt `1`, schedule event, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd`, while newer public-side chain-depth bridge run `34589817658-1` completed success on exact `ai-market-news` main. These observations do not create R11 pilot evidence or registry credit.
+A still newer repository-level public verification run `34598621739`, attempt `1`, workflow-dispatch event, completed `failure` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T12:23:16Z`. This post-dates the current issue-body evaluation and likewise creates no R11 pilot evidence or registry credit.
 
-Newest producer remediation-controller run is `34585621694`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103219032102` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`.
+Newest producer remediation-controller run remains `34585621694`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103219032102` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`.
 
 ## Closed tracker #117
 
@@ -68,7 +68,7 @@ Newest producer remediation-controller run is `34585621694`, attempt `1`, schedu
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. Before this refresh, exact head `839e27df8bc85cae710bd5a412d635556473dd1b` was open, non-draft and mergeable, its sole substantive inline review thread was resolved/outdated, submitted reviews were COMMENTED-only against older heads, and the exact head had zero pull-request workflow runs and zero commit-status contexts. This documentation write creates a new exact head, so mergeability, current-head review cleanliness and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
+PR `#144` is the current documentation branch. Before this refresh, exact head `edbc2272ca0cc192eb30568eae901163d0ded991` was open and non-draft; that exact SHA had zero pull-request workflow runs and zero commit-status contexts, and submitted reviews were COMMENTED-only against older heads. This documentation write creates a new exact head, so mergeability, current-head review cleanliness and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
 
 ## Authority boundary
 
