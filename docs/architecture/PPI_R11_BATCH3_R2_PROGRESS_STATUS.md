@@ -1,6 +1,6 @@
 # PPI R11 Batch-3 R2 Progress Status
 
-**Status date:** September 10, 2026  
+**Status date:** September 11, 2026  
 **Program:** PPI R11 cumulative shadow validation  
 **Current authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
@@ -24,11 +24,11 @@ This file is the operational status companion to the R2 alignment addendum. It d
 
 PR `#122` was merged only after the prerequisite chain was proven; its exact pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green, and the merge commit is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite revalidation remains healthy. The newest observed public-first scheduling activity includes immutable snapshot review bridge run `34544762206`, attempt `1`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`. These bridge observations create no new pilot evidence or registry credit.
+Fresh read-only prerequisite revalidation remains healthy. Public-first chain-depth bridge run `34567888478`, attempt `1`, event `schedule`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T05:56:41Z`. This observation creates no new pilot evidence or registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
-A newer externally dispatched producer run is now the latest exact producer observation:
+The latest exact producer evidence remains the externally dispatched run:
 
 - workflow run `34545650073`, attempt `1`;
 - repository `MarketMakingLFG/ppi-data-acquisition`;
@@ -55,7 +55,7 @@ The prior run `34408644594-1` remains the latest exact evidence of a collection/
 | Priority | Remaining item | Completion condition |
 |---:|---|---|
 | 1 | Repair producer job-log download/scanning plumbing | Escape-bearing logs download safely without rendering secrets; raw + safely ANSI-normalized credential scanning remains fail closed; adversarial tests pass; a separately authorized later run retains a passing exact job-log-scan receipt. |
-| 2 | Resolve exact provider-boundary failure separately from code-remediation completion | A separately authorized real pilot must demonstrate the frozen provider boundary succeeds end-to-end; the new MarketData 404 is evidence from a provider-bearing run, not authorization to retry or change providers. |
+| 2 | Resolve exact provider-boundary failure separately from code-remediation completion | A separately authorized real pilot must demonstrate the frozen provider boundary succeeds end-to-end; the MarketData 404 is evidence from a provider-bearing run, not authorization to retry or change providers. |
 | 3 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and the environment governance is separately proven. Do not mutate environments/secrets without explicit authorization. |
 | 4 | Correct stale producer identity/contract references | Both R2 contract JSONs, provider licensing dispositions, generated handoff release-body text, README, and focused consistency tests all identify canonical `MarketMakingLFG/ppi-data-acquisition` / repository ID `1312286476`. |
 | 5 | Separately authorize and execute a fresh real producer pilot | Entire producer workflow, including protected-environment evidence and completed-job-log scan, concludes success and retains the exact safe evidence. No provider run is authorized by this document. |
@@ -88,13 +88,13 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The issue body remains evaluated at `2026-09-10T21:41:32Z`. Its read-only automation-health section records public verification `34533986703`, attempt `1`, event `workflow_dispatch`, completed `failure` at `2026-09-10T21:46:23Z`, and activation evaluation `34534170168`, attempt `1`, event `schedule`, at `2026-09-10T21:48:31Z`; both schedule slots remain late/unbound and overall automation health remains `stalled`. These observations do not create R11 pilot evidence or registry credit.
+The issue body was evaluated at `2026-09-11T06:07:40Z`. Its read-only automation watch records public verification run `34567829893`, attempt `1`, completed `failure` at `2026-09-11T05:55:32Z`; accepted source-period sequence remains `not accepted`; matching private validation remains `unavailable`; latest activation evaluation remains run `34534170168`, attempt `1`, completed `success` at `2026-09-10T21:48:31Z`. These R10 observations do not create R11 pilot evidence or registry credit.
 
-The newest producer remediation-controller run is `34545439247`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103096923999` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`.
+The newest producer remediation-controller run is `34563256119`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103150123997` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`.
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. Any new documentation commit changes its exact head and must be re-evaluated for mergeability, review cleanliness, and exact-head CI. Do not merge merely because the content is documentation; exact-head CI must be green under the authorized merge policy.
+PR `#144` is the current documentation branch. Before this refresh its exact head `285c5f5e19e44f1fa962020154af7ce9168ce5dc` was mergeable and non-draft but had zero pull-request workflow runs and zero commit-status contexts. This commit changes the exact head, so mergeability, review cleanliness, and exact-head CI must be re-evaluated again. Do not merge merely because the content is documentation; exact-head CI must be green under the authorized merge policy.
 
 ## Authority boundary
 
