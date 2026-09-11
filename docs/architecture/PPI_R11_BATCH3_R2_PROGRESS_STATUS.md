@@ -4,7 +4,7 @@
 **Program:** PPI R11 cumulative shadow validation  
 **Current authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
-This file is the operational status companion to the R2 alignment addendum. It distinguishes controls that are finished in reviewed code from controls that are still blocked, not proven in a successful pilot, or stale in producer identity/configuration. A provider run is never countable merely because collection or handoff succeeded.
+This file is the operational status companion to the R2 alignment addendum. It distinguishes controls that are finished in reviewed code from controls that are still blocked, not proven in a successful pilot, or stale in producer identity/configuration. A provider run is never countable merely because collection or handoff starts or partially succeeds.
 
 ## FINISHED — reviewed code and prerequisite gates
 
@@ -15,7 +15,7 @@ This file is the operational status companion to the R2 alignment addendum. It d
 | R2 public acquisition lineage | Finished | `PPI-R11-PUBLIC-ACQUISITION-003-R2`. |
 | R2 collector lineage | Finished | `PPI-PUBLIC-COLLECTOR-003-R2`. |
 | Private analytical lineage | Finished | `PPI-R11-BATCH-EVIDENCE-003-R1`. |
-| Deterministic producer implementation | Finished except exact regression below | Four deterministic three-ticker shards, resumability/private checkpoints, exact 49-operation ledger, 48-bundle/50-path shape, retained-package secret scan, final-ZIP attestation, success/failure separation, and intended completed-job-log scan stage are merged. |
+| Deterministic producer implementation | Finished except exact regressions/evidence gaps below | Four deterministic three-ticker shards, resumability/private checkpoints, exact operation ledger, retained-package secret scan, final-ZIP attestation, success/failure separation, and intended completed-job-log scan stage are merged. |
 | Consumer trust/materialization controls | Finished | Exact producer identity/run verification, attestation verification, safe extraction, integrated R2 trust gate, no-network/no-token private analysis, bounded output, replay/no-duplicate-credit protection, review-only registry proposal, and evidence-dossier validation are implemented. |
 | Stable-ID allocation prerequisite | Proven and retained | Run `34081406609` attempt `1`; artifact `10003800820`; digest `sha256:af31339079a01d6eb7ca3f20e36f563f369ef679c06c4142019c3f5439d42648`; unexpired through `2026-09-21`. |
 | Stable-ID independent review | Proven and retained | Run `34081955551` attempt `1`; artifact `10003963984`; digest `sha256:3202b464bcc46c77ea1a09fda986962ec9a398830f76b7b7a5ec69a355c46168`; unexpired through `2026-09-21`. |
@@ -24,53 +24,45 @@ This file is the operational status companion to the R2 alignment addendum. It d
 
 PR `#122` was merged only after the prerequisite chain was proven; its exact pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green, and the merge commit is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite revalidation remains healthy: public-first chain-depth bridge run `34513184144`, attempt `1`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-10T18:15:30Z`; immutable snapshot review bridge run `34519138207`, attempt `1`, completed `success` on that same exact main at `2026-09-10T19:13:54Z`. These bridge observations create no new pilot evidence or registry credit.
+Fresh read-only prerequisite revalidation remains healthy. The newest observed public-first scheduling activity includes immutable snapshot review bridge run `34544762206`, attempt `1`, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`. These bridge observations create no new pilot evidence or registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
-The latest inspected producer evidence remains:
+A newer externally dispatched producer run is now the latest exact producer observation:
 
-- workflow run `34408644594`, attempt `1`;
+- workflow run `34545650073`, attempt `1`;
 - repository `MarketMakingLFG/ppi-data-acquisition`;
 - exact head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`;
+- event `workflow_dispatch`;
 - overall conclusion `failure`;
-- `collect-and-handoff` job `102657604678`: `success`;
-- `scan completed producer job log` job `102658500652`: `failure`.
+- `collect-and-handoff` job `103097562100`: `failure`;
+- `scan completed producer job log` job `103097760742`: `failure`.
 
-The run retained only safe-success artifact `10126430126`, `ppi-r11-public-success-34408644594-1`, unexpired through `2026-10-09`, with GitHub artifact digest:
+The collection path restored no prior checkpoint (`status: no_prior_attempt`) and then failed during the bounded provider collection step because the MarketData request returned HTTP 404. The workflow persisted a private resumability checkpoint and did not reach retained-package publication or a safe-success receipt.
 
-`sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`
+The run retained only public failure artifact `10178915116`, `ppi-r11-public-failure-34545650073-1`, unexpired through `2026-09-18`, with GitHub artifact digest:
 
-Independently rehashed retained files:
+`sha256:1ba10306a93f978748726bf4b588e86a810aad9d7eb87a0103cca91f11396865`
 
-- `public-success-receipt.json`: `sha256:99cc1d10218ebd641ffb324b48ce54a75cbe53edaab6edea6c0f0438e1462663`; embedded canonical receipt hash `1999f634490b064e8d30e44dd5a35b6a23151a0f0f456f11c050f4bc1ebacd29`;
-- `shard-resume-receipt.json`: `sha256:13a7e92d2f28a3e5e1ee315ed917cb46b3d1d91b386886f3818281aad5245068`;
-- `private-handoff-summary.json`: `sha256:5edbddacf9f67725a871fe520d73600ec80ca9bcaf102bdbce6b1ba76e90bb59`;
-- `private-handoff-preparation.json`: `sha256:0cf5b4f06975f7cd2e06c9edfef056a0a51aea03475ca2952e69aa1745f55018`;
-- exact private package SHA bound by the retained handoff receipts: `cfb9d6931d081b6a5d378a1997f2c58dcd35bbc8c6e23bc293d1f70fafb05cb4`.
+The completed-job-log scan path also failed at its log-download step before credential scanning, and no passing exact job-log-scan receipt exists for this run.
 
-The retained shard receipt records four complete shards and `49` provider calls/requests in this attempt, with all production/publication/registry/R12/trading authority flags false.
+**Disposition:** run `34545650073-1` is **not accepted/countable pilot evidence and grants no registry credit**. It does not change the authoritative `8 / 80` approved tickers or `2 / 20` countable batches. This status watcher did not initiate, retry, or dispatch that provider run.
 
-### Exact regression reproduced
-
-The completed-job-log download failed before credential scanning because `gh api .../actions/jobs/${job_id}/logs` rejected terminal escape sequences without `--allow-escape-sequences`. The retention step then found no job-log-scan files, so **no passing exact job-log-scan receipt artifact exists**.
-
-**Disposition:** run `34408644594-1` is **not accepted/countable pilot evidence and grants no registry credit**. Its successful collection/private handoff does not satisfy the R11 program gate. This automation did not initiate or retry that run.
-
-Historical run `34265097209-1` remains earlier exact regression evidence with safe-success artifact `10071593777` and digest `sha256:8721f7ce848bb75be653f602ae1eb2ebf8f967bdbb8ee211ac14516fbbd4a9d5`; it is likewise non-countable.
+The prior run `34408644594-1` remains the latest exact evidence of a collection/handoff that reached safe-success retention but still failed the completed-job-log scan. It remains non-countable with safe-success artifact `10126430126`, digest `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`, unexpired through `2026-10-09`. Its independently rehashed retained receipts and exact private package SHA remain recorded in closed tracker `#117`.
 
 ## REMAINING before any batch-3 pilot can be accepted
 
 | Priority | Remaining item | Completion condition |
 |---:|---|---|
 | 1 | Repair producer job-log download/scanning plumbing | Escape-bearing logs download safely without rendering secrets; raw + safely ANSI-normalized credential scanning remains fail closed; adversarial tests pass; a separately authorized later run retains a passing exact job-log-scan receipt. |
-| 2 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and the environment governance is separately proven. Do not mutate environments/secrets without explicit authorization. |
-| 3 | Correct stale producer identity/contract references | Both R2 contract JSONs, provider licensing dispositions, generated handoff release-body text, README, and focused consistency tests all identify canonical `MarketMakingLFG/ppi-data-acquisition` / repository ID `1312286476`. |
-| 4 | Separately authorize and execute a fresh real producer pilot | Entire producer workflow, including protected-environment evidence and completed-job-log scan, concludes success and retains the exact safe evidence. No provider run is authorized by this document. |
-| 5 | Separately authorize private exact-run materialization/analysis | Consumer verifies the same immutable run/package, attestation, trust gate, extraction and no-network scoring. |
-| 6 | Complete immutable pilot evidence dossier | Public/private receipts, hashes, review receipts, run identities, scans, attestation, score, countability and replay proofs validate together. |
-| 7 | Review the one-file registry proposal | Independent governance accepts the exact append-only proposal. |
-| 8 | Register only if every gate passes | Registry may move to `3 / 20` and `12 / 80` only after explicit accepted evidence; otherwise it remains unchanged. |
+| 2 | Resolve exact provider-boundary failure separately from code-remediation completion | A separately authorized real pilot must demonstrate the frozen provider boundary succeeds end-to-end; the new MarketData 404 is evidence from a provider-bearing run, not authorization to retry or change providers. |
+| 3 | Bind provider-bearing job to a protected GitHub environment | Workflow contains the reviewed protected `environment:` boundary and the environment governance is separately proven. Do not mutate environments/secrets without explicit authorization. |
+| 4 | Correct stale producer identity/contract references | Both R2 contract JSONs, provider licensing dispositions, generated handoff release-body text, README, and focused consistency tests all identify canonical `MarketMakingLFG/ppi-data-acquisition` / repository ID `1312286476`. |
+| 5 | Separately authorize and execute a fresh real producer pilot | Entire producer workflow, including protected-environment evidence and completed-job-log scan, concludes success and retains the exact safe evidence. No provider run is authorized by this document. |
+| 6 | Separately authorize private exact-run materialization/analysis | Consumer verifies the same immutable run/package, attestation, trust gate, extraction and no-network scoring. |
+| 7 | Complete immutable pilot evidence dossier | Public/private receipts, hashes, review receipts, run identities, scans, attestation, score, countability and replay proofs validate together. |
+| 8 | Review the one-file registry proposal | Independent governance accepts the exact append-only proposal. |
+| 9 | Register only if every gate passes | Registry may move to `3 / 20` and `12 / 80` only after explicit accepted evidence; otherwise it remains unchanged. |
 
 ## Producer identity drift requiring correction
 
@@ -96,11 +88,9 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed:
 - automatic registry mutation: `disabled`;
 - production/publication/broker/order/trading/R12 authority: `none`.
 
-The issue body was last evaluated at `2026-09-10T21:41:32Z`. Its read-only automation-health section now records public verification `34533986703`, attempt `1`, event `workflow_dispatch`, `completed/failure` at `2026-09-10T21:46:23Z`, and activation evaluation `34534170168`, attempt `1`, event `schedule`, at `2026-09-10T21:48:31Z`; both schedule slots remain marked late/unbound and overall automation health remains `stalled`. The accepted source-period sequence remains `not accepted`, matching private validation remains unavailable/not applicable, and the observer is read-only.
+The issue body remains evaluated at `2026-09-10T21:41:32Z`. Its read-only automation-health section records public verification `34533986703`, attempt `1`, event `workflow_dispatch`, completed `failure` at `2026-09-10T21:46:23Z`, and activation evaluation `34534170168`, attempt `1`, event `schedule`, at `2026-09-10T21:48:31Z`; both schedule slots remain late/unbound and overall automation health remains `stalled`. These observations do not create R11 pilot evidence or registry credit.
 
-Newer repository-level observations also remain fail-closed: public verification run `34535152213`, attempt `1`, exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`, completed `failure` at `2026-09-10T22:00:11Z`; activation schedule-backup run `34538264152`, attempt `1`, exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd`, completed `success` at `2026-09-10T22:36:31Z`. These are control-plane observations only. They do not create R11 pilot evidence, do not change `8 / 80` or `2 / 20`, and grant no registry credit.
-
-The latest producer remediation-controller run remains `34533349929`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, `completed/success` at `2026-09-10T21:39:24Z`. Reconcile job `103059101611` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`. This does not supersede producer evidence run `34408644594-1` or make that run countable.
+The newest producer remediation-controller run is `34545439247`, attempt `1`, event `schedule`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103096923999` found the remediation branch not ahead of `main`; merge performed `false`, acquisition executed `false`, and publication executed `false`.
 
 ## Documentation / merge gate
 
