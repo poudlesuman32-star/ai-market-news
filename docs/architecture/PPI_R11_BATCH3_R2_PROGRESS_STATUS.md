@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite observation: public-first chain-depth bridge run `34674535074`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T05:02:08Z`. This remains a prerequisite/control-plane observation only; it creates no pilot evidence and no registry credit.
+Fresh read-only prerequisite observation: public-first chain-depth bridge run `34685464510`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T09:17:50Z`. This remains a prerequisite/control-plane observation only; it creates no pilot evidence and no registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
@@ -59,7 +59,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch records public verification `34650598218`, attempt `1`, completed `failure` at `2026-09-11T21:41:38Z`, with accepted source-period sequence `not accepted` and matching private validation `unavailable`. The automation-health/novelty blocks observe public verification `34651331844`, attempt `1`, `workflow_dispatch`, completed `failure` at `2026-09-11T21:51:00Z`, and activation evaluation `34651438179`, attempt `1`, schedule event, at `2026-09-11T21:52:22Z`. The relevant `19:15Z` public-verification and `19:35Z` activation schedule slots remain late/unbound. These observations are read-only and create no R11 evidence or registry credit.
 
-Newer repository-level public-first observation supersedes the issue body only for freshness: chain-depth bridge run `34674535074`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T05:02:08Z`. It creates no R11 pilot evidence, registry credit, or downstream authority.
+Newer repository-level public-first observation supersedes the issue body only for freshness: chain-depth bridge run `34685464510`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T09:17:50Z`. It creates no R11 pilot evidence, registry credit, or downstream authority.
 
 Newest producer remediation-controller run is `34676533498`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-12T05:48:54Z`. Reconcile job `103507274891` completed `success` and reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
 
