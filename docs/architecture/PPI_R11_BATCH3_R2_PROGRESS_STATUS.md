@@ -1,6 +1,6 @@
 # PPI R11 Batch-3 R2 Progress Status
 
-**Status date:** September 11, 2026  
+**Status date:** September 12, 2026  
 **Program:** PPI R11 cumulative shadow validation  
 **Authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
@@ -17,20 +17,21 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite observation: public-first chain-depth bridge run `34655114465`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T22:41:46Z`. This remains a prerequisite/control-plane observation only; it creates no pilot evidence and no registry credit.
+Fresh read-only prerequisite observation: public-first chain-depth bridge run `34662323379`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T00:38:58Z`. This remains a prerequisite/control-plane observation only; it creates no pilot evidence and no registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
-The newest externally dispatched producer evidence remains workflow run `34545650073`, attempt `1`, on exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, overall `failure`.
+A newer externally dispatched producer run now supersedes prior inspected producer evidence: workflow run `34661401661`, attempt `1`, `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed overall `failure` at `2026-09-12T00:25:48Z`.
 
-- `collect-and-handoff` job `103097562100`: failure after no prior checkpoint was restored; bounded MarketData request returned HTTP 404.
-- `scan completed producer job log` job `103097760742`: failure at log download before credential scanning.
-- only retained public artifact: `10178915116` (`ppi-r11-public-failure-34545650073-1`), retained through `2026-09-18`, digest `sha256:1ba10306a93f978748726bf4b588e86a810aad9d7eb87a0103cca91f11396865`.
+- `collect-and-handoff` job `103464486713`: `success`, including exact-boundary validation, deterministic shard collection/reuse, private checkpoint handling, retained-package leak checks, final-ZIP provenance, exact package publication to the private handoff path, safe success receipt construction, checkpoint deletion after handoff, and public safe-success metadata retention.
+- `scan completed producer job log` job `103465037338`: `failure`.
+- The exact failure remains deterministic and unchanged: the log-download step used `gh api .../actions/jobs/${job_id}/logs` without `--allow-escape-sequences`; GitHub CLI rejected escape-bearing output before credential scanning. The scan step was skipped and no job-log-scan receipt files were produced.
+- retained safe-success artifact: `10287104145` (`ppi-r11-public-success-34661401661-1`), retained through `2026-10-12`, digest `sha256:b59014d97f4dc96e25f8582a88d5e548c0d06deb7a58a9e0ba74a1a0fa6fc333`.
 - no passing exact completed-job-log-scan receipt exists.
 
-**Disposition:** run `34545650073-1` is **not accepted/countable pilot evidence and grants zero registry credit**. It does not change `8 / 80` or `2 / 20`. This watcher did not initiate, retry, or dispatch that run.
+**Disposition:** run `34661401661-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch that provider run.
 
-Prior run `34408644594-1` remains the latest safe-success-retention example of the completed-job-log scanning gate and is likewise non-countable; retained artifact `10126430126` has digest `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`. Its independently rehashed receipt/package hashes remain preserved in closed tracker `#117`.
+Prior externally dispatched run `34545650073-1` remains non-countable; its retained failure artifact `10178915116` has digest `sha256:1ba10306a93f978748726bf4b588e86a810aad9d7eb87a0103cca91f11396865` and is retained through `2026-09-18`. Prior safe-success run `34408644594-1` is likewise non-countable; retained artifact `10126430126` has digest `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`. Historical rehashed receipt/package hashes remain preserved in closed tracker `#117`.
 
 ## REMAINING — required before any batch-3 credit
 
@@ -58,9 +59,9 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch records public verification `34650598218`, attempt `1`, completed `failure` at `2026-09-11T21:41:38Z`, with accepted source-period sequence `not accepted` and matching private validation `unavailable`. The automation-health/novelty blocks observe public verification `34651331844`, attempt `1`, `workflow_dispatch`, completed `failure` at `2026-09-11T21:51:00Z`, and activation evaluation `34651438179`, attempt `1`, schedule event, at `2026-09-11T21:52:22Z`. The relevant `19:15Z` public-verification and `19:35Z` activation schedule slots remain late/unbound. These observations are read-only and create no R11 evidence or registry credit.
 
-Newer repository-level control-plane observations supersede the issue body only for freshness: public-first chain-depth bridge run `34655114465`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-11T22:41:46Z`; activation schedule-backup run `34654728812`, attempt `1`, schedule event, completed `success` on exact `ai-signal-engine` main `dbd3969e55cab2523e2132e0bc0053955ad619dd` at `2026-09-11T22:36:16Z`. They create no R11 pilot evidence, registry credit, or downstream authority.
+Newer repository-level public-first observation supersedes the issue body only for freshness: chain-depth bridge run `34662323379`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T00:38:58Z`. It creates no R11 pilot evidence, registry credit, or downstream authority.
 
-Newest producer remediation-controller run is `34650816017`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-11T21:44:27Z`. Reconcile job `103432290620` found remediation branch `codex/ppi-r11-r2-provenance-attestation` not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`. This is a dependency-safe no-op control-plane observation and does not change R11 evidence or credit.
+Newest producer remediation-controller run is `34661236823`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103464002370` completed `success`; no remediation merge, provider acquisition, or publication is attributed to this watcher. This controller observation does not change R11 evidence or credit.
 
 ## Closed tracker #117
 
