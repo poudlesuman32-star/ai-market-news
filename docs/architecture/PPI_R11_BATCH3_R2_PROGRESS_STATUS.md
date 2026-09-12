@@ -61,7 +61,7 @@ The issue-body R10 watch records public verification `34650598218`, attempt `1`,
 
 Newer repository-level public-first observation supersedes the issue body only for freshness: chain-depth bridge run `34685464510`, attempt `1`, schedule event, completed `success` on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` at `2026-09-12T09:17:50Z`. It creates no R11 pilot evidence, registry credit, or downstream authority.
 
-Newest producer remediation-controller run is `34676533498`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-12T05:48:54Z`. Reconcile job `103507274891` completed `success` and reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
+Newest producer remediation-controller run is `34689457917`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-12T10:49:39Z`. Reconcile job `103542047373` completed `success` and reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
 
 ## Closed tracker #117
 
