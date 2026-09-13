@@ -60,7 +60,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newest producer remediation-controller run is `34755679417`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103719525074` reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
+Newest producer remediation-controller run is `34768224750`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103752942465` reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
 
 ## Closed tracker #117
 
