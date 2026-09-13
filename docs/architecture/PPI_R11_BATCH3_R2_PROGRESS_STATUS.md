@@ -17,21 +17,21 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` now include public-first chain-depth bridge run `34727694018`, attempt `1`, schedule event, completed `failure` at `2026-09-13T00:20:07Z`. Bridge job `103644673272` failed at `Verify exact review receipt passed`: it selected historical OpenFIGI review run `33262596949`, attempt `1`, but exact non-expired artifact `ppi-openfigi-mapping-artifact-review-33262596949-1` was not uniquely resolved. This repeats the known chain-depth artifact-lifetime defect and does not regress the four retained prerequisites above. These bridge observations create no pilot evidence and no registry credit.
+Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34727694018`, attempt `1`, schedule event, completed `failure` because the historical OpenFIGI review artifact from `33262596949-1` was not uniquely resolvable while non-expired. This remains the known chain-depth artifact-lifetime defect and does not regress the retained stable-ID/snapshot prerequisites. A newer immutable-snapshot-review bridge run `34730378831`, attempt `1`, schedule event, completed `success`; bridge job `103651953238` found the exact stable-ID review and immutable snapshot, verified the exact immutable snapshot artifact, found the exact immutable review already exists, and skipped redispatch. These bridge observations create no pilot evidence and no registry credit.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
-The latest externally dispatched producer candidate remains workflow run `34661401661`, attempt `1`, `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed overall `failure` at `2026-09-12T00:25:48Z`.
+The latest externally dispatched producer candidate is workflow run `34729730058`, attempt `1`, `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed overall `failure`.
 
-- `collect-and-handoff` job `103464486713`: `success`, including exact-boundary validation, deterministic shard collection/reuse, private checkpoint handling, retained-package leak checks, final-ZIP provenance, exact package publication to the private handoff path, safe success receipt construction, checkpoint deletion after handoff, and public safe-success metadata retention.
-- `scan completed producer job log` job `103465037338`: `failure`.
-- The exact failure remains deterministic and unchanged: the log-download step used `gh api .../actions/jobs/${job_id}/logs` without `--allow-escape-sequences`; GitHub CLI rejected escape-bearing output before credential scanning. The scan step was skipped and no job-log-scan receipt files were produced.
-- retained safe-success artifact: `10287104145` (`ppi-r11-public-success-34661401661-1`), retained through `2026-10-12`, digest `sha256:b59014d97f4dc96e25f8582a88d5e548c0d06deb7a58a9e0ba74a1a0fa6fc333`.
+- `collect-and-handoff` job `103650178604`: `success`, including exact-boundary validation, deterministic shard collection/reuse, private checkpoint handling, retained-package leak checks, final-ZIP provenance, exact package publication to the private handoff path, safe success receipt construction, checkpoint deletion after handoff, and public safe-success metadata retention.
+- `scan completed producer job log` job `103650548961`: `failure`.
+- The exact failure remains deterministic and unchanged: the job-log download failed before credential scanning; the scan step was skipped and no passing job-log-scan receipt was produced.
+- retained safe-success artifact: `10308983340` (`ppi-r11-public-success-34729730058-1`), retained/unexpired through `2026-10-13T01:10:35Z`, digest `sha256:609dfd3f3a42a86b7bf3c6c046ae55f8889a0378ec4131fa4a78b2dc94f6eb7d`.
 - no passing exact completed-job-log-scan receipt exists.
 
-**Disposition:** run `34661401661-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch that provider run.
+**Disposition:** run `34729730058-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch that provider run.
 
-Prior externally dispatched run `34545650073-1` remains non-countable; its retained failure artifact `10178915116` has digest `sha256:1ba10306a93f978748726bf4b588e86a810aad9d7eb87a0103cca91f11396865` and is retained through `2026-09-18`. Prior safe-success run `34408644594-1` is likewise non-countable; retained artifact `10126430126` has digest `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a`. Historical rehashed receipt/package hashes remain preserved in closed tracker `#117`.
+Prior externally dispatched run `34661401661-1` remains non-countable; retained safe-success artifact `10287104145` has digest `sha256:b59014d97f4dc96e25f8582a88d5e548c0d06deb7a58a9e0ba74a1a0fa6fc333`. Historical rehashed receipt/package hashes remain preserved in closed tracker `#117`.
 
 ## REMAINING — required before any batch-3 credit
 
@@ -41,7 +41,7 @@ Prior externally dispatched run `34545650073-1` remains non-countable; its retai
 4. **Canonical producer identity consistency:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. README also still describes R1 public acquisition/collector lineage. Correct these identity-bearing surfaces together with focused consistency validation before any fresh countable pilot; do not partially rewrite a single surface and claim completion.
 5. **Separately authorized real pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
 6. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
-7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge run `34727694018-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work; until then, do not infer prerequisite loss from this bridge failure.
+7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34727694018-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work; until then, do not infer prerequisite loss from this bridge failure.
 
 Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact accepted batch-3 evidence and governance acceptance.
 
@@ -58,11 +58,9 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 - automation health `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
-The issue-body R10 watch records public verification `34650598218`, attempt `1`, completed `failure` at `2026-09-11T21:41:38Z`, with accepted source-period sequence `not accepted` and matching private validation `unavailable`. The automation-health/novelty blocks observe public verification `34651331844`, attempt `1`, `workflow_dispatch`, completed `failure` at `2026-09-11T21:51:00Z`, and activation evaluation `34651438179`, attempt `1`, schedule event, at `2026-09-11T21:52:22Z`. The relevant `19:15Z` public-verification and `19:35Z` activation schedule slots remain late/unbound. These observations are read-only and create no R11 evidence or registry credit.
+The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newer repository-level public-first observation supersedes the issue body only for freshness: chain-depth bridge `34727694018-1` failed on the historical OpenFIGI review artifact-lifetime gate on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`. It does not change R11 pilot evidence, registry credit, or downstream authority.
-
-Newest producer remediation-controller run is `34729493503`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success` at `2026-09-13T01:02:06Z`. Reconcile job `103649537946` completed `success` and reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
+Newest producer remediation-controller run is `34729493503`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103649537946` reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
 
 ## Closed tracker #117
 
