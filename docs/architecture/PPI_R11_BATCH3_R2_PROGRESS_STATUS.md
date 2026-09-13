@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include newest chain-depth bridge run `34771757819`, attempt `1`, schedule event, completed `failure`. Bridge job `103762508664` located historical OpenFIGI review run `33262596949`, attempt `1`, then failed at `Verify exact review receipt passed` because exact non-expired artifact `ppi-openfigi-mapping-artifact-review-33262596949-1` was not uniquely resolved. This is the same known chain-depth artifact-lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is run `34770070483`, attempt `1`; bridge job `103757920868` located the exact successful stable-ID review and immutable snapshot, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
+Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include newest chain-depth bridge run `34771757819`, attempt `1`, schedule event, completed `failure`. Bridge job `103762508664` located historical OpenFIGI review run `33262596949`, attempt `1`, then failed at `Verify exact review receipt passed` because exact non-expired artifact `ppi-openfigi-mapping-artifact-review-33262596949-1` was not uniquely resolved. This is the same known chain-depth artifact-lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is run `34777491470`, attempt `1`; bridge job `103778155894` located the exact successful stable-ID review and immutable snapshot, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
@@ -60,7 +60,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newest producer remediation-controller run is `34768224750`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103752942465` reported that `codex/ppi-r11-r2-provenance-attestation` is not ahead of `main`; merge `false`, acquisition `false`, publication `false`. This dependency-safe no-op does not change R11 evidence or credit.
+Newest producer remediation-controller run is `34777785425`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103778956315` completed successfully. This dependency-safe controller observation does not change R11 pilot evidence or registry credit.
 
 ## Closed tracker #117
 
