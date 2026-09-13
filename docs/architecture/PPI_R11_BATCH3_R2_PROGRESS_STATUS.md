@@ -1,6 +1,6 @@
 # PPI R11 Batch-3 R2 Progress Status
 
-**Status date:** September 12, 2026  
+**Status date:** September 13, 2026  
 **Program:** PPI R11 cumulative shadow validation  
 **Authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34727694018`, attempt `1`, schedule event, completed `failure` because the historical OpenFIGI review artifact from `33262596949-1` was not uniquely resolvable while non-expired. This remains the known chain-depth artifact-lifetime defect and does not regress the retained stable-ID/snapshot prerequisites. A newer immutable-snapshot-review bridge run `34730378831`, attempt `1`, schedule event, completed `success`; bridge job `103651953238` found the exact stable-ID review and immutable snapshot, verified the exact immutable snapshot artifact, found the exact immutable review already exists, and skipped redispatch. These bridge observations create no pilot evidence and no registry credit.
+Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` now include chain-depth bridge run `34739389219`, attempt `1`, schedule event, completed `failure`. Bridge job `103676379485` located historical OpenFIGI review run `33262596949`, attempt `1`, then failed at `Verify exact review receipt passed` because exact non-expired artifact `ppi-openfigi-mapping-artifact-review-33262596949-1` was not uniquely resolved. This is the same known chain-depth artifact-lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge remains run `34730378831`, attempt `1`; bridge job `103651953238` found the exact stable-ID review and immutable snapshot, verified the exact immutable snapshot artifact, found the exact immutable review already exists, and skipped redispatch.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
 
@@ -41,7 +41,7 @@ Prior externally dispatched run `34661401661-1` remains non-countable; retained 
 4. **Canonical producer identity consistency:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. README also still describes R1 public acquisition/collector lineage. Correct these identity-bearing surfaces together with focused consistency validation before any fresh countable pilot; do not partially rewrite a single surface and claim completion.
 5. **Separately authorized real pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
 6. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
-7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34727694018-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work; until then, do not infer prerequisite loss from this bridge failure.
+7. **Chain-depth bridge artifact-lifetime defect:** newest scheduled bridge `34739389219-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`, which was not uniquely resolvable. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work; until then, do not infer prerequisite loss from this bridge failure.
 
 Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact accepted batch-3 evidence and governance acceptance.
 
