@@ -1,6 +1,6 @@
 # PPI R11 Batch-3 R2 Remediation Status
 
-**Status:** deterministic R2 remediation and producer propagation are complete; automatic provider dispatch is now fail-closed on protected-environment readiness; real protected-environment and pilot evidence remain ungenerated  
+**Status:** deterministic R2 remediation, protected-environment producer binding, and producer propagation are complete; the real protected GitHub Environment and real pilot evidence remain ungenerated  
 **Verified:** September 14, 2026  
 **Scope:** `poudlesuman32-star/ai-market-news`, `MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`), and `musksuman3/ai-signal-engine`
 
@@ -18,16 +18,17 @@ Nothing in this document authorizes provider acquisition, private analysis, regi
 - Consumer repository: `musksuman3/ai-signal-engine`
 - Protected producer environment name: `r11-public-acquisition-protected`
 
-## Finished remediation
+## FINISHED — deterministic remediation and propagation
 
 ### Control plane and architecture
 
-- `poudlesuman32-star/ai-market-news#116`, `#123`, `#143`, `#144`, and `#146` are merged.
-- `#143` put the canonical finished-vs-remaining remediation document on `main`.
-- `#144` refreshed the live implementation/pilot ledger and canonical R2 bootstrap identities.
-- Commit `20ae277968397db0da50f341438e27c104e1dcf3` canonicalized the producer identity and stable repository ID in private-handoff release metadata while also removing an unrelated automatic SEC-pilot push trigger.
-- `#146` merged at commit `dfbdc7de0dbf022e966a9c0d90e080d84e320096` after exact-head `PPI public migration regression CI` run `34897885425` and `PPI public news pipeline` run `34897885388` both completed successfully on PR head `11f1da7304109b7255b37dbbfbdb0e98d7fb04f9`.
-- `#146` added a read-only protected-environment preflight to the active v5 migration controller. Automatic public provider dispatch now remains held unless GitHub proves that the protected environment exists, administrator bypass is denied, an approved `main` deployment branch policy exists, and an identifiable custom deployment-protection GitHub App rule is enabled.
+- `poudlesuman32-star/ai-market-news#116`, `#123`, `#143`, `#144`, `#145`, `#146`, `#148`, and `#149` are merged.
+- `#143` established the canonical finished-versus-remaining remediation document on `main`.
+- `#144` refreshed the implementation/pilot ledger and canonical R2 bootstrap identities.
+- `#145` removed an unrelated automatic SEC-pilot push trigger and canonicalized private-handoff producer identity/repository ID without executing providers.
+- `#146` hardened the completed-job-log evidence path and added a read-only protected-environment dispatch hold.
+- `#148` refreshed this ledger after those changes propagated.
+- `#149` merged at exact head `35b90f27f40b9027a50c36da902ed1daffd2c20d`, merge commit `8f82a988f8e915526ae54bfc4a1fc3f9d26d58ee`, after exact-head `PPI public news pipeline` run `34898781943` completed successfully. It added zero-provider protected-environment workflow binding, fail-closed policy preflight, schema-`1.1.0` receipt generation, and focused tests.
 - The existing private billing/recovery hold is unchanged: automatic private final-analysis dispatch remains disabled.
 
 ### Private consumer
@@ -47,67 +48,57 @@ Nothing in this document authorizes provider acquisition, private analysis, regi
 - The repository migration to `MarketMakingLFG/ppi-data-acquisition` is complete while preserving repository ID `1312286476`.
 - Producer provenance attestation is deployed: the exact final ZIP is prepared once, attested with a SHA-pinned GitHub action, and the digest-bound archive is the object published privately.
 - Producer PR #13 deployed authenticated resumability and completed-job-log evidence infrastructure.
-- Producer PR #16 (`Harden PPI R11 R2 resumability and job-log evidence`) merged on September 14, 2026 at head `362e6c78cd8a28c921b357c608b9959843a87c24`, merge commit `9021eab2f2f18e8bbdc352d59a7a1664138faf22`.
-- PR #16 propagated the reviewed #146 changes to producer `main` without dispatching provider acquisition.
-- The producer now restores digest- and credential-authenticated prior-attempt checkpoints, reuses only complete deterministic shards, persists checkpoint state privately, and cleans temporary checkpoints after successful handoff.
-- Success and failure evidence remain separated.
-- Retained package outputs are scanned for credential leakage.
-- The completed Actions job log is downloaded with GitHub CLI escape-sequence support and scanned in both raw and narrowly ANSI-normalized forms. Unsupported terminal escape material fails closed; ANSI formatting cannot be used to hide an exact secret or unmasked authorization header.
-- Public success metadata is retained for 30 days and failure diagnostics for 7 days.
+- Producer PR #16 propagated the #146 job-log/control-plane hardening without provider acquisition.
+- Producer PR #17 merged at exact head `2615b52a29ac671b8ff8256f8eeae9fd645942d0`, with successful exact-head validation run `34898884306`; current producer `main` is `5cd844f063e1cc37cd9d05420bbefa15ce212f70`.
+- The exact protected-environment implementation from public merge `8f82a988f8e915526ae54bfc4a1fc3f9d26d58ee` is present on current producer `main`: the producer workflow blob is `32451b991a72ab0ba43f0b514a8efcb59ba63fcc`, `src/scan_job_log.py` is `47622813b85ee7949b8ddcfe0bd6a74ac411867d`, and `tests/test_resume_log_evidence.py` is `228edf9bd9cd50be6cec4b4ec1693029f3439018`, matching the reviewed bootstrap mirror.
+- Both `collect-and-handoff` and `scan-job-log` target `environment: r11-public-acquisition-protected`.
+- A fail-closed policy preflight runs before provider-secret validation and requires denied administrator bypass, an approved `main` deployment restriction, a uniquely identified independent custom deployment-protection App rule, and an explicit environment-credential binding assertion.
+- A consumer-compatible schema-`1.1.0` protected-environment receipt is emitted only after successful acquisition and a passing completed-job-log scan.
+- The producer restores digest- and credential-authenticated prior-attempt checkpoints, reuses only complete deterministic shards, persists checkpoint state privately, and cleans temporary checkpoints after successful handoff.
+- Success and failure evidence remain separated; retained outputs and the completed Actions job log are leak-scanned. Unsupported terminal escape material fails closed.
 
-## Latest post-remediation controller evidence
+## Latest controller evidence
 
-Migration autopilot run `34897941926` completed successfully on control-plane head `dfbdc7de0dbf022e966a9c0d90e080d84e320096`.
+Migration autopilot run `34898839949`, attempt `1`, completed successfully on public control-plane head `8f82a988f8e915526ae54bfc4a1fc3f9d26d58ee`.
 
-Its sanitized issue #83 report records all of the following:
+The sanitized issue #83 report records:
 
-- the reviewed producer template was synchronized;
-- producer update PR #16 was merged after machine gates passed;
+- the exact reviewed acquisition template was synchronized into the producer update branch;
+- producer update PR #17 was merged after machine gates passed;
 - provider-secret names were confirmed without reading secret values;
 - **no new public provider collection was dispatched**;
-- the exact hold reason is `public collection held: protected environment r11-public-acquisition-protected is not configured`;
+- the exact hold reason remains `public collection held: protected environment r11-public-acquisition-protected is not configured`;
 - automatic private dispatch remains `False`;
 - registry mutation, production/publication/trading, broker/order, MMM/raw-data, and R12 authority remain disabled.
 
-This is the intended fail-closed state. Code propagation can proceed independently from provider execution.
+This is the intended fail-closed state. Protected-environment code is deployed; real protected-environment configuration/evidence is not.
 
-## Remaining before a real pilot dossier can be complete
+## Latest non-countable provider evidence
+
+Producer run `34408644594`, attempt `1`, exact producer head `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, remains non-countable. Its collection/handoff job succeeded, but its completed-job-log scan failed before credential scanning under the historical implementation.
+
+Retained safe-success artifact `10126430126`, `ppi-r11-public-success-34408644594-1`, has digest `sha256:5659332e977a1cda158764f146f2b1a439b628b55e9654a279bcc7d606472b6a` and remains historical evidence only. No post-repair real provider pilot has been authorized or accepted.
+
+## REMAINING before a real pilot dossier can be complete
 
 ### 1. Configure the real producer GitHub Environment
 
 This is now the primary infrastructure gate.
 
-The active controller expects `r11-public-acquisition-protected` and will not automatically dispatch provider acquisition until its read-only preflight can prove:
+The producer and controller expect `r11-public-acquisition-protected`. A real environment must independently prove:
 
 - the environment exists;
 - `can_admins_bypass` is false;
-- deployment branch policy restricts execution to the approved `main` path;
-- at least one enabled custom deployment-protection rule has a stable GitHub App ID and slug.
+- deployment branch policy restricts execution to approved `main`;
+- at least one enabled custom deployment-protection rule has stable GitHub App and rule identity;
+- the protection App is independently operated rather than producer self-approval;
+- provider credentials are genuinely environment-bound.
 
-The lowest-touch preferred operating model remains an independent GitHub App custom deployment-protection rule. Required reviewers remain a fallback for environments where an independent protection App is unavailable.
+Environment administration itself requires a separately authorized GitHub administration path. Do not create a permissive environment, enable administrator bypass, move/read secret values, or fabricate protection-rule identity simply to clear this gate.
 
-Environment administration itself requires an appropriately authorized GitHub administration path. The remediation controller must not create a permissive environment, enable administrator bypass, or fabricate protection-rule identity simply to clear this gate.
+### 2. Produce one separately authorized real producer pilot
 
-### 2. Bind the producer job to that protected environment and emit the exact receipt
-
-The current producer workflow still does not yet target `environment: r11-public-acquisition-protected`, and therefore it does not yet emit the consumer's schema-`1.1.0` protected-environment receipt.
-
-The next deterministic producer change must:
-
-- target the protected environment on the acquisition job;
-- perform a zero-provider policy preflight before any provider secret is used;
-- bind environment-policy evidence to repository, workflow, SHA, run ID, and run attempt;
-- record the accepted approval mode and stable reviewer/App rule identity;
-- prove administrator bypass is denied and `main` is an approved deployment branch;
-- keep credential values and derivatives out of retained output;
-- keep every downstream authority field `false`;
-- fail before acquisition when environment policy is absent, unknown, or inconsistent.
-
-No provider execution is needed to develop or CI-test that control-plane code.
-
-### 3. Produce one separately authorized real producer pilot
-
-Only after the environment is genuinely configured and the workflow is bound to it may a separately authorized pilot generate real provider evidence.
+Only after the real environment is genuinely configured may a separately authorized pilot generate real provider evidence.
 
 A countable producer run must prove:
 
@@ -122,13 +113,27 @@ A countable producer run must prove:
 - success/failure artifact separation and retention controls;
 - no automatic private-analysis dispatch from the producer.
 
-The job-log scanner repair is deployed, but it is not claimed as real-run PASS evidence until such a post-fix producer run actually executes and retains a passing scan receipt.
+The job-log scanner and protected-environment receipt implementations are deployed, but neither is claimed as real-run PASS evidence until a post-fix producer run actually executes and retains accepted receipts.
 
-### 4. Complete the private pilot evidence dossier
+### 3. Complete the private pilot evidence dossier
 
 After an accepted real producer handoff exists, the private side can verify it through the already-merged gates and bind the producer run, attestation, package/timestamp validation, environment receipt, shard/resume receipt, leak evidence, isolated private score, replay identity, and review-only registry proposal/root manifest into the dossier.
 
 Registry mutation, production publication, broker/order/trading authority, MMM/raw-data authority, and R12 authority remain disabled.
+
+## Controller and registry truth
+
+`musksuman3/ai-signal-engine#13` remains fail-closed:
+
+- controller `R10_SOURCE_CONTROL_ACTIVE`;
+- R11 registry `collecting`;
+- approved tickers `8 / 80`;
+- accepted cumulative batches `2 / 20`;
+- frozen next batch `3: QCOM, MRVL, GFS, TXN`;
+- automatic registry mutation `disabled`;
+- production/publication/broker/order/trading/R12 authority `none`.
+
+Implementation completion alone never grants pilot evidence or registry credit.
 
 ## Not remaining remediation
 
@@ -149,6 +154,8 @@ Unless exact evidence demonstrates a regression, the following are complete code
 - sharded/resumable producer implementation;
 - retained-output leak scanning;
 - ANSI-safe completed-job-log scanner implementation;
+- protected-environment workflow binding and zero-provider policy preflight implementation;
+- protected-environment schema-`1.1.0` receipt-generation implementation;
 - failure artifact separation;
 - replay/retention controls;
 - adversarial negative-test coverage;
@@ -157,4 +164,4 @@ Unless exact evidence demonstrates a regression, the following are complete code
 
 ## Operational rule
 
-Do not conflate code completion with pilot-evidence completion. The code path is now deliberately capable of synchronizing reviewed producer changes while refusing provider execution until the protected-environment policy exists. Do not weaken that hold merely to obtain a green pilot. Do not claim a protected-environment receipt, a passing post-fix job-log scan, a complete private dossier, or registry credit until exact real-run evidence exists.
+Do not conflate code completion with pilot-evidence completion. The code path is deliberately capable of synchronizing reviewed producer changes while refusing provider execution until the protected-environment policy exists. Do not weaken that hold merely to obtain a green pilot. Do not claim a protected-environment receipt, a passing post-fix job-log scan, a complete private dossier, or registry credit until exact real-run evidence exists.
