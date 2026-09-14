@@ -17,29 +17,35 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22T06:19:44Z`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observation on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`: chain-depth bridge run `34816205561`, attempt `1`, completed `failure`. Bridge job `103887300524` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is now run `34833652734`, attempt `1`; bridge job `103942478545` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
+Fresh read-only prerequisite/control-plane observation on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`: chain-depth bridge run `34816205561`, attempt `1`, completed `failure`. Bridge job `103887300524` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is run `34833652734`, attempt `1`; bridge job `103942478545` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
 
-## NEWEST EXACT PRODUCER EVIDENCE — fresh external dispatch, still non-countable
+## NEW ZERO-PROVIDER FOUNDATION DEFECT — repaired on the review branch, not yet merged
 
-The newest producer candidate remains workflow run `34795188659`, attempt `1`, event `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, started `2026-09-14T01:12:58Z`, completed overall `failure`.
+Scheduled `PPI public universe foundation` run `34845056855`, attempt `1`, on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` completed `failure`. Job `103978870085` failed only in `test_validator_builds_safe_readiness_report` with `frozen batch-3 file changed: bootstrap/ppi-data-acquisition/config/r11_batch_003.json`; all other foundation tests passed and no provider/private execution occurred.
+
+Exact history shows the batch file was changed by commit `341d2ca5bf0affb8876e3a792917fcb5f50bf4ea` solely to replace stale repository identity `spoudel2010-ux/ppi-data-acquisition` with canonical `MarketMakingLFG/ppi-data-acquisition`; its current Git blob is `064043cdc4d5b3ce26619c7b449f3c6366977fe5`. The foundation contract still pinned the pre-identity-cleanup blob `c1077b23b75d4296467eb242d356c8cdd4a6f399` and still named the stale acquisition repository.
+
+On existing PR `#144` branch `docs/r11-batch3-r2-status-20260908`, commit `cec54b73a98cf8fd8ecb0ee6f557dae13d357c4c` performs the narrow deterministic repair: update `acquisition_repository` to the canonical producer and repin only `r11_batch_003.json` to exact blob `064043cdc4d5b3ce26619c7b449f3c6366977fe5`. It does not alter ticker/category/package scope, authorize providers, create pilot evidence, or grant registry credit. The repair remains unmerged until exact-head CI, mergeability, and review cleanliness are proven.
+
+## NEWEST EXACT PRODUCER EVIDENCE — external dispatch remains non-countable
+
+The newest producer candidate remains workflow run `34795188659`, attempt `1`, event `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed overall `failure`.
 
 - `collect-and-handoff` job `103826780328`: `success`.
 - `scan completed producer job log` job `103827321317`: `failure` at `Download completed collect job log`, before credential scanning; the scan step was skipped. Therefore no passing exact completed-job-log-scan receipt exists for this run.
 - retained safe-success artifact `10329298326` (`ppi-r11-public-success-34795188659-1`) remains retained/unexpired through `2026-10-14T01:16:14Z`, GitHub digest `sha256:0002a22f21bc1a60c1fda08970b56a1434a7216645c123afbf586eb8ca03d67b`.
 
-**Disposition:** run `34795188659-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch this provider run. No separate authorization receipt for this fresh dispatch was established by this read-only verification, so its appearance must not be treated as authorization or acceptance.
-
-The prior externally dispatched candidate `34729730058-1` remains historical non-countable evidence; its retained safe-success artifact `10308983340` has digest `sha256:609dfd3f3a42a86b7bf3c6c046ae55f8889a0378ec4131fa4a78b2dc94f6eb7d` and likewise lacks a passing exact completed-job-log-scan receipt.
+**Disposition:** run `34795188659-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch this provider run. No separate authorization receipt for this dispatch was established by read-only verification, so its appearance must not be treated as authorization or acceptance.
 
 ## REMAINING — required before any batch-3 credit
 
-1. **Completed-job-log scan evidence:** deterministic download/scanning must be proven by an explicitly authorized later run retaining a passing exact scan receipt. Do not treat the implemented stage or a successful collection job as evidence.
-2. **Provider-boundary authorization and success:** the remaining R11 batch-3 program gate is a separately authorized real producer pilot that succeeds end-to-end on the frozen boundary. The newly observed external dispatch does not establish its own authorization.
+1. **Completed-job-log scan evidence:** deterministic download/scanning must be proven by an explicitly authorized later run retaining a passing exact scan receipt.
+2. **Provider-boundary authorization and success:** the remaining R11 batch-3 program gate is a separately authorized real producer pilot that succeeds end-to-end on the frozen boundary.
 3. **Protected-environment evidence:** provider-bearing execution still needs exact accepted protected-environment evidence; environment/secrets governance changes require separate authorization.
-4. **Canonical producer identity consistency:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. README also still describes R1 public acquisition/collector lineage. Correct these identity-bearing surfaces together with focused consistency validation before any fresh countable pilot; do not partially rewrite a single surface and claim completion.
-5. **Separately authorized countable pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
-6. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
-7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34816205561-1` failed at exact historical review-receipt verification before stable-ID/snapshot dispatch. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work.
+4. **Canonical producer identity consistency in the producer repo:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. Correct those producer identity-bearing surfaces together with focused consistency validation before any fresh countable pilot.
+5. **Merge the narrow foundation repair only if proven:** PR `#144` must be exact-head CI green, mergeable, and review-clean before the foundation identity/pin correction can land.
+6. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34816205561-1` still fails historical review-receipt verification before stable-ID/snapshot dispatch; repair must remain fail closed and zero-provider.
+7. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
 
 Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact accepted batch-3 evidence and governance acceptance.
 
@@ -56,17 +62,15 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body was last
 - automation health `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
-The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
-
-Newest producer remediation-controller run remains `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103877780235` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
+Newest producer remediation-controller remains run `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`; reconcile job `103877780235` succeeded. This controller observation creates no pilot evidence or registry credit.
 
 ## Closed tracker #117
 
-`poudlesuman32-star/ai-market-news#117` remains closed. Its FINISHED implementation/prerequisite record remains authoritative historical evidence; later status comments may carry fresher fail-closed observations. Do not reopen it merely for status churn. Pilot evidence and registry credit remain incomplete.
+`poudlesuman32-star/ai-market-news#117` remains closed. Its FINISHED R2 implementation/prerequisite record remains historical evidence; the new foundation pin defect is a separate deterministic zero-provider control-plane inconsistency and does not reopen R2 remediation or change the real-pilot gate.
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. This documentation write creates a new exact head, so mergeability, current-head review cleanliness, and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
+PR `#144` is the current documentation/control-plane repair branch. Recheck its new exact head for mergeability, current-head review cleanliness, and exact-head CI. Do **not** merge unless all three are proven.
 
 ## Authority boundary
 
