@@ -33,17 +33,18 @@ PR `#122` is already merged after those prerequisites were proven. Its exact pre
 - Public PRs `#116`, `#123`, and zero-provider control-plane PR `#145` are merged within the frozen public-first scope.
 - Private consumer PRs `musksuman3/ai-signal-engine#222`, `#223`, and `#224` remain merged with the previously recorded exact-head validations.
 - Producer PR `MarketMakingLFG/ppi-data-acquisition#13` remains merged; its recorded exact-head validation run `32258655978` was successful.
+- Producer PR `MarketMakingLFG/ppi-data-acquisition#17` is merged at exact head `2615b52a29ac671b8ff8256f8eeae9fd645942d0`, with successful pull-request validation run `34898884306` and merge commit/current producer `main` `5cd844f063e1cc37cd9d05420bbefa15ce212f70`. It hardened resumability and completed-job-log evidence only; it did not run providers or create pilot credit.
 - Public PR `#145` merged at exact head `3f3c52b32b7bf35346098b15c8384d75cea8a9e2` after successful exact-head PR run `34897048881`; it removed automatic SEC-pilot execution on ordinary `main` pushes and corrected bootstrap handoff producer identity without initiating provider acquisition.
 
 ### Canonical producer identity
 
-Producer PR `MarketMakingLFG/ppi-data-acquisition#14` merged at head `d5ff1697f2eda053f4b8c0391b65993d2c88f8cf`, merge commit/current inspected producer `main` `efd83193e2909ee0e248d2dd8d050b207e82c907`. Canonical identity is `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`.
+Producer PR `MarketMakingLFG/ppi-data-acquisition#14` merged at head `d5ff1697f2eda053f4b8c0391b65993d2c88f8cf`, merge commit `efd83193e2909ee0e248d2dd8d050b207e82c907`. Canonical identity is `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`.
 
 No pull-request-triggered workflow run was found for exact head `d5ff1697f2eda053f4b8c0391b65993d2c88f8cf`; this ledger records the merged identity/control-plane patch but does not invent an exact-head CI receipt.
 
 ### Completed-job-log scanner implementation
 
-The deterministic scanner defect observed in runs `34265097209-1` and `34408644594-1` is repaired on current producer `main`:
+The deterministic scanner defect observed in runs `34265097209-1` and `34408644594-1` is repaired on current producer `main` `5cd844f063e1cc37cd9d05420bbefa15ce212f70`, with the exact implementation head validated successfully in run `34898884306`:
 
 - the workflow downloads the completed collect job log with `gh api --allow-escape-sequences .../actions/jobs/${job_id}/logs` and redirects it to a file rather than workflow output;
 - `src/scan_job_log.py` scans both raw bytes and an ANSI-normalized view;
