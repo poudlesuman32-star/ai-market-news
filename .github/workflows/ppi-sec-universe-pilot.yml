@@ -3,19 +3,6 @@ run-name: SEC 500 pilot - ${{ github.event_name }} - ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/ppi-sec-universe-pilot.yml
-      - contracts/PPI-SEC-UNIVERSE-PILOT-001-R1.json
-      - schemas/ppi_sec_universe_pilot.schema.json
-      - scripts/collect_sec_universe_pilot.py
-      - scripts/resolve_sec_user_agent.py
-      - tests/test_ppi_sec_universe_pilot.py
-      - tests/test_ppi_sec_user_agent_resolver.py
-      - config/ppi_public_source_inventory.json
-      - contracts/PPI-UNIVERSE-US-COMMON-001-R1.json
   schedule:
     - cron: '37 6 * * 3'
 
