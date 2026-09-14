@@ -51,7 +51,7 @@ Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact
 
 ## Live controller / registry truth
 
-Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body was last evaluated at `2026-09-14T06:27:21Z`:
+Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body was last evaluated at `2026-09-14T14:14:07Z`:
 
 - controller state `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -62,7 +62,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body was last
 - automation health `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
-Newest producer remediation-controller remains run `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`; reconcile job `103877780235` succeeded. This controller observation creates no pilot evidence or registry credit.
+Newest producer remediation-controller is run `34853345302`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`; reconcile job `104006532872` succeeded. This controller observation creates no pilot evidence or registry credit.
 
 ## Closed tracker #117
 
