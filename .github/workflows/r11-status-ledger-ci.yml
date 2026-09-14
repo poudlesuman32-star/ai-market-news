@@ -1,0 +1,53 @@
+name: PPI R11 status ledger CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/architecture/PPI_R11_BATCH3_R2_REMEDIATION_STATUS.md"
+      - ".github/workflows/r11-status-ledger-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ledger:
+    name: Validate R11 fail-closed status ledger
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate canonical ledger invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/architecture/PPI_R11_BATCH3_R2_REMEDIATION_STATUS.md")
+          text = path.read_text(encoding="utf-8")
+
+          required = [
+              "## FINISHED",
+              "## REMAINING",
+              "MarketMakingLFG/ppi-data-acquisition",
+              "1312286476",
+              "r11-public-acquisition-protected",
+              "8 / 80",
+              "2 / 20",
+              "QCOM, MRVL, GFS, TXN",
+              "automatic registry mutation `disabled`",
+              "Implementation completion alone never grants pilot evidence or registry credit.",
+          ]
+          missing = [value for value in required if value not in text]
+          assert not missing, f"missing fail-closed ledger invariants: {missing}"
+
+          stale = [
+              "spoudel2010-ux/ppi-data-acquisition",
+          ]
+          present = [value for value in stale if value in text]
+          assert not present, f"stale producer identity in canonical ledger: {present}"
+          PY
