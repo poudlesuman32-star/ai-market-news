@@ -4,7 +4,7 @@
 **Verified:** September 14, 2026  
 **Scope:** `poudlesuman32-star/ai-market-news`, `MarketMakingLFG/ppi-data-acquisition` (repository ID `1312286476`), and `musksuman3/ai-signal-engine`
 
-This document is the current-state companion to `PPI_R11_BATCH3_R2_ALIGNMENT_ADDENDUM.md`. The alignment addendum records the frozen architecture decision. This document records what is actually deployed and what still has to happen before a real pilot evidence dossier can be completed.
+This document is the canonical FINISHED-versus-REMAINING current-state ledger for the public-first/R11 batch-3 R2 chain. `PPI_R11_BATCH3_R2_ALIGNMENT_ADDENDUM.md` records the frozen architecture decision. Implementation completion, prerequisite completion, control-plane success, and successful collection do **not** equal accepted real-pilot evidence or registry credit.
 
 Nothing in this document authorizes provider acquisition, private analysis, registry mutation, package publication, production/publication/broker/order/trading/MMM/raw-data/R12 authority, secret disclosure, or fabrication of environment or pilot evidence.
 
@@ -18,17 +18,29 @@ Nothing in this document authorizes provider acquisition, private analysis, regi
 - Consumer repository: `musksuman3/ai-signal-engine`
 - Protected producer environment name: `r11-public-acquisition-protected`
 
+## Proven prerequisite receipts
+
+The four public-first prerequisites required for PR `#122` remain retained and unexpired at this verification point:
+
+- stable-ID allocation: run `34081406609`, attempt `1`, artifact `10003800820`, digest `sha256:af31339079a01d6eb7ca3f20e36f563f369ef679c06c4142019c3f5439d42648`, expires `2026-09-21T03:58:01Z`;
+- stable-ID independent review: run `34081955551`, attempt `1`, artifact `10003963984`, digest `sha256:3202b464bcc46c77ea1a09fda986962ec9a398830f76b7b7a5ec69a355c46168`, expires `2026-09-21T04:07:50Z`;
+- immutable snapshot: run `34082325289`, attempt `1`, artifact `10004075428`, digest `sha256:f85ecff12afb8625ab5e8746cbe87c18a782f6645d9b95b42f09732034d5cff2`, expires `2026-09-21T04:14:11Z`;
+- immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, expires `2026-09-22T06:19:44Z`.
+
+PR `#122` is historical and already merged after those prerequisites were proven. These receipts do not constitute batch-3 pilot evidence or registry credit.
+
 ## FINISHED — deterministic remediation and propagation
 
 ### Control plane and architecture
 
-- `poudlesuman32-star/ai-market-news#116`, `#123`, `#143`, `#144`, `#145`, `#146`, `#148`, and `#149` are merged.
+- `poudlesuman32-star/ai-market-news#116`, `#123`, `#143`, `#144`, `#145`, `#146`, `#148`, `#149`, and `#150` are merged.
 - `#143` established the canonical finished-versus-remaining remediation document on `main`.
 - `#144` refreshed the implementation/pilot ledger and canonical R2 bootstrap identities.
 - `#145` removed an unrelated automatic SEC-pilot push trigger and canonicalized private-handoff producer identity/repository ID without executing providers.
 - `#146` hardened the completed-job-log evidence path and added a read-only protected-environment dispatch hold.
 - `#148` refreshed this ledger after those changes propagated.
 - `#149` merged at exact head `35b90f27f40b9027a50c36da902ed1daffd2c20d`, merge commit `8f82a988f8e915526ae54bfc4a1fc3f9d26d58ee`, after exact-head `PPI public news pipeline` run `34898781943` completed successfully. It added zero-provider protected-environment workflow binding, fail-closed policy preflight, schema-`1.1.0` receipt generation, and focused tests.
+- `#150` merged at exact head `29129d2a26d134993745b5827c1ba84e0b706c06`, merge commit `e8dd98333c76e1fe43e3391bfd29d1c053f71f18`, after exact-head `PPI public news pipeline` run `34907215123`, attempt `1`, and `PPI R11 status ledger CI` run `34907215117`, attempt `1`, both completed successfully. It added fail-closed CI for this canonical ledger.
 - The existing private billing/recovery hold is unchanged: automatic private final-analysis dispatch remains disabled.
 
 ### Private consumer
@@ -81,7 +93,7 @@ Retained safe-success artifact `10126430126`, `ppi-r11-public-success-3440864459
 
 ## REMAINING before a real pilot dossier can be complete
 
-### 1. Configure the real producer GitHub Environment
+### 1. Configure and prove the real producer GitHub Environment
 
 This is now the primary infrastructure gate.
 
@@ -123,7 +135,7 @@ Registry mutation, production publication, broker/order/trading authority, MMM/r
 
 ## Controller and registry truth
 
-`musksuman3/ai-signal-engine#13` remains fail-closed:
+`musksuman3/ai-signal-engine#13` remains fail-closed at the latest inspected state:
 
 - controller `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -131,9 +143,14 @@ Registry mutation, production publication, broker/order/trading authority, MMM/r
 - accepted cumulative batches `2 / 20`;
 - frozen next batch `3: QCOM, MRVL, GFS, TXN`;
 - automatic registry mutation `disabled`;
+- automation health remains `stalled`;
 - production/publication/broker/order/trading/R12 authority `none`.
 
 Implementation completion alone never grants pilot evidence or registry credit.
+
+## Closed tracker #117
+
+`poudlesuman32-star/ai-market-news#117` remains closed. Its deterministic R2 implementation/remediation record remains historical evidence and does not authorize a real pilot or grant registry credit.
 
 ## Not remaining remediation
 
