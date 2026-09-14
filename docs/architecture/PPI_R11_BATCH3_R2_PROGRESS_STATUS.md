@@ -17,7 +17,7 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34796608093`, attempt `1`, completed `failure`. Bridge job `103830820152` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge remains run `34791555622`, attempt `1`; bridge job `103816619659` verified the exact immutable snapshot and confirmed the exact immutable review already exists without redispatch.
+Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34796608093`, attempt `1`, completed `failure`. Bridge job `103830820152` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is now run `34807387222`, attempt `1`; bridge job `103861819126` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — fresh external dispatch, still non-countable
 
@@ -58,7 +58,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newest producer remediation-controller run remains `34794852708`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103825853427` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
+Newest producer remediation-controller run is `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103877780235` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
 
 ## Closed tracker #117
 
