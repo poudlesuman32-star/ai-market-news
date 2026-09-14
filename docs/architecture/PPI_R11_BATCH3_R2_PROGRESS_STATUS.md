@@ -11,13 +11,13 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Canonical producer architecture identity is `MarketMakingLFG/ppi-data-acquisition`, repository ID `1312286476`.
 - R2 public acquisition lineage is `PPI-R11-PUBLIC-ACQUISITION-003-R2`; R2 collector lineage is `PPI-PUBLIC-COLLECTOR-003-R2`; private analytical lineage is `PPI-R11-BATCH-EVIDENCE-003-R1`.
 - R11 batch-3 R2 code remediation remains treated as complete unless new exact evidence proves a regression. Deterministic sharding/resumability, private checkpoints, exact final-ZIP provenance attestation, public retained-package leak scanning, success/failure retention separation, consumer exact-run trust/materialization, safe extraction, no-network/no-token private analysis, replay/no-duplicate-credit protection, review-only registry proposal, and evidence-dossier validation remain implemented.
-- Stable-ID allocation prerequisite: run `34081406609`, attempt `1`, artifact `10003800820`, digest `sha256:af31339079a01d6eb7ca3f20e36f563f369ef679c06c4142019c3f5439d42648`, retained/unexpired through `2026-09-21`.
-- Stable-ID independent review: run `34081955551`, attempt `1`, artifact `10003963984`, digest `sha256:3202b464bcc46c77ea1a09fda986962ec9a398830f76b7b7a5ec69a355c46168`, retained/unexpired through `2026-09-21`.
-- Immutable snapshot prerequisite: run `34082325289`, attempt `1`, artifact `10004075428`, digest `sha256:f85ecff12afb8625ab5e8746cbe87c18a782f6645d9b95b42f09732034d5cff2`, retained/unexpired through `2026-09-21`.
-- Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
+- Stable-ID allocation prerequisite: run `34081406609`, attempt `1`, artifact `10003800820`, digest `sha256:af31339079a01d6eb7ca3f20e36f563f369ef679c06c4142019c3f5439d42648`, retained/unexpired through `2026-09-21T03:58:01Z`.
+- Stable-ID independent review: run `34081955551`, attempt `1`, artifact `10003963984`, digest `sha256:3202b464bcc46c77ea1a09fda986962ec9a398830f76b7b7a5ec69a355c46168`, retained/unexpired through `2026-09-21T04:07:50Z`.
+- Immutable snapshot prerequisite: run `34082325289`, attempt `1`, artifact `10004075428`, digest `sha256:f85ecff12afb8625ab5e8746cbe87c18a782f6645d9b95b42f09732034d5cff2`, retained/unexpired through `2026-09-21T04:14:11Z`.
+- Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22T06:19:44Z`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34796608093`, attempt `1`, completed `failure`. Bridge job `103830820152` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is now run `34807387222`, attempt `1`; bridge job `103861819126` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
+Fresh read-only prerequisite/control-plane observation on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`: chain-depth bridge run `34816205561`, attempt `1`, completed `failure`. Bridge job `103887300524` successfully located the latest historical OpenFIGI review, then failed exact review-receipt verification before any downstream dispatch step; all stable-ID/snapshot dispatch steps were skipped. This reproduces the known zero-provider historical review-artifact lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge remains run `34807387222`, attempt `1`; bridge job `103861819126` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
 
 ## NEWEST EXACT PRODUCER EVIDENCE — fresh external dispatch, still non-countable
 
@@ -39,13 +39,13 @@ The prior externally dispatched candidate `34729730058-1` remains historical non
 4. **Canonical producer identity consistency:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. README also still describes R1 public acquisition/collector lineage. Correct these identity-bearing surfaces together with focused consistency validation before any fresh countable pilot; do not partially rewrite a single surface and claim completion.
 5. **Separately authorized countable pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
 6. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
-7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34796608093-1` failed at exact historical review-receipt verification before stable-ID/snapshot dispatch. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work.
+7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34816205561-1` failed at exact historical review-receipt verification before stable-ID/snapshot dispatch. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work.
 
 Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact accepted batch-3 evidence and governance acceptance.
 
 ## Live controller / registry truth
 
-Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evaluated at `2026-09-11T21:46:24Z`:
+Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body was last evaluated at `2026-09-14T06:27:21Z`:
 
 - controller state `R10_SOURCE_CONTROL_ACTIVE`;
 - R11 registry `collecting`;
@@ -58,7 +58,7 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newest producer remediation-controller run is `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103877780235` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
+Newest producer remediation-controller run remains `34812965264`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103877780235` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
 
 ## Closed tracker #117
 
