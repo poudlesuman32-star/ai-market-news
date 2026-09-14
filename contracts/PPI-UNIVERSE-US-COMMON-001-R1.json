@@ -5,7 +5,7 @@
   "implementation_phase": "source_inventory_contract_and_schema_validation_only",
   "source_repository": "poudlesuman32-star/ai-market-news",
   "source_repository_id": 1290414659,
-  "acquisition_repository": "spoudel2010-ux/ppi-data-acquisition",
+  "acquisition_repository": "MarketMakingLFG/ppi-data-acquisition",
   "acquisition_repository_id": 1312286476,
   "private_repository": "musksuman3/ai-signal-engine",
   "private_repository_id": 1290626648,
@@ -97,7 +97,7 @@
       },
       {
         "path": "bootstrap/ppi-data-acquisition/config/r11_batch_003.json",
-        "git_blob_sha1": "c1077b23b75d4296467eb242d356c8cdd4a6f399"
+        "git_blob_sha1": "064043cdc4d5b3ce26619c7b449f3c6366977fe5"
       }
     ]
   },
