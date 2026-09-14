@@ -1,10 +1,10 @@
 # PPI R11 Batch-3 R2 Progress Status
 
-**Status date:** September 13, 2026  
+**Status date:** September 14, 2026  
 **Program:** PPI R11 cumulative shadow validation  
 **Authoritative progress:** `8 / 80` approved tickers and `2 / 20` countable batches
 
-This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 batch-3 R2 chain. Implementation completion, prerequisite completion, and control-plane health do **not** equal accepted real-pilot evidence or registry credit.
+This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 batch-3 R2 chain. Implementation completion, prerequisite completion, a successful collection job, and control-plane health do **not** equal accepted real-pilot evidence or registry credit.
 
 ## FINISHED — reviewed implementation and proven prerequisites
 
@@ -17,31 +17,30 @@ This is the canonical FINISHED versus REMAINING ledger for the public-first/R11 
 - Immutable snapshot independent review: run `34194168149`, attempt `1`, artifact `10043252120`, digest `sha256:d8994b956652ba4a317ad7629535a074415ceae468cd5cb6a68964391584d4fb`, retained/unexpired through `2026-09-22`.
 - PR `#122` is already merged only after the four prerequisite receipts were proven. Its pre-merge head `f552dd50cc8e2213cfa34e83daf228f220c44baa` had hosted workflow run `33948943154` green; merge commit/current `ai-market-news` main is `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a`.
 
-Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include newest chain-depth bridge run `34790015865`, attempt `1`, schedule event, completed `failure`. Bridge job `103812380187` located historical OpenFIGI review run `33262596949`, attempt `1`, then failed at `Verify exact review receipt passed` because exact non-expired artifact `ppi-openfigi-mapping-artifact-review-33262596949-1` was not uniquely resolved. This is the same known chain-depth artifact-lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is now run `34791555622`, attempt `1`; bridge job `103816619659` located stable-ID review `34081955551-1` and immutable snapshot `34082325289-1`, verified the exact immutable snapshot artifact, confirmed the exact immutable review already exists, and skipped redispatch.
+Fresh read-only prerequisite/control-plane observations on exact `ai-market-news` main `41976b8cd5f7f0758c2d5425fd2c7e6522634e1a` include chain-depth bridge run `34790015865`, attempt `1`, completed `failure`. The bridge located historical OpenFIGI review run `33262596949-1` and failed exact review-receipt verification because the required historical review artifact was not uniquely resolvable while non-expired. This remains the known zero-provider artifact-lifetime defect; it does not regress the retained stable-ID/snapshot prerequisites and creates no pilot evidence or registry credit. The latest successful immutable-snapshot-review bridge is run `34791555622`, attempt `1`; bridge job `103816619659` verified the exact immutable snapshot and confirmed the exact immutable review already exists without redispatch.
 
-## NEWEST EXACT PRODUCER EVIDENCE — still non-countable
+## NEWEST EXACT PRODUCER EVIDENCE — fresh external dispatch, still non-countable
 
-The latest externally dispatched producer candidate is workflow run `34729730058`, attempt `1`, `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed overall `failure`.
+A newer producer candidate appeared after the prior ledger refresh: workflow run `34795188659`, attempt `1`, event `workflow_dispatch`, exact `MarketMakingLFG/ppi-data-acquisition` main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, started `2026-09-14T01:12:58Z`, completed overall `failure`.
 
-- `collect-and-handoff` job `103650178604`: `success`, including exact-boundary validation, deterministic shard collection/reuse, private checkpoint handling, retained-package leak checks, final-ZIP provenance, exact package publication to the private handoff path, safe success receipt construction, checkpoint deletion after handoff, and public safe-success metadata retention.
-- `scan completed producer job log` job `103650548961`: `failure`.
-- The exact failure remains deterministic and unchanged: the job-log download failed before credential scanning; the scan step was skipped and no passing job-log-scan receipt was produced.
-- retained safe-success artifact: `10308983340` (`ppi-r11-public-success-34729730058-1`), retained/unexpired through `2026-10-13T01:10:35Z`, digest `sha256:609dfd3f3a42a86b7bf3c6c046ae55f8889a0378ec4131fa4a78b2dc94f6eb7d`.
-- no passing exact completed-job-log-scan receipt exists.
+- `collect-and-handoff` job `103826780328`: `success`. It completed exact public-boundary validation, deterministic four-shard collection/reuse, private checkpoint handling, retained-package secret checks, final-ZIP provenance generation, exact package handoff, safe-success receipt construction, checkpoint cleanup, safe-success metadata retention, and the public raw-upload assertion.
+- `scan completed producer job log` job `103827321317`: `failure`.
+- The exact blocking step is `Download completed collect job log`, which failed before credential scanning. The scan step was skipped. Therefore no passing exact completed-job-log-scan receipt exists for this run.
+- retained safe-success artifact `10329298326` (`ppi-r11-public-success-34795188659-1`) is unexpired through `2026-10-14T01:16:14Z`, GitHub digest `sha256:0002a22f21bc1a60c1fda08970b56a1434a7216645c123afbf586eb8ca03d67b`.
 
-**Disposition:** run `34729730058-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch that provider run.
+**Disposition:** run `34795188659-1` is **not accepted/countable pilot evidence and grants zero registry credit**. Successful collection/handoff does not satisfy the R11 batch-3 program gate while the exact completed-job-log scan gate fails. This watcher did not initiate, retry, or dispatch this provider run. No separate authorization receipt for this fresh dispatch was established by this read-only verification, so its appearance must not be treated as authorization or acceptance.
 
-Prior externally dispatched run `34661401661-1` remains non-countable; retained safe-success artifact `10287104145` has digest `sha256:b59014d97f4dc96e25f8582a88d5e548c0d06deb7a58a9e0ba74a1a0fa6fc333`. Historical rehashed receipt/package hashes remain preserved in closed tracker `#117`.
+The prior externally dispatched candidate `34729730058-1` remains historical non-countable evidence; its retained safe-success artifact `10308983340` has digest `sha256:609dfd3f3a42a86b7bf3c6c046ae55f8889a0378ec4131fa4a78b2dc94f6eb7d` and likewise lacks a passing exact completed-job-log-scan receipt.
 
 ## REMAINING — required before any batch-3 credit
 
-1. **Completed-job-log scan evidence:** deterministic download/scanning must be proven by a separately authorized later run retaining a passing exact scan receipt. Do not treat the implemented stage itself as evidence.
-2. **Provider-boundary success:** the remaining R11 batch-3 program gate is a separately authorized real producer pilot that succeeds end-to-end on the frozen boundary. No provider retry or provider substitution is authorized by this document.
+1. **Completed-job-log scan evidence:** deterministic download/scanning must be proven by an explicitly authorized later run retaining a passing exact scan receipt. Do not treat the implemented stage or a successful collection job as evidence.
+2. **Provider-boundary authorization and success:** the remaining R11 batch-3 program gate is a separately authorized real producer pilot that succeeds end-to-end on the frozen boundary. The newly observed external dispatch does not establish its own authorization.
 3. **Protected-environment evidence:** provider-bearing execution still needs exact accepted protected-environment evidence; environment/secrets governance changes require separate authorization.
 4. **Canonical producer identity consistency:** producer `main` still contains stale former slug `spoudel2010-ux/ppi-data-acquisition` in both R2 contract JSONs, `config/provider_licensing_dispositions.json`, `src/publish_private_handoff.py` release text, and README. README also still describes R1 public acquisition/collector lineage. Correct these identity-bearing surfaces together with focused consistency validation before any fresh countable pilot; do not partially rewrite a single surface and claim completion.
-5. **Separately authorized real pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
+5. **Separately authorized countable pilot:** exact frozen producer workflow must conclude success and retain provenance/package/retention/protected-environment/completed-log-scan evidence.
 6. **Later private/governance gates:** exact-run private materialization/analysis, immutable dossier acceptance, independent review-only registry proposal, and registry mutation remain separate later gates.
-7. **Chain-depth bridge artifact-lifetime defect:** newest scheduled bridge `34790015865-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`, which was not uniquely resolvable. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work; until then, do not infer prerequisite loss from this bridge failure.
+7. **Chain-depth bridge artifact-lifetime defect:** scheduled bridge `34790015865-1` failed because it requires an exact non-expired OpenFIGI review artifact from historical run `33262596949-1`, which was not uniquely resolvable. This is a zero-provider control-plane observability defect, not a regression of the retained stable-ID/snapshot prerequisites and not pilot evidence. Repair should be reviewable and fail closed without dispatching provider work.
 
 Registry credit stays atomic. Do not move to `3 / 20` or `12 / 80` without exact accepted batch-3 evidence and governance acceptance.
 
@@ -60,15 +59,15 @@ Issue `musksuman3/ai-signal-engine#13` remains fail closed and its body is evalu
 
 The issue-body R10 watch remains read-only and does not create R11 evidence or registry credit.
 
-Newest producer remediation-controller run is `34786751716`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103803510593` confirmed the remediation branch is not ahead of `main`; merge performed `false`, acquisition executed `false`, publication executed `false`. This dependency-safe controller observation does not change R11 pilot evidence or registry credit.
+Newest producer remediation-controller run is `34794852708`, attempt `1`, schedule event, exact producer main `2bbef4dc81c65ab2ee2b723f1bd4de5e34a90e88`, completed `success`. Reconcile job `103825853427` completed successfully. This dependency-safe controller observation does not itself change pilot evidence or registry credit.
 
 ## Closed tracker #117
 
-`poudlesuman32-star/ai-market-news#117` remains closed. Its FINISHED implementation/prerequisite record remains authoritative historical evidence; later comments carry fresher fail-closed observations. Do not reopen it merely for status churn. Pilot evidence and registry credit remain incomplete.
+`poudlesuman32-star/ai-market-news#117` remains closed. Its FINISHED implementation/prerequisite record remains authoritative historical evidence; later status comments may carry fresher fail-closed observations. Do not reopen it merely for status churn. Pilot evidence and registry credit remain incomplete.
 
 ## Documentation / merge gate
 
-PR `#144` is the current documentation branch. This documentation write creates a new exact head, so mergeability, current-head review cleanliness and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
+PR `#144` is the current documentation branch. This documentation write creates a new exact head, so mergeability, current-head review cleanliness, and exact-head CI must be rechecked. Do **not** merge unless the new exact head is mergeable, review-clean, and exact-head CI is green.
 
 ## Authority boundary
 
