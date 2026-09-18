@@ -47,6 +47,9 @@ FALSE_AUTHORITY_FIELDS = {
     "trading_authorized": False,
     "r12_authorized": False,
 }
+PROTECTION_MODE_HUMAN = "human_required_reviewers"
+PROTECTION_MODE_CUSTOM = "custom_deployment_protection_rule"
+SUPPORTED_PROTECTION_MODES = {PROTECTION_MODE_HUMAN, PROTECTION_MODE_CUSTOM}
 
 
 class EnvironmentPolicyError(ValueError):
@@ -185,17 +188,34 @@ def _http_get_json(path: str, *, use_token: bool = True) -> Any:
         raise EnvironmentPolicyError("GitHub policy endpoint returned malformed JSON") from exc
 
 
-def _expected_policy_config() -> tuple[int, str, bool, bool]:
+def _expected_policy_config() -> dict[str, Any]:
+    mode = os.environ.get("PPI_PROTECTION_MODE", PROTECTION_MODE_CUSTOM).strip()
+    require(mode in SUPPORTED_PROTECTION_MODES, "unsupported protected-environment approval mode")
+    credentials_bound = os.environ.get("PPI_ENVIRONMENT_CREDENTIALS_BOUND", "").strip().lower() == "true"
+    require(credentials_bound, "provider credentials are not affirmed as environment-bound")
+
+    if mode == PROTECTION_MODE_HUMAN:
+        reviewer_login = os.environ.get("PPI_REQUIRED_REVIEWER_LOGIN", "").strip()
+        require(bool(reviewer_login), "expected required reviewer login is not configured")
+        return {
+            "mode": mode,
+            "credentials_bound": credentials_bound,
+            "expected_reviewer_login": reviewer_login,
+        }
+
     raw_id = os.environ.get("PPI_PROTECTION_APP_ID", "").strip()
     slug = os.environ.get("PPI_PROTECTION_APP_SLUG", "").strip()
     require(raw_id.isdigit() and int(raw_id) > 0, "expected protection App ID is not configured")
     require(bool(slug), "expected protection App slug is not configured")
     independent = os.environ.get("PPI_PROTECTION_APP_INDEPENDENT", "").strip().lower() == "true"
-    credentials_bound = os.environ.get("PPI_ENVIRONMENT_CREDENTIALS_BOUND", "").strip().lower() == "true"
     require(independent, "protection App independence is not affirmed")
-    require(credentials_bound, "provider credentials are not affirmed as environment-bound")
-    return int(raw_id), slug, independent, credentials_bound
-
+    return {
+        "mode": mode,
+        "credentials_bound": credentials_bound,
+        "expected_app_id": int(raw_id),
+        "expected_app_slug": slug,
+        "app_independent": independent,
+    }
 
 def _rule_list(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, dict):
@@ -205,16 +225,40 @@ def _rule_list(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)]
 
 
+def _required_reviewer(environment: dict[str, Any], expected_login: str) -> dict[str, Any]:
+    rules = environment.get("protection_rules")
+    require(isinstance(rules, list), "environment protection rules are missing")
+    reviewer_rules = [
+        item for item in rules
+        if isinstance(item, dict) and item.get("type") == "required_reviewers"
+    ]
+    require(len(reviewer_rules) == 1, "exactly one required-reviewers rule must be configured")
+    rule = reviewer_rules[0]
+    require(rule.get("prevent_self_review") is True, "required reviewer self-review prevention is not enabled")
+    reviewers = rule.get("reviewers")
+    require(isinstance(reviewers, list) and len(reviewers) == 1, "exactly one independent required reviewer must be configured")
+    entry = reviewers[0]
+    require(isinstance(entry, dict) and entry.get("type") == "User", "required reviewer must be a GitHub user")
+    reviewer = entry.get("reviewer")
+    require(isinstance(reviewer, dict), "required reviewer identity is missing")
+    require(reviewer.get("login") == expected_login, "required reviewer login mismatch")
+    require(isinstance(reviewer.get("id"), int) and reviewer["id"] > 0, "required reviewer ID is invalid")
+    return reviewer
+
+
 def evaluate_environment_policy(
     environment: dict[str, Any],
     rules_value: Any,
     branch_policies: list[dict[str, Any]] | None,
     *,
-    expected_app_id: int,
-    expected_app_slug: str,
-    app_independent: bool,
     credentials_bound: bool,
+    protection_mode: str = PROTECTION_MODE_CUSTOM,
+    expected_app_id: int | None = None,
+    expected_app_slug: str = "",
+    app_independent: bool = False,
+    expected_reviewer_login: str = "",
 ) -> dict[str, Any]:
+    require(protection_mode in SUPPORTED_PROTECTION_MODES, "unsupported protected-environment approval mode")
     require(environment.get("name") == EXPECTED_ENVIRONMENT, "protected environment identity mismatch")
     require(environment.get("can_admins_bypass") is False, "administrator bypass is not denied")
     branch_policy = environment.get("deployment_branch_policy")
@@ -235,6 +279,36 @@ def evaluate_environment_policy(
     else:
         raise EnvironmentPolicyError("deployment branch restriction is missing")
 
+    require(credentials_bound, "provider credentials are not environment-bound")
+    policy: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "status": "protected_environment_policy_ready",
+        "repository": EXPECTED_REPOSITORY,
+        "repository_id": EXPECTED_REPOSITORY_ID,
+        "environment_identifier": EXPECTED_ENVIRONMENT,
+        "administrator_bypass": "denied",
+        "deployment_branch_mode": branch_mode,
+        "deployment_branch": EXPECTED_DEPLOYMENT_BRANCH,
+        "approval_mode": protection_mode,
+        "environment_credentials_bound": True,
+        "credential_roles": EXPECTED_CREDENTIAL_ROLES,
+        "authorized_actions": [],
+    }
+
+    if protection_mode == PROTECTION_MODE_HUMAN:
+        require(bool(expected_reviewer_login), "expected required reviewer login is not configured")
+        reviewer = _required_reviewer(environment, expected_reviewer_login)
+        policy.update({
+            "required_reviewers_configured": True,
+            "required_reviewer_login": expected_reviewer_login,
+            "required_reviewer_id": int(reviewer["id"]),
+            "prevent_self_review": True,
+            "custom_deployment_protection_rule_enabled": False,
+        })
+        return policy
+
+    require(isinstance(expected_app_id, int) and expected_app_id > 0, "expected protection App ID is invalid")
+    require(bool(expected_app_slug), "expected protection App slug is not configured")
     matching_rules: list[dict[str, Any]] = []
     for rule in _rule_list(rules_value):
         app = rule.get("app")
@@ -246,34 +320,26 @@ def evaluate_environment_policy(
     rule = matching_rules[0]
     require(isinstance(rule.get("id"), int) and rule["id"] > 0, "deployment protection rule ID is invalid")
     require(app_independent, "deployment protection App independence is not affirmed")
-    require(credentials_bound, "provider credentials are not environment-bound")
-
-    return {
-        "schema_version": "1.0.0",
-        "status": "protected_environment_policy_ready",
-        "repository": EXPECTED_REPOSITORY,
-        "repository_id": EXPECTED_REPOSITORY_ID,
-        "environment_identifier": EXPECTED_ENVIRONMENT,
-        "administrator_bypass": "denied",
-        "deployment_branch_mode": branch_mode,
-        "deployment_branch": EXPECTED_DEPLOYMENT_BRANCH,
+    policy.update({
+        "required_reviewers_configured": False,
         "custom_deployment_protection_rule_enabled": True,
         "protection_app_id": expected_app_id,
         "protection_app_slug": expected_app_slug,
         "protection_rule_id": int(rule["id"]),
         "protection_rule_independent_of_producer": True,
-        "environment_credentials_bound": True,
-        "credential_roles": EXPECTED_CREDENTIAL_ROLES,
-        "authorized_actions": [],
-    }
-
+    })
+    return policy
 
 def fetch_environment_policy() -> dict[str, Any]:
-    expected_app_id, expected_app_slug, independent, credentials_bound = _expected_policy_config()
+    config = _expected_policy_config()
     encoded = urllib.parse.quote(EXPECTED_ENVIRONMENT, safe="")
     environment = _http_get_json(f"/repos/{EXPECTED_REPOSITORY}/environments/{encoded}")
     require(isinstance(environment, dict), "protected environment response is invalid")
-    rules = _http_get_json(f"/repos/{EXPECTED_REPOSITORY}/environments/{encoded}/deployment_protection_rules")
+
+    rules: Any = {}
+    if config["mode"] == PROTECTION_MODE_CUSTOM:
+        rules = _http_get_json(f"/repos/{EXPECTED_REPOSITORY}/environments/{encoded}/deployment_protection_rules")
+
     branch_policy = environment.get("deployment_branch_policy")
     branch_policies: list[dict[str, Any]] | None = None
     if isinstance(branch_policy, dict) and branch_policy.get("custom_branch_policies") is True:
@@ -282,16 +348,18 @@ def fetch_environment_policy() -> dict[str, Any]:
         )
         require(isinstance(value, dict) and isinstance(value.get("branch_policies"), list), "deployment branch policy response is invalid")
         branch_policies = [item for item in value["branch_policies"] if isinstance(item, dict)]
+
     return evaluate_environment_policy(
         environment,
         rules,
         branch_policies,
-        expected_app_id=expected_app_id,
-        expected_app_slug=expected_app_slug,
-        app_independent=independent,
-        credentials_bound=credentials_bound,
+        credentials_bound=bool(config["credentials_bound"]),
+        protection_mode=str(config["mode"]),
+        expected_app_id=config.get("expected_app_id"),
+        expected_app_slug=str(config.get("expected_app_slug") or ""),
+        app_independent=bool(config.get("app_independent")),
+        expected_reviewer_login=str(config.get("expected_reviewer_login") or ""),
     )
-
 
 def workflow_policy_flags(workflow_path: Path) -> tuple[bool, bool]:
     require(workflow_path.is_file() and not workflow_path.is_symlink(), "producer workflow source is missing or unsafe")
@@ -328,8 +396,10 @@ def build_environment_receipt(
     require(len(source_sha) == 40 and all(char in "0123456789abcdef" for char in source_sha), "source SHA invalid")
     require(run_id > 0 and run_attempt > 0, "workflow run identity invalid")
 
+    approval_mode = policy.get("approval_mode")
+    require(approval_mode in SUPPORTED_PROTECTION_MODES, "protected environment policy approval mode invalid")
     policy_digest = hashlib.sha256(canonical_json(policy)).hexdigest()
-    receipt = {
+    receipt: dict[str, Any] = {
         "schema_version": "1.1.0",
         "status": "protected_environment_evidence_reviewed",
         "repository": repository,
@@ -341,17 +411,12 @@ def build_environment_receipt(
         "run_attempt": run_attempt,
         "environment_identifier": EXPECTED_ENVIRONMENT,
         "captured_at_utc": utc_now(),
-        "approval_mode": "custom_deployment_protection_rule",
-        "required_reviewers_configured": False,
+        "approval_mode": approval_mode,
+        "required_reviewers_configured": policy.get("required_reviewers_configured") is True,
         "deployment_branch_restrictions_configured": True,
         "administrator_bypass": "denied",
         "job_targets_environment": True,
-        "custom_deployment_protection_rule_enabled": True,
-        "protection_app_slug": policy["protection_app_slug"],
-        "protection_app_id": policy["protection_app_id"],
-        "protection_rule_id": policy["protection_rule_id"],
-        "protection_rule_decision": "approved",
-        "protection_rule_independent_of_producer": True,
+        "custom_deployment_protection_rule_enabled": policy.get("custom_deployment_protection_rule_enabled") is True,
         "credential_roles": EXPECTED_CREDENTIAL_ROLES,
         "credentials_unavailable_to_untrusted_contexts": True,
         "least_privilege_permissions_reviewed": True,
@@ -361,8 +426,18 @@ def build_environment_receipt(
         "authorized_actions": [],
         **FALSE_AUTHORITY_FIELDS,
     }
+    if approval_mode == PROTECTION_MODE_HUMAN:
+        receipt["required_reviewer_login"] = policy["required_reviewer_login"]
+        receipt["prevent_self_review"] = True
+    else:
+        receipt.update({
+            "protection_app_slug": policy["protection_app_slug"],
+            "protection_app_id": policy["protection_app_id"],
+            "protection_rule_id": policy["protection_rule_id"],
+            "protection_rule_decision": "approved",
+            "protection_rule_independent_of_producer": True,
+        })
     return receipt
-
 
 def run_environment_preflight(output: Path) -> int:
     try:
@@ -378,12 +453,17 @@ def run_environment_preflight(output: Path) -> int:
         print(json.dumps({"status": "blocked", "reason": str(exc)}, sort_keys=True))
         return 1
     write_json(output, policy)
-    print(json.dumps({
+    summary = {
         "status": "ready",
         "environment_identifier": policy["environment_identifier"],
-        "protection_rule_id": policy["protection_rule_id"],
-        "protection_app_slug": policy["protection_app_slug"],
-    }, sort_keys=True))
+        "approval_mode": policy["approval_mode"],
+    }
+    if policy["approval_mode"] == PROTECTION_MODE_HUMAN:
+        summary["required_reviewer_login"] = policy["required_reviewer_login"]
+    else:
+        summary["protection_rule_id"] = policy["protection_rule_id"]
+        summary["protection_app_slug"] = policy["protection_app_slug"]
+    print(json.dumps(summary, sort_keys=True))
     return 0
 
 
@@ -413,10 +493,9 @@ def run_environment_receipt(log_scan_receipt_path: Path, output: Path) -> int:
         "environment_identifier": receipt["environment_identifier"],
         "run_id": receipt["run_id"],
         "run_attempt": receipt["run_attempt"],
-        "protection_rule_id": receipt["protection_rule_id"],
+        "approval_mode": receipt["approval_mode"],
     }, sort_keys=True))
     return 0
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scan producer job logs and validate protected-environment evidence")
