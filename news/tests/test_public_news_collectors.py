@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ai_market_news.collect_company_releases import collect_company_release_fixture, main as company_main
 from ai_market_news.collect_sec import collect_sec_fixture, main as sec_main
@@ -114,13 +115,14 @@ class PublicNewsCollectorTests(unittest.TestCase):
                     "--collected-at", COLLECTED_AT,
                     "--mode", "live",
                 ])
-            with self.assertRaisesRegex(CollectorError, "requires a user agent"):
-                company_main([
-                    "--config", str(ROOT / "news/config/official_company_sources.json"),
-                    "--output", str(output),
-                    "--collected-at", COLLECTED_AT,
-                    "--mode", "live",
-                ])
+            with patch.dict("os.environ", {"SEC_USER_AGENT": ""}):
+                with self.assertRaisesRegex(CollectorError, "requires a user agent"):
+                    company_main([
+                        "--config", str(ROOT / "news/config/official_company_sources.json"),
+                        "--output", str(output),
+                        "--collected-at", COLLECTED_AT,
+                        "--mode", "live",
+                    ])
 
     def test_cli_writes_canonical_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
