@@ -28,3 +28,19 @@ The registered batch is bound to:
 - registry merge commit `20cc9c706cb4578f3c11b575b2524f42e15d8dcd`.
 
 No protection bypass was used. Production, publication, broker, order, trading, MMM/raw-data, and R12 authority remain disabled.
+
+
+## Immutable dossier closure
+
+The final private dossier contract is now closed with a byte-validated `REGISTERED` root.
+
+- evidence workflow: `musksuman3/ai-signal-engine` run `36818247935/1`, head `f38f6d5b7df0d01bfb151ef9e330a8dc10ca96d3`;
+- normalized evidence artifact: `11142855165`, digest `sha256:78b6d720c4a2218e298cad916a39bf4da54adbd62e8f7d7ee25d59e2292835a3`;
+- finalizer workflow: run `36818271428/1`, conclusion `success`;
+- final REGISTERED dossier artifact: `11142840332`, digest `sha256:f1876ecaaf0bf288523466f7d2e503a1c3c6ed0b2dd725108900dd96f4bb1ce3`;
+- canonical dossier ID: `sha256:d526c037137ae74bf27e67e5791e3013e63036712d59c016e6992b11f6cb66e2`;
+- validator status: `validated_r11_batch3_r2_pilot_dossier_root`;
+- mandatory evidence classes: `16 / 16`;
+- `authorized_actions: []` and every production/publication/registry/broker/order/trading/MMM/R12 authority field remains `false`.
+
+The downloaded root was independently recomputed and its canonical SHA-256 matched the retained `dossier_id` exactly.
