@@ -2,93 +2,112 @@
 
 **Status date:** October 1, 2026 UTC  
 **Program:** PPI R11 cumulative shadow validation  
-**Batch-4 state:** **IN PROGRESS — provider credit window blocked; fail-closed checkpoint retained**  
+**Batch-4 state:** **IN PROGRESS — protected acquisition and private analysis proven; October 1 evidence is non-countable because its trading date duplicates batch 3**  
 **Authoritative R11 registry:** **12 / 80 approved tickers and 3 / 20 countable batches**
 
 ## Frozen batch-4 scope
 
-Batch 4 is the next exact frozen queue cohort:
+Batch 4 remains the exact frozen queue cohort:
 
 `STM, ON, NXPI, MCHP`
 
-The cumulative batch-4 cohort is 16 tickers:
+The cumulative batch-4 cohort is:
 
 `AAPL, MU, NVDA, AMD, AVGO, INTC, TSM, ARM, QCOM, MRVL, GFS, TXN, STM, ON, NXPI, MCHP`
 
-The reviewed batch-4 boundary preserves:
+The frozen boundary remains 64 evidence bundles, 66 retained package paths, 65 provider operations, 16 Alpha Vantage `NEWS_SENTIMENT` operations, 16 Yahoo/yfinance expectation-history operations, 17 MarketData daily-candle operations including `QQQ`, 16 MarketData option-chain operations, and four deterministic four-ticker shards.
 
-- public acquisition contract `PPI-R11-PUBLIC-ACQUISITION-004-R1`;
-- collector release `PPI-PUBLIC-COLLECTOR-004-R1`;
-- private analytical contract `PPI-R11-BATCH-EVIDENCE-004-R1`;
-- 64 evidence bundles;
-- 66 retained package paths;
-- 65 provider operations;
-- 16 Alpha Vantage `NEWS_SENTIMENT` operations;
-- 16 Yahoo/yfinance expectation-history operations;
-- 17 MarketData daily-candle operations including `QQQ`;
-- 16 MarketData option-chain operations;
-- four deterministic shards of four tickers each;
-- public raw storage disabled;
-- all production/publication/broker/order/trading/MMM/R12 authority disabled.
+Public raw storage and all production/publication/broker/order/trading/MMM/R12 authority remain disabled.
 
-## Implementation and trust boundary
+## Implemented provider and trust hardening
 
-Producer batch-4 implementation merged through `MarketMakingLFG/ppi-data-acquisition#24` at `84e25ef834d9986aef404cfeff6ffe4b3621c17a`.
+The independently hosted deployment-protection service continues under `r11-autonomous-v3`, with App ID `5112236`, installation `165898080`, producer repository ID `1312286476`, protection rule `67004141`, and main-only branch policy `60290047`. No protection bypass has been used.
 
-Private batch-4 contract was reviewed separately and merged before implementation. The private implementation then merged through `musksuman3/ai-signal-engine#273` at `bdb10cb247c0080a0ed0320c8947588dc51e4901`.
+Producer hardening through PRs #26-#28 added historical-EOD option-chain pricing, rate-limit classification, live QQQ quota preflight, mandatory quota headers, exact budget checks, non-reused preflight across retries, and order-independent prior-session selection. PR #30 then corrected the Yahoo/yfinance helper allowlist so the frozen new batch-4 tickers `STM, ON, NXPI, MCHP` are accepted without changing the provider mapping.
 
-The independently hosted deployment-protection service was updated to the exact batch-4 protected workflow allowlist. Render deployment `dep-dauv5841nsns73fs4fc0` is live. Its startup self-test passed with policy `r11-autonomous-v3`, App ID `5112236`, installation `165898080`, repository ID `1312286476`, protection rule `67004141`, and main-only branch policy `60290047`.
+## Successful protected producer evidence
 
-No protection bypass was used.
+The accepted October 1 producer evidence run is:
 
-## Producer pilot evidence so far
+- run: `36918497582/1`;
+- head: `ff4d7a76db340d6da633e42faa55cc7b0ce91c3e`;
+- autonomous deployment protection: approved;
+- protected-environment preflight: passed;
+- provider calls this attempt: `65`;
+- bundle count: `64`;
+- retained package paths: `66`;
+- deterministic shards: `4 / 4`, all recomputed;
+- public raw package upload: false;
+- private handoff ZIP SHA-256: `1dbda5c1398a5073c0fb76d2f3ef7dce3004dab57a41f2a1885e0803b106f7cc`;
+- provenance attestation: `51942450`;
+- private release ID: `401311399`;
+- private asset ID: `604039298`.
 
-The protected producer run is `36821116213`, head:
+Retained public-safe success artifact:
 
-`d362e635054bd6b7a313d41e8c2236cd20ac2122`
+- artifact ID `11191207271`;
+- digest `sha256:e273e886a655bb6dbd072b26b12cf0ece8432b5cf3852bc3e8a63055974a5a0d`.
 
-Attempt 1 was independently approved by `r11-autonomous-v3` and failed closed during provider collection after MarketData returned HTTP 429 on bounded retries. The safe failure receipt recorded:
+The completed producer job-log scan also passed:
 
-- `provider_calls_this_attempt: 24`;
-- `resumed_from_attempt: null`;
-- `reused_shards: []`;
-- no package publication;
-- no private analysis;
-- no registry action.
+- artifact ID `11191511412`;
+- digest `sha256:f8f0a144f0295a3361e86a7da106017ce7e7412566b1572c4dc80d7f9ba1fb16`;
+- exact secret matches: `0`;
+- encoded-secret matches: `0`;
+- authorization-header matches: `0`;
+- credential-query matches: `0`.
 
-A private authenticated checkpoint was persisted.
+The earlier quota and Yahoo-helper failures remain valid fail-closed evidence but are superseded operationally by this successful exact run.
 
-Attempt 2 was independently approved again, restored the prior checkpoint, and reused verified shard 0. It also failed closed at the first new MarketData request because the provider credit window remained exhausted. Its safe failure receipt recorded:
+## Private exact-run analysis
 
-- `provider_calls_this_attempt: 8`;
-- `resumed_from_attempt: 1`;
-- `reused_shards: [0]`;
-- no package publication;
-- no private analysis;
-- no registry action.
+Private analysis is bound to the exact successful producer handoff above.
 
-The completed attempt-2 job log was scanned successfully:
+The final successful private analysis run is:
 
-- exact secret matches: 0;
-- encoded-secret matches: 0;
-- authorization-header matches: 0;
-- credential-query matches: 0.
+- run: `36922325143/1`;
+- private head: `b61e9d893767487ba25c7015796ec9599b1798a4`;
+- success artifact ID: `11192631922`;
+- artifact digest: `sha256:41ba4c4f0191e9cc7088927e49ddf1a0dec3a9acabd30d01bcb195c1e217a683`.
 
-## Provider-limit remediation
+It successfully completed:
 
-Market Data documents daily credit windows for Free/Starter/Trader-class plans and a reset at 9:30 AM Eastern Time. The next retry is intentionally deferred until after that reset instead of burning repeated provider attempts inside the exhausted credit window.
+- exact private release materialization;
+- exact batch-4 handoff and timestamp validation;
+- network-disabled/token-free private scoring;
+- explicit non-countable registry guard;
+- retained-output secret scan;
+- non-authorizing replay receipt.
 
-The existing authenticated checkpoint remains the only allowed reuse source. On the next attempt, only complete verified shards may be reused; incomplete shards must be recomputed. Any identity drift, protection failure, credential leak, provider failure, package mismatch, private-analysis failure, or duplicate-credit condition remains fail closed.
+The retained receipts show:
+
+- `disposition: not_countable`;
+- sole reason: `trading_date_already_registered`;
+- score trading date: `2026-09-30`;
+- `registry_proposal_created: false`;
+- retained secret finding count: `0`;
+- replay status: `recorded_r11_private_replay_identity`;
+- replay authorization: false;
+- registry mutation authorization: false;
+- `authorized_actions: []`.
+
+This is a valid fail-closed analytical outcome, not a provider or security failure. Batch 3 already registered trading date `2026-09-30`, so duplicate-date protection correctly denies batch-4 credit from this evidence.
 
 ## Registry effect
 
-**None yet.**
+**None.**
 
-Batch 4 has not earned registry credit. The authoritative registry remains:
+The authoritative registry remains:
 
 - accepted countable batches: **3 / 20**;
 - approved tickers: **12 / 80**;
 - status: `collecting`;
 - `r12_authorized: false`.
 
-Only a completed protected producer run, passing private exact-run analysis, countable-candidate disposition, immutable dossier validation, and CI-gated one-file registry governance may advance batch 4 to 4/20 and 16/80.
+No registry proposal exists for the October 1 batch-4 evidence.
+
+## Next permitted action
+
+The next useful protected acquisition must occur on a later provider session after the daily reset so that the reviewed market evidence can establish a distinct trading date. The next autonomous attempt is scheduled for October 2 after the provider reset.
+
+If that fresh evidence still resolves to an already-registered trading date, it must remain non-countable and the registry must stay unchanged. Only a distinct trading date plus all existing producer, private-analysis, countability, CI, registry-governance, and immutable-dossier gates may advance R11 to **4 / 20 batches and 16 / 80 tickers**.
