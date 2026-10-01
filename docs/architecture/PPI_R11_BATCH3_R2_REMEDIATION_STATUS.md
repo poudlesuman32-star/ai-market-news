@@ -162,3 +162,5 @@ Current remaining program-level state:
 - `r12_authorized` remains `false`.
 
 Production, publication, broker, order, trading, MMM/raw-data, and R12 authority remain disabled.
+
+Routine automatic registry mutation `disabled`; batch-3 registry credit was applied through the exact CI-gated one-file governance PR described above. Implementation completion alone never grants pilot evidence or registry credit.
