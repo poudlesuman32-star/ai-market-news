@@ -1,8 +1,8 @@
 {
-  "data_commit": "7c7125093bc47f0b9570d1cc24c4deac3eb200be",
-  "public_commit": "916329917f7701669bcffe88907cfab1dd970743",
+  "data_commit": "c56701be616103ed09c1e26195384b3682f390d2",
+  "public_commit": "6fde5936fe6ea7e862a81a0bb9f2790d842a8aab",
   "schema_version": "1.0.0",
-  "snapshot_path": "snapshots/2026-11-12T041958Z-54068650-1",
+  "snapshot_path": "snapshots/2026-11-13T033713Z-60162264-1",
   "target_end_date": "2026-07-24",
   "target_window_complete": true
 }
